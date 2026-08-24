@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="minipost-api" content="/api/request" />
+  <title>MiniPost — Python Proxy API Client</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">M</div>
+        <h1>MiniPost</h1>
+        <span class="badge">Python proxy</span>
+      </div>
+      <div class="top-actions">
+        <button id="newRequestBtn" class="btn small" type="button" title="新しいリクエスト">＋ <span>New</span></button>
+        <button id="mobileHistoryBtn" class="btn small mobile-history" type="button">履歴</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <span>History</span>
+        <button id="clearHistoryBtn" class="btn small danger" type="button">Clear</button>
+      </div>
+      <div id="historyList" class="history"></div>
+    </aside>
+
+    <main class="workspace">
+      <section class="request-bar" aria-label="リクエスト">
+        <select id="method" class="control method-select" aria-label="HTTPメソッド">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+          <option>HEAD</option>
+          <option>OPTIONS</option>
+        </select>
+        <input id="url" class="control" type="url" spellcheck="false" autocomplete="off" placeholder="http://host.docker.internal:3000/api/health" />
+        <button id="sendBtn" class="btn primary" type="button">Send</button>
+      </section>
+
+      <section class="panel" aria-label="リクエスト設定">
+        <nav class="tabs" id="requestTabs">
+          <button class="tab active" data-tab="params" type="button">Params <span id="paramsCount"></span></button>
+          <button class="tab" data-tab="headers" type="button">Headers <span id="headersCount"></span></button>
+          <button class="tab" data-tab="body" type="button">Body</button>
+          <button class="tab" data-tab="options" type="button">Options</button>
+        </nav>
+
+        <div id="tab-params" class="tab-content active">
+          <div id="paramsList" class="kv-list"></div>
+          <div class="kv-actions">
+            <button id="addParamBtn" class="btn small" type="button">＋ Add parameter</button>
+          </div>
+        </div>
+
+        <div id="tab-headers" class="tab-content">
+          <div id="headersList" class="kv-list"></div>
+          <div class="kv-actions">
+            <button id="addHeaderBtn" class="btn small" type="button">＋ Add header</button>
+          </div>
+        </div>
+
+        <div id="tab-body" class="tab-content">
+          <div class="body-toolbar">
+            <select id="bodyMode" class="control body-mode" aria-label="Body形式">
+              <option value="none">none</option>
+              <option value="json">JSON</option>
+              <option value="text">Text</option>
+              <option value="form">x-www-form-urlencoded</option>
+            </select>
+            <button id="formatBodyBtn" class="btn small" type="button">Format JSON</button>
+          </div>
+          <textarea id="body" class="body-editor" spellcheck="false" placeholder='{"hello":"world"}' disabled></textarea>
+        </div>
+
+        <div id="tab-options" class="tab-content">
+          <div class="options-grid">
+            <label class="option">
+              <input id="verifyTls" type="checkbox" checked />
+              TLS証明書を検証
+            </label>
+            <label class="option">
+              <input id="followRedirects" type="checkbox" checked />
+              Redirectを追従
+            </label>
+            <label class="option">
+              Timeout
+              <input id="timeout" class="control timeout-input" type="number" min="0" max="600000" step="1000" value="30000" /> ms
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="レスポンス">
+        <div class="response-head">
+          <span class="response-title">Response</span>
+          <div class="response-summary">
+            <span id="statusMetric" class="metric">—</span>
+            <span id="timeMetric" class="metric">— ms</span>
+            <span id="sizeMetric" class="metric">— B</span>
+          </div>
+          <div class="response-spacer"></div>
+          <div class="response-toolbar">
+            <button id="responseBodyTab" class="btn small" type="button">Body</button>
+            <button id="responseHeadersTab" class="btn small" type="button">Headers</button>
+            <button id="copyResponseBtn" class="btn small" type="button">Copy</button>
+          </div>
+        </div>
+        <div id="responseEmpty" class="empty-state">
+          <div>
+            <strong>リクエストを送ると、ここにレスポンスが出ます。</strong><br />
+            <span>Ctrl / ⌘ + Enter でも送信できます。</span>
+          </div>
+        </div>
+        <pre id="responseView" class="response-view" hidden></pre>
+      </section>
+
+      <p class="notice">
+        リクエストは同一オリジンの <code>Python backend</code> を経由するため、接続先APIの <code>CORS</code> 設定には依存しません。
+        Dockerホスト上のAPIには <code>host.docker.internal</code> を使ってください。このアプリをインターネットへ直接公開しないでください。
+      </p>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
