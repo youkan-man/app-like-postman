@@ -9,6 +9,9 @@ export function rows(value) {
     const at = line.indexOf(':');
     return {key: at < 0 ? line : line.slice(0, at), value: at < 0 ? '' : line.slice(at + 1).trim(), disabled: false};
   });
+  // Collection v2.0 auth helpers use attribute objects; v2.1 uses key/value arrays.
+  // Keep the same editor/compiler representation without mutating the imported object.
+  if (value && typeof value === 'object' && !Array.isArray(value)) value = Object.entries(value).map(([key, value]) => ({key, value}));
   return (Array.isArray(value) ? value : []).filter(row => row && typeof row === 'object').map(row => ({...row, key: text(row.key), value: text(row.value), disabled: !enabled(row)}));
 }
 export function splitUrl(raw = '') {
@@ -84,6 +87,17 @@ export function importPostman(input, filename = 'Import') {
   const result = {collections: [], environments: [], globals: [], warnings: []};
   function accept(value, name) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${name}: PostmanのJSONオブジェクトではありません。`);
+    // An expanded Postman data dump includes archive.json containing IDs, not data.
+    // Ignore only a recognized index; malformed JSON and malformed resources still fail
+    // the caller's atomic batch import. Never fetch paths or URLs from the index.
+    const indexKeys = ['collections', 'environments'];
+    const indexName = text(name).split(/[\\/]/).pop().toLowerCase() === 'archive.json';
+    if (indexName && indexKeys.some(key => Array.isArray(value[key])) &&
+        indexKeys.every(key => value[key] == null || (Array.isArray(value[key]) && value[key].every(id => typeof id === 'string'))) &&
+        !['info', 'item', 'values', 'collection', 'environment', 'globals'].some(key => Object.hasOwn(value, key))) {
+      result.warnings.push(`${name}: data dumpの索引です。設定本体は含まれません。同じフォルダー内のCollection / EnvironmentのJSONを一緒に選択してください。`);
+      return;
+    }
     if (value.collection && !value.item) return accept(value.collection, name);
     if (value.environment && !value.values) return accept(value.environment, name);
     if (Array.isArray(value.collections) || Array.isArray(value.environments)) {
@@ -130,9 +144,24 @@ export function exportCollection(collection) {
   }
   const result = clean(clone(collection));
   result.info = {...result.info, schema: result.info?.schema || SCHEMA};
+  const legacyAuth = /\/v2\.0(?:\.0)?\//.test(result.info.schema);
+  function exportAuth(owner) {
+    const auth = owner?.auth;
+    if (!auth || typeof auth !== 'object' || !auth.type || auth.type === 'noauth') return;
+    const attributes = auth[auth.type];
+    // The auth editor writes arrays. Match the declared collection schema on export.
+    if (legacyAuth && Array.isArray(attributes)) {
+      auth[auth.type] = Object.fromEntries(attributes.filter(enabled).filter(a => a.key).map(a => [a.key, a.value]));
+    } else if (!legacyAuth && attributes && typeof attributes === 'object' && !Array.isArray(attributes)) {
+      auth[auth.type] = Object.entries(attributes).map(([key, value]) => ({key, value}));
+    }
+  }
+  exportAuth(result);
   walkItems(result.item, item => {
+    exportAuth(item);
     if (!item.request) return;
     const r = item.request;
+    exportAuth(r);
     if (r.body?.mode === 'none') delete r.body;
     r.url = {...r.url, raw: displayUrl(r.url)};
   });
