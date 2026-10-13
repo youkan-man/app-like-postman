@@ -185,7 +185,7 @@ def collect(target: dict, container: str, timeout: float) -> dict:
                    'com.docker.network.bridge.gateway_mode_ipv4', 'com.docker.network.bridge.gateway_mode_ipv6'}
         for net in json.loads(run(['docker', 'network', 'inspect', *ids])):
             nets.append({'name': net['Name'], 'driver': net['Driver'], 'internal': net.get('Internal', False),
-                'subnets': [r['Subnet'] for r in net.get('IPAM', {}).get('Config', []) if r.get('Subnet')],
+                'subnets': [r['Subnet'] for r in ((net.get('IPAM') or {}).get('Config') or []) if r.get('Subnet')],
                 'options': {k: v for k, v in (net.get('Options') or {}).items() if k in allowed},
                 'attached': net['Name'] in info['networks']})
     same_host = False

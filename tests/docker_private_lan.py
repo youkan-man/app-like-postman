@@ -44,7 +44,7 @@ def unused_ranges():
     ids = command('docker', 'network', 'ls', '-q').split()
     if ids:
         for net in json.loads(command('docker', 'network', 'inspect', *ids)):
-            for row in net.get('IPAM', {}).get('Config', []):
+            for row in ((net.get('IPAM') or {}).get('Config') or []):
                 if row.get('Subnet'):
                     occupied.append(ipaddress.ip_network(row['Subnet'], strict=False))
     picked = []
@@ -167,6 +167,9 @@ def main():
                     assert json.loads(result['body'])['marker'] == peer['marker']
                     record('Shipped subnet override restores the exact same LAN request',network=result['network'])
         report['status']='passed'
+    except BaseException:
+        report['status']='failed'
+        raise
     finally:
         report['passed']=len(report['checks'])
         (OUT/'private-lan-results.json').write_text(json.dumps(report,indent=2))
