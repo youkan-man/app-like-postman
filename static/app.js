@@ -130,7 +130,7 @@ function authEditor(owner, inherited = false, changed = () => {}) {
     grid.append(element('label', '', 'Auth type'), typeSelect);
     const specs = {bearer: [['token', 'Token']], basic: [['username', 'Username'], ['password', 'Password']], apikey: [['key', 'Key'], ['value', 'Value'], ['in', 'Add to']], oauth2: [['accessToken', 'Access token'], ['headerPrefix', 'Header prefix']]};
     if (specs[type]) {
-      const attrs = owner.auth[type] ||= [];
+      const attrs = owner.auth[type] = rows(owner.auth[type]);
       for (const [key, label] of specs[type]) {
         let row = attrs.find(v => v.key === key);
         const value = row?.value ?? (key === 'in' ? 'header' : key === 'headerPrefix' ? 'Bearer' : '');
@@ -303,7 +303,7 @@ function renderSidebar() {
   } else if (side === 'history') {
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
       const row = button('', () => {if (workspace.environments.some(e => e.id === entry.environmentId)) workspace.environmentId = entry.environmentId; addTab({...clone(entry.tab), id: uid(), dirty: true});}, 'history-entry');
-      const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleTimeString() + ' · ' + displayUrl(entry.tab.request.url)));
+      const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
       row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR')); root.append(row);
     }
   } else {
