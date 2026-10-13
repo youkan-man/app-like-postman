@@ -21,6 +21,8 @@ defaults:
 env:
   PYTHONUNBUFFERED: '1'
 
+# COM Gateway integration runs in the Gateway repository, where its source and
+# evidence remain private. This workflow does not request cross-repository secrets.
 jobs:
   regression:
     name: Import and HTTP regression
@@ -51,46 +53,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: regression-${{ github.run_attempt }}
-          path: artifacts/
-          retention-days: 14
-
-  gateway:
-    name: Real COM Gateway integration
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - name: Checkout the specified COM Gateway
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: youkan-man/app-com-transport-gateway
-          ref: 6235616ff3d992a60eace5ad011b9e1de13d09ce
-          path: .ci/gateway
-          persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '22'
-          package-manager-cache: false
-      - name: Install Gateway dependencies
-        run: python -m pip install ./.ci/gateway
-      - name: Postman import through MiniPost to real Gateway
-        env:
-          GATEWAY_CHECKOUT: ${{ github.workspace }}/.ci/gateway
-        run: |
-          mkdir -p artifacts
-          git rev-parse HEAD > artifacts/minipost-commit.txt
-          git -C .ci/gateway rev-parse HEAD > artifacts/gateway-commit.txt
-          python tests/gateway_integration.py 2>&1 | tee artifacts/gateway-integration.log
-      - name: Upload Gateway integration logs
-        if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: gateway-${{ github.run_attempt }}
           path: artifacts/
           retention-days: 14
 
@@ -139,16 +101,34 @@ jobs:
           docker run --detach --name minipost-ci -p 127.0.0.1:18080:8080 minipost:ci
       - name: Check health, bundled Collection, static UI and proxy
         run: |
-          curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 --retry-max-time 30 http://127.0.0.1:18080/api/health | tee artifacts/docker-health.json
-          curl --fail --silent --show-error http://127.0.0.1:18080/ > artifacts/docker-index.html
-          curl --fail --silent --show-error http://127.0.0.1:18080/api/examples/gateway > artifacts/docker-collection.json
           python - <<'PY'
           import json
+          import time
           from pathlib import Path
+          from urllib.error import URLError
           from urllib.request import Request, urlopen
-          assert json.loads(Path('artifacts/docker-health.json').read_text())['ok'] is True
-          assert 'MiniPost' in Path('artifacts/docker-index.html').read_text()
-          assert json.loads(Path('artifacts/docker-collection.json').read_text())['item']
+          # Docker can reset the connection between port publication and app readiness.
+          # Poll only the read-only health endpoint; never retry a mutating request.
+          deadline = time.monotonic() + 30
+          while True:
+              try:
+                  with urlopen('http://127.0.0.1:18080/api/health', timeout=2) as response:
+                      health = json.load(response)
+                  assert health['ok'] is True
+                  break
+              except (URLError, OSError) as error:
+                  if time.monotonic() >= deadline:
+                      raise RuntimeError('Docker app did not become ready within 30 seconds') from error
+                  time.sleep(0.25)
+          Path('artifacts/docker-health.json').write_text(json.dumps(health))
+          with urlopen('http://127.0.0.1:18080/', timeout=5) as response:
+              html = response.read().decode()
+          assert 'MiniPost' in html
+          Path('artifacts/docker-index.html').write_text(html)
+          with urlopen('http://127.0.0.1:18080/api/examples/gateway', timeout=5) as response:
+              collection = json.load(response)
+          assert collection['item']
+          Path('artifacts/docker-collection.json').write_text(json.dumps(collection, indent=2))
           request = Request('http://127.0.0.1:18080/api/request', data=json.dumps({'method': 'GET', 'url': 'http://127.0.0.1:8080/api/health'}).encode(), headers={'Content-Type': 'application/json'})
           with urlopen(request, timeout=10) as response:
               result = json.load(response)
