@@ -1,59 +1,63 @@
 # Tests
 
-## 再検証結果 — 2026-10-13
+## GitHub Actions
 
-| レイヤー | 結果 | 内容 |
+`.github/workflows/verify.yml` runs on pull requests to `main`, pushes to `main`, and manual dispatch after the workflow is available on the default branch. It uses hosted Ubuntu 24.04 runners, Python 3.12 and Node.js 22. It neither deploys the app nor publishes a Docker image.
+
+| Job | Coverage | Artifact |
 | --- | --- | --- |
-| Node core / import compatibility | 49 / 49 pass | 既存32件と追加17件。Collection v2.0/v2.1、変数、認証継承、Body、認証属性の形式変換、data dumpの索引、再エクスポート等 |
-| Python proxy | 22 / 22 pass | 実ループバックHTTP。重複ヘッダー、multipart、binary、リダイレクト、gzip、エラー、自己署名TLS等を再実行 |
-| Import → compile → proxy → HTTP | 4 / 4 pass | 新規4テスト内で13リクエストを送信。認証方式、継承・No Auth、v2.0/v2.1再エクスポート、索引と環境の同時読み込み |
-| Browser DOM | 前回 16 / 16 pass | fetchとlocalStorageを模擬した結果。今回は再実行していない |
-| Browser live E2E | 未完了 | 通常のChromium URLアクセスが `ERR_BLOCKED_BY_ADMINISTRATOR`。アプリのE2Eシナリオは未実行 |
-| COM Gateway integration | 未実施 | リレー接続とテストVMの起動処理までは確認。続く確認要求がOpenAIの安全チェックで拒否され、Gatewayの配置・起動・結合試験には至っていない |
-| Docker build | 未実施 | Dockerによるビルドを実行していない |
+| Import and HTTP regression | Postman import, request compilation, real loopback HTTP and self-signed HTTPS | `regression-<attempt>` |
+| Chromium live HTTP E2E | Actual browser navigation, imports, sends, files, persistence, tab isolation and responsive layout | `browser-<attempt>` |
+| Docker build and HTTP smoke | Image build, startup, health, static UI, bundled Collection and HTTP proxy | `docker-<attempt>` |
 
-**今回実行したNode 49件とPython 26件、計75件が成功しました。** ブラウザDOMの前回結果を今回の成功件数には含めません。追加17件のNode回帰テストは修正前に10件失敗し、修正後にすべて成功しました。
+Artifacts are retained for 14 days and uploaded even when a test fails. A failed test still fails its job; piping output to the log does not hide the exit status. Docker readiness polls the read-only health endpoint for up to 30 seconds, including connection resets during startup. It does not retry mutating requests.
 
-追加したHTTP試験は、実際の `core.mjs` でPostman JSONを読み込み、Node.jsで生成した送信データをMiniPostの `/api/request` に渡し、別のループバックEchoサーバーで到着内容を検査します。HTTP通信自体は模擬していませんが、**COM Gateway試験でもブラウザ試験でもありません。** 使う認証値はテスト用の合成値です。
+**COM Gateway integration runs separately in the Gateway repository**, using `.github/workflows/minipost-integration.yml`. That workflow checks out its own source plus a pinned public MiniPost commit. This avoids cross-repository credentials and keeps Gateway evidence in that repository. When changing MiniPost integration code, update the pinned MiniPost ref there and rerun that workflow; success here alone is not a Gateway result.
 
-Gatewayサンプルは指定リポジトリのAPIソースを確認して作成しています。サンプルを読み込むDOMテストは実Gatewayとの疎通試験ではありません。前回提出したスクリーンショットのレスポンスも模擬応答です。
+## Verified on 2026-10-13
 
-## 単体・プロキシ
+| Layer | Result | Target |
+| --- | --- | --- |
+| Node core and import compatibility | 49 / 49 passed | Collection v2.0/v2.1, variables, inherited auth, bodies, archive index and export |
+| Python proxy | 22 / 22 passed | Real loopback HTTP and self-signed HTTPS |
+| Import → compile → proxy → HTTP | 4 / 4 passed | Separate echo server; 13 requests within these tests |
+| Chromium live E2E | 18 / 18 passed | Real browser and loopback HTTP; no mocked fetch/localStorage |
+| COM Gateway integration | 12 / 12 requests passed | Actual Gateway process with a disposable Demo port |
+| Docker build and HTTP smoke | Passed | Built image, HTTP startup, static UI, Collection and proxy |
 
-Python 3.12+、Node.js 20+。本体に追加パッケージは不要です。自己署名TLSテストはopensslコマンドを使います。
+The browser screenshot shows an echo-server response, **not** a Gateway response. Gateway success is established by its separate integration log. Physical COM/USB devices are not tested. Earlier offline DOM results are not included in the counts above.
+
+## Local regression
+
+Python 3.12+, Node.js 20+, and `openssl` for the self-signed TLS tests:
 
 ```bash
 node --test tests/*.test.mjs
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-`test_import_proxy.py` はNode.jsがない場合に失敗し、成功やスキップ扱いにはしません。プロキシ単体だけを実行する場合はパターンを `test_proxy.py` に変更できます。
+`test_import_proxy.py` fails when Node.js is missing rather than silently skipping. To run only the Python proxy tests, use `-p 'test_proxy.py'`.
 
-## ブラウザ
-
-PlaywrightとChromiumを用意します。`CHROMIUM` 環境変数で実行ファイルを変更できます。
+## Local browser E2E
 
 ```bash
 python -m pip install -r requirements-test.txt
-python tests/dom_smoke.py       # 通信とlocalStorageを模擬したDOMテスト
-python tests/browser_smoke.py   # ローカルHTTPを使うE2E。管理ポリシーが許可する環境で実行
+python -m playwright install --with-deps chromium
+export CHROMIUM="$(python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); print(p.chromium.executable_path); p.stop()")"
+ARTIFACT_DIR=artifacts/browser python tests/browser_smoke.py
 ```
 
-`ARTIFACT_DIR` でスクリーンショット・結果の保存先を指定できます。DOMテストは新しいページに実HTML/CSS/JSを挿入し、明示的なモック以外のfetchを拒否します。ブラウザの管理ポリシーは変更しません。
+`CHROMIUM` selects the browser executable. `ARTIFACT_DIR` receives the screenshot, result JSON, and downloaded response. `tests/dom_smoke.py` remains an optional offline test with explicitly mocked fetch/localStorage and is not a replacement for live E2E. No browser management policy is changed.
 
-## 実Gatewayとの結合試験
+## Local real-Gateway integration
 
-指定リポジトリ `youkan-man/app-com-transport-gateway` を手元へ配置し、そのrequirementsをインストールしてから実行します。既存サービスへの接続先やトークンを受け取らず、**一時ディレクトリ・ランダムなテスト用トークン・ループバックの空きポート**でGatewayを別プロセス起動します。物理COM/USBや既存Gateway設定は使用しません。
+Check out `youkan-man/app-com-transport-gateway` alongside this project, then install its package and dependencies:
 
 ```bash
-python -m pip install -r ../app-com-transport-gateway/requirements.txt
+python -m pip install ../app-com-transport-gateway
 GATEWAY_CHECKOUT=../app-com-transport-gateway python tests/gateway_integration.py
 ```
 
-Node.jsで実core.mjsからサンプルをインポート・変数展開し、MiniPostの `/api/request` を通して12リクエストを送信します。認証なし401、正常な認証、Demoの作成・開始・停止・削除、Cookie応答を確認します。ソースや依存関係がない場合は非ゼロ終了し、成功扱いにしません。このスクリプトの結合実行は上記日時点では未確認です。
+The test starts Gateway on an unused loopback port with temporary storage and a random test-only token. Ambient `GATEWAY_*` and `USB_AGENT_*` settings are removed from that child process. No existing deployment or physical device is used.
 
-### リモート再試行の到達点
-
-リレーの接続先一覧とSandbox APIの情報取得はHTTP 200で成功しました。最初のテスト用VMは既定容量ではディスク不足のため作成待ちになり、今回作成したその割り当てだけを取り消して `deleted` を確認しました。容量を小さくした別のテスト用VMは起動・初期化処理まで進みましたが、続く確認要求がツールの安全チェックで拒否されたため、その経路での作業を停止しました。
-
-後者についても削除要求はHTTP 202、`queued_delete` として受け付けられています。**削除完了は未確認です。** 既存VMや既存Gatewayの設定は変更していません。Gatewayソースの配置前に停止したため、リモート側でアプリや結合テストが実行されたとは扱いません。
+The actual `core.mjs` imports and compiles the sample Collection, and MiniPost sends its 12 requests to Gateway. Assertions cover health/session/listing, Demo create/start/events/policy/stop/delete, unauthenticated 401, and login Set-Cookie. Missing source or dependencies fail the test. The child process and temporary data are cleaned up on exit.
