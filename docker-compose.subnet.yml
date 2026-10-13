@@ -1,0 +1,7 @@
+# Optional override for docker-compose.yml. No arbitrary "safe" subnet default.
+# Choose a subnet not overlapping LAN/VPN routes or other Docker networks.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: "${MINIPOST_SUBNET:?Set a Docker subnet that does not overlap your LAN or VPN}"
