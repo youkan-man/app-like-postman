@@ -1,0 +1,33 @@
+{
+  "info": {
+    "name": "COM Transport Gateway",
+    "description": "app-com-transport-gateway用のHTTPリクエスト。baseUrlとgatewayTokenを設定してください。Demo lifecycleはメモリー内デモポートのみに使用します。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://host.docker.internal:8081", "description": "GatewayのHTTPオリジン"},
+    {"key": "gatewayToken", "value": "", "description": "Gatewayで設定した管理者トークン。実値はコミットしないでください。"},
+    {"key": "portId", "value": "minipost-demo", "description": "Demo lifecycle専用のポートID"}
+  ],
+  "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{gatewayToken}}", "type": "string"}]},
+  "item": [
+    {"name": "Gateway status", "item": [
+      {"name": "Health", "request": {"method": "GET", "auth": {"type": "noauth"}, "url": "{{baseUrl}}/healthz"}},
+      {"name": "Session", "request": {"method": "GET", "url": "{{baseUrl}}/api/session"}},
+      {"name": "Hosted ports", "request": {"method": "GET", "url": "{{baseUrl}}/api/ports"}},
+      {"name": "Remote gateways", "request": {"method": "GET", "url": "{{baseUrl}}/api/peers"}}
+    ]},
+    {"name": "Demo lifecycle", "description": "テスト専用環境で実行してください。物理COM・USBポートは作成・操作しません。", "item": [
+      {"name": "Create demo port", "request": {"method": "POST", "url": "{{baseUrl}}/api/ports", "body": {"mode": "raw", "raw": "{\n  \"id\": \"{{portId}}\",\n  \"name\": \"MiniPost demo\",\n  \"source\": {\"kind\": \"demo\"},\n  \"readonly\": false\n}", "options": {"raw": {"language": "json"}}}}},
+      {"name": "Start demo port", "request": {"method": "POST", "url": "{{baseUrl}}/api/ports/{{portId}}/start"}},
+      {"name": "Read port events", "request": {"method": "GET", "url": "{{baseUrl}}/api/ports/{{portId}}/events"}},
+      {"name": "Set read-only policy", "request": {"method": "PATCH", "url": "{{baseUrl}}/api/ports/{{portId}}/policy", "body": {"mode": "raw", "raw": "{\"readonly\": true}", "options": {"raw": {"language": "json"}}}}},
+      {"name": "Stop demo port", "request": {"method": "POST", "url": "{{baseUrl}}/api/ports/{{portId}}/stop"}},
+      {"name": "Delete demo port", "request": {"method": "DELETE", "url": "{{baseUrl}}/api/ports/{{portId}}"}}
+    ]},
+    {"name": "Authentication checks", "item": [
+      {"name": "Unauthenticated · expect 401", "request": {"method": "GET", "auth": {"type": "noauth"}, "url": "{{baseUrl}}/api/ports"}},
+      {"name": "Login · inspect Set-Cookie", "request": {"method": "POST", "auth": {"type": "noauth"}, "url": "{{baseUrl}}/api/login", "body": {"mode": "raw", "raw": "{\"token\": \"{{gatewayToken}}\"}", "options": {"raw": {"language": "json"}}}}}
+    ]}
+  ]
+}
