@@ -10,6 +10,8 @@ docker compose up -d --build
 
 `http://localhost:8080` を開きます。停止は `docker compose down`。Dockerホスト上のAPIには `host.docker.internal` を使います。Python単体では `python app.py` で起動でき、`HOST` / `PORT` 環境変数で待受を変更できます。
 
+Dockerホスト・別コンテナ・LAN APIへの接続と502の切り分けは [NETWORKING.md](NETWORKING.md) を参照してください。localhostの接続先はURL欄の下で選べます。
+
 ## ワークスペース
 
 左にコレクション／フォルダー、上に複数リクエストタブ、中央にURL・送信設定、下にレスポンスを表示します。右上の分割ボタンで、広い画面ではリクエストとレスポンスを左右に並べられます。境界のドラッグ、または境界にフォーカスして矢印キーで表示比率を変更できます。サイドバーの開閉・幅、分割方向・比率、レスポンスの折り返しはブラウザに保存します。

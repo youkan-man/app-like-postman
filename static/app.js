@@ -2,8 +2,10 @@ import {SCHEMA, clone, uid, rows, enabled, urlParts, displayUrl, setUrlText, set
 
 import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, openSurface, bindSurface} from './workbench.mjs';
 
+import {createNetworkControls, sendThroughProxy} from './network.mjs';
+
 const $ = id => document.getElementById(id);
-let workbench;
+let workbench, networkControls;
 const KEY = 'minipost.workspace.v2';
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
 const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'dark'};};
@@ -39,7 +41,7 @@ function persist(now = false) {
   };
   if (now) save(); else saveTimer = setTimeout(save, 220);
 }
-function touch() {active().dirty = true; persist(); renderTabs(); updateCounts();}
+function touch() {active().dirty = true; persist(); renderTabs(); updateCounts(); networkControls?.render();}
 function download(name, content, type = 'application/json') {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
   const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -275,6 +277,7 @@ function renderEditor() {
   renderPane(); renderRequestFooter();
 }
 function renderRequestFooter() {
+  networkControls?.render();
   $('tlsStatus').textContent = `TLS verification ${active().settings?.verify_tls ? 'ON' : 'OFF'}`;
   $('send').replaceChildren();
   if (requests.has(active().id)) {$('send').append(element('span', 'spinner'), document.createTextNode('Cancel'));}
@@ -517,7 +520,7 @@ function renderResponse() {
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
   if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
   if (!result) {$('responseStatus').textContent = '未送信'; return;}
-  if (result.error) {$('responseStatus').textContent = result.cancelled ? 'CANCELLED' : 'ERROR'; $('responseStatus').classList.add('error'); root.append(codeView(result.error)); return;}
+  if (result.error) {$('responseStatus').textContent = result.cancelled ? 'CANCELLED' : result.errorTitle || 'ERROR'; $('responseStatus').classList.add('error'); root.append(codeView(result.error)); return;}
   $('responseStatus').textContent = `${result.status} ${result.status_text || ''}`;
   $('responseStatus').classList.add(result.status < 400 ? 'good' : 'error'); $('responseTime').textContent = `${result.elapsed_ms} ms`; $('responseSize').textContent = bytes(result.size);
   const search = $('responseSearch').value;
@@ -547,15 +550,13 @@ async function sendRequest() {
   const controller = new AbortController(); requests.set(tab.id, controller);
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
-    const response = await fetch('/api/request', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(compiled.payload), signal: controller.signal});
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || `Backend HTTP ${response.status}`);
+    const result = await sendThroughProxy({...compiled.payload, loopback_target: tab.settings?.loopback_target || 'direct'}, controller.signal);
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
     workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: result.status, elapsed_ms: result.elapsed_ms}); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
   } catch (error) {
     const cancelled = error.name === 'AbortError';
-    if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled});
+    if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
     if (!cancelled) {workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: 'ERR'}); persist();}
   } finally {
     requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} if (side === 'history') renderSidebar();
@@ -608,5 +609,6 @@ document.addEventListener('keydown', event => {
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
 bindTabStrip($('editorTabs'), '[data-pane]'); bindTabStrip($('responseTabs'), '[data-response]');
+networkControls = createNetworkControls({tab: active, workspace: () => workspace, changed: touch});
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

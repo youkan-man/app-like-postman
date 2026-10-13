@@ -1,0 +1,4 @@
+.network-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 0 12px 6px; color: var(--muted); flex-shrink: 0; font-size: .923rem; }
+.network-bar label { white-space: nowrap; }
+.network-bar select { min-height: 28px; max-width: 11rem; padding: 3px 6px; }
+#networkDestination { min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, Consolas, monospace; }

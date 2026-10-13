@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 import ssl
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -17,6 +18,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location('minipost', ROOT / 'app.py')
 proxy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(proxy)
@@ -218,7 +220,7 @@ class ProxyTests(unittest.TestCase):
             self.assertIn(b'<title>MiniPost</title>', html)
             self.assertIn(b'id="requestTabs"', html)
             self.assertIn(b'src="/app.js"', html)
-        for path in ['/core.mjs', '/workbench.mjs']:
+        for path in ['/core.mjs', '/workbench.mjs', '/network.mjs']:
             with self.subTest(path=path), urlopen(self.proxy_url + path) as r:
                 self.assertIn('javascript', r.headers['Content-Type'])
                 self.assertGreater(len(r.read()), 0)

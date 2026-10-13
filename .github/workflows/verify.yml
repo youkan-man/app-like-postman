@@ -72,7 +72,7 @@ jobs:
         run: |
           mkdir -p artifacts/browser
           git rev-parse HEAD > artifacts/browser/tested-commit.txt
-          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py static tests examples requirements-test.txt Dockerfile README.md TESTING.md .github/workflows/verify.yml
+          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py static tests examples requirements-test.txt Dockerfile docker-compose.yml docker-compose.host.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
           sha256sum artifacts/browser/tested-source.zip > artifacts/browser/tested-source.sha256
       - name: Install Playwright and Chromium
         run: |
@@ -97,67 +97,31 @@ jobs:
           retention-days: 14
 
   docker:
-    name: Docker build and HTTP smoke
+    name: Docker outbound network and live browser
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      ARTIFACT_DIR: artifacts/docker-network
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Build and start the app image
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install real browser
         run: |
-          mkdir -p artifacts
-          docker build --progress=plain -t minipost:ci . 2>&1 | tee artifacts/docker-build.log
-          docker run --detach --name minipost-ci -p 127.0.0.1:18080:8080 minipost:ci
-      - name: Check health, bundled Collection, static UI and proxy
+          python -m pip install -r requirements-test.txt
+          python -m playwright install --with-deps chromium
+      - name: Test shipped Compose across real network boundaries
         run: |
-          python - <<'PY'
-          import json
-          import time
-          from pathlib import Path
-          from urllib.error import URLError
-          from urllib.request import Request, urlopen
-          # Wait for read-only health, never retry a mutating request.
-          deadline = time.monotonic() + 30
-          while True:
-              try:
-                  with urlopen('http://127.0.0.1:18080/api/health', timeout=2) as response:
-                      health = json.load(response)
-                  assert health['ok'] is True
-                  break
-              except (URLError, OSError) as error:
-                  if time.monotonic() >= deadline:
-                      raise RuntimeError('Docker app did not become ready within 30 seconds') from error
-                  time.sleep(0.25)
-          Path('artifacts/docker-health.json').write_text(json.dumps(health))
-          with urlopen('http://127.0.0.1:18080/', timeout=5) as response:
-              html = response.read().decode()
-          assert 'MiniPost' in html
-          Path('artifacts/docker-index.html').write_text(html)
-          with urlopen('http://127.0.0.1:18080/api/examples/gateway', timeout=5) as response:
-              collection = json.load(response)
-          assert collection['item']
-          Path('artifacts/docker-collection.json').write_text(json.dumps(collection, indent=2))
-          request = Request('http://127.0.0.1:18080/api/request', data=json.dumps({'method': 'GET', 'url': 'http://127.0.0.1:8080/api/health'}).encode(), headers={'Content-Type': 'application/json'})
-          with urlopen(request, timeout=10) as response:
-              result = json.load(response)
-          assert result['ok'] and result['status'] == 200, result
-          assert json.loads(result['body'])['ok'] is True
-          Path('artifacts/docker-proxy.json').write_text(json.dumps(result, indent=2))
-          print('PASS Docker health, static UI, bundled Collection and real HTTP proxy')
-          PY
-      - name: Capture logs and remove only the test container
-        if: ${{ always() }}
-        run: |
-          mkdir -p artifacts
-          if docker container inspect minipost-ci >/dev/null 2>&1; then
-            docker logs minipost-ci > artifacts/docker-runtime.log 2>&1
-            docker rm --force minipost-ci
-          fi
-      - name: Upload Docker logs
+          mkdir -p artifacts/docker-network
+          git rev-parse HEAD > artifacts/docker-network/tested-commit.txt
+          python tests/docker_network.py 2>&1 | tee artifacts/docker-network/test.log
+      - name: Upload Docker network evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: docker-${{ github.run_attempt }}
-          path: artifacts/
+          path: artifacts/docker-network/
           retention-days: 14
