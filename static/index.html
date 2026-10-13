@@ -1,201 +1,53 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MiniPost</title>
-<style>
-:root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--line:#30363d;--text:#e6edf3;--muted:#8b949e;--accent:#ff6c37;--good:#3fb950;--warn:#d29922;--bad:#f85149;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}.wrap{max-width:1200px;margin:auto;padding:20px}.top{display:flex;align-items:center;gap:10px;margin-bottom:18px}.logo{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:var(--accent);font-weight:900}.top h1{font-size:19px;margin:0}.tag{font-size:12px;color:var(--muted)}.request{display:grid;grid-template-columns:110px 1fr 100px;gap:8px;margin-bottom:12px}.control,.btn,textarea{border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);outline:none}.control{height:42px;padding:0 11px}.control:focus,textarea:focus{border-color:var(--accent)}.btn{height:38px;padding:0 12px;font-weight:700}.btn:hover{filter:brightness(1.15)}.primary{height:42px;background:var(--accent);border-color:var(--accent);color:#fff}.panel{border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-bottom:12px;overflow:hidden}.tabs{display:flex;border-bottom:1px solid var(--line);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);padding:12px 15px;font-weight:700}.tab.active{color:var(--text);border-bottom-color:var(--accent)}.pane{display:none;padding:14px}.pane.active{display:block}.rows{display:grid;gap:7px}.row{display:grid;grid-template-columns:22px minmax(100px,1fr) minmax(120px,1.4fr) 34px;gap:7px;align-items:center}.row input[type=checkbox]{accent-color:var(--accent)}.field{height:34px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);min-width:0}.remove{width:34px;padding:0;color:var(--bad)}.add{margin-top:9px}.bodybar,.options,.response-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.bodybar{margin-bottom:9px}.bodybar select{width:210px}.body{width:100%;min-height:220px;padding:12px;resize:vertical;background:var(--bg);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5}.options label{display:flex;align-items:center;gap:7px;color:var(--muted)}.options input[type=checkbox]{accent-color:var(--accent)}.timeout{width:100px}.response-head{padding:10px 13px;border-bottom:1px solid var(--line)}.response-head strong{margin-right:auto}.metric{padding:3px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}pre{min-height:260px;max-height:55vh;overflow:auto;margin:0;padding:14px;background:var(--bg);white-space:pre-wrap;word-break:break-word;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}.note{color:var(--muted);font-size:12px}.spinner{display:inline-block;width:13px;height:13px;border:2px solid #ffffff66;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-@media(max-width:700px){.wrap{padding:12px}.request{grid-template-columns:92px 1fr}.request .primary{grid-column:1/-1}.row{grid-template-columns:22px 1fr 34px}.row .value{grid-column:2}.row .remove{grid-column:3;grid-row:1}.response-head strong{width:100%;margin:0}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>MiniPost · API workspace</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div class="top"><div class="logo">M</div><h1>MiniPost</h1><span class="tag">Python proxy</span></div>
-
-  <div class="request">
-    <select id="method" class="control">
-      <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option>
-      <option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
-    </select>
-    <input id="url" class="control" placeholder="http://host.docker.internal:3000/api/health" spellcheck="false">
-    <button id="send" class="btn primary">Send</button>
+  <header class="topbar">
+    <span class="brand-mark">M</span><strong class="brand">MiniPost</strong><span class="top-separator"></span><span class="workspace-label">API workspace</span>
+    <button id="newRequest" class="button small">＋ New</button><button id="import" class="button small">Import</button>
+    <span class="top-spacer"></span><span id="saveState" class="muted save-state" role="status">ローカル自動保存</span>
+    <button id="theme" class="icon-button" title="明るさを切り替え" aria-label="明るさを切り替え">◐</button>
+  </header>
+  <div class="workspace">
+    <nav class="rail" aria-label="ワークスペース">
+      <button data-sidebar="collections" class="rail-button active"><span>▤</span>Collections</button>
+      <button data-sidebar="environments" class="rail-button"><span>◫</span>Environments</button>
+      <button data-sidebar="history" class="rail-button"><span>◷</span>History</button>
+    </nav>
+    <aside class="sidebar">
+      <div class="sidebar-heading"><strong id="sidebarTitle">Collections</strong><button id="sidebarAdd" class="icon-button" title="新規作成" aria-label="新規作成">＋</button><button id="sidebarMore" class="icon-button" title="変数 / エクスポート" aria-label="変数 / エクスポート">⋯</button></div>
+      <div class="search-wrap"><input id="search" type="search" placeholder="コレクションを検索" aria-label="サイドバーを検索"></div>
+      <div id="sidebarContent" class="sidebar-content"></div>
+      <div class="sidebar-footer"><button id="gatewayExample" class="text-button">＋ COM Gateway サンプル</button></div>
+    </aside>
+    <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" tabindex="0"></div>
+    <main class="main">
+      <div class="workspace-toolbar"><div id="requestTabs" class="request-tabs" role="tablist" aria-label="リクエスト"></div><button id="addTab" class="icon-button" aria-label="新しいリクエスト">＋</button><div class="env-picker"><span class="env-dot"></span><select id="environment" aria-label="選択中の環境"></select><button id="editEnvironment" class="icon-button" title="環境変数" aria-label="環境変数">◫</button></div></div>
+      <section class="request-editor">
+        <div class="request-title"><span id="breadcrumb" class="muted"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request"><button id="saveRequest" class="button small">保存</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="複製">⧉</button></div>
+        <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="URLを入力、または {{baseUrl}}/api/ports" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">Send <kbd>⌘ ↵</kbd></button></div>
+        <div class="editor-tabs" role="tablist" aria-label="リクエスト設定"><button data-pane="params" class="active" role="tab">Params <span id="paramsCount"></span></button><button data-pane="authorization" role="tab">Authorization</button><button data-pane="headers" role="tab">Headers <span id="headersCount"></span></button><button data-pane="body" role="tab">Body <span id="bodyDot"></span></button><button data-pane="scripts" role="tab">Scripts <span id="scriptDot"></span></button><button data-pane="settings" role="tab">Settings</button></div>
+        <div id="requestWarning" class="warning" hidden></div>
+        <div id="editorContent" class="editor-content"></div>
+      </section>
+      <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの高さ" aria-orientation="horizontal" tabindex="0"></div>
+      <section class="response-panel">
+        <div class="response-heading"><strong>Response</strong><span id="responseStatus" class="response-status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="copyResponse" class="text-button">Copy</button><button id="downloadResponse" class="text-button">Save response</button></div>
+        <div class="response-toolbar"><div id="responseTabs" class="segmented"><button data-response="pretty" class="active">Pretty</button><button data-response="raw">Raw</button><button data-response="headers">Headers</button><button data-response="cookies">Cookies</button><button data-response="preview">Preview</button></div><input id="responseSearch" type="search" placeholder="レスポンスを検索" aria-label="レスポンス内検索"></div>
+        <div id="responseContent" class="response-content"></div>
+      </section>
+      <footer class="statusbar"><span id="connectionStatus"><span class="status-dot"></span> Python proxy</span><span id="requestInfo">Ctrl / ⌘ + Enter で送信</span><span class="top-spacer"></span><span id="tlsStatus">TLS verification OFF</span></footer>
+    </main>
   </div>
-
-  <section class="panel">
-    <div class="tabs">
-      <button class="tab active" data-pane="params">Params</button>
-      <button class="tab" data-pane="headers">Headers</button>
-      <button class="tab" data-pane="body">Body</button>
-      <button class="tab" data-pane="options">Options</button>
-    </div>
-    <div id="params" class="pane active"><div id="paramRows" class="rows"></div><button id="addParam" class="btn add">＋ Add</button></div>
-    <div id="headers" class="pane"><div id="headerRows" class="rows"></div><button id="addHeader" class="btn add">＋ Add</button></div>
-    <div id="body" class="pane">
-      <div class="bodybar">
-        <select id="bodyType" class="control"><option value="none">none</option><option value="json">JSON</option><option value="text">Text</option><option value="form">x-www-form-urlencoded</option></select>
-        <button id="formatJson" class="btn">Format JSON</button>
-      </div>
-      <textarea id="bodyText" class="body" disabled spellcheck="false"></textarea>
-    </div>
-    <div id="options" class="pane">
-      <div class="options">
-        <label><input id="verifyTls" type="checkbox"> TLS証明書を検証（自己署名ではOFF）</label>
-        <label>Timeout <input id="timeout" class="field timeout" type="number" min="100" value="30000"> ms</label>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="response-head">
-      <strong>Response</strong>
-      <span id="status" class="metric">—</span><span id="time" class="metric">— ms</span><span id="size" class="metric">— B</span>
-      <button id="showBody" class="btn">Body</button><button id="showHeaders" class="btn">Headers</button><button id="copy" class="btn">Copy</button>
-    </div>
-    <pre id="output">リクエストを送ると、ここにレスポンスが表示されます。</pre>
-  </section>
-
-  <div class="note">接続先APIへの通信はPythonバックエンドから行います。Dockerホスト上のAPIには <code>host.docker.internal</code> を使います。</div>
-</div>
-<script>
-(() => {
-  const $ = id => document.getElementById(id);
-  const state = { controller: null, body: '', headers: '', view: 'body' };
-
-  function addRow(container, key = '', value = '') {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `<input class="enabled" type="checkbox" checked><input class="field key" placeholder="Key" spellcheck="false"><input class="field value" placeholder="Value" spellcheck="false"><button class="btn remove">×</button>`;
-    row.querySelector('.key').value = key;
-    row.querySelector('.value').value = value;
-    row.querySelector('.remove').onclick = () => row.remove();
-    container.appendChild(row);
-  }
-
-  function rows(container) {
-    return [...container.querySelectorAll('.row')]
-      .filter(row => row.querySelector('.enabled').checked && row.querySelector('.key').value.trim())
-      .map(row => ({ key: row.querySelector('.key').value.trim(), value: row.querySelector('.value').value }));
-  }
-
-  function formatBytes(bytes) {
-    if (!Number.isFinite(bytes)) return '— B';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(1)} MB`;
-  }
-
-  function show(view) {
-    state.view = view;
-    $('output').textContent = state[view] || '(empty)';
-  }
-
-  document.querySelectorAll('.tab').forEach(tab => tab.onclick = () => {
-    document.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === tab));
-    document.querySelectorAll('.pane').forEach(pane => pane.classList.toggle('active', pane.id === tab.dataset.pane));
-  });
-
-  $('addParam').onclick = () => addRow($('paramRows'));
-  $('addHeader').onclick = () => addRow($('headerRows'));
-  addRow($('paramRows'));
-  addRow($('headerRows'));
-
-  $('bodyType').onchange = () => {
-    const type = $('bodyType').value;
-    $('bodyText').disabled = type === 'none';
-    $('formatJson').disabled = type !== 'json';
-    $('bodyText').placeholder = type === 'json' ? '{\n  "hello": "world"\n}' : type === 'form' ? 'name=Taro&enabled=true' : 'Request body';
-  };
-  $('bodyType').onchange();
-
-  $('formatJson').onclick = () => {
-    try { $('bodyText').value = JSON.stringify(JSON.parse($('bodyText').value), null, 2); }
-    catch (error) { alert(`JSON error: ${error.message}`); }
-  };
-
-  $('showBody').onclick = () => show('body');
-  $('showHeaders').onclick = () => show('headers');
-  $('copy').onclick = async () => {
-    try { await navigator.clipboard.writeText(state[state.view] || ''); }
-    catch { alert('コピーできませんでした。'); }
-  };
-
-  async function send() {
-    if (state.controller) {
-      state.controller.abort();
-      return;
-    }
-
-    try {
-      let url = $('url').value.trim();
-      if (!url) throw new Error('URLを入力してください。');
-      if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-      const target = new URL(url);
-      rows($('paramRows')).forEach(item => target.searchParams.append(item.key, item.value));
-
-      const headers = rows($('headerRows'));
-      const bodyType = $('bodyType').value;
-      const method = $('method').value;
-      let body = null;
-      if (!['GET', 'HEAD'].includes(method) && bodyType !== 'none') {
-        body = $('bodyText').value;
-        const hasContentType = headers.some(item => item.key.toLowerCase() === 'content-type');
-        if (!hasContentType && bodyType === 'json') headers.push({ key: 'Content-Type', value: 'application/json' });
-        if (!hasContentType && bodyType === 'text') headers.push({ key: 'Content-Type', value: 'text/plain; charset=utf-8' });
-        if (!hasContentType && bodyType === 'form') headers.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' });
-      }
-
-      state.controller = new AbortController();
-      $('send').innerHTML = '<span class="spinner"></span> Abort';
-      $('output').textContent = 'Sending…';
-      $('status').textContent = '…';
-      $('status').className = 'metric';
-
-      const response = await fetch('/api/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method,
-          url: target.toString(),
-          headers,
-          body,
-          timeout_ms: Number($('timeout').value) || 30000,
-          verify_tls: $('verifyTls').checked
-        }),
-        signal: state.controller.signal
-      });
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || `Backend error: ${response.status}`);
-
-      state.body = result.body_encoding === 'base64'
-        ? `[binary response]\nContent-Type: ${result.content_type || 'unknown'}\nSize: ${formatBytes(result.size)}\n\nBase64:\n${result.body}`
-        : (() => { try { return JSON.stringify(JSON.parse(result.body), null, 2); } catch { return result.body || '(empty)'; } })();
-      state.headers = (result.headers || []).map(item => `${item.key}: ${item.value}`).join('\n') || '(no headers)';
-      show('body');
-
-      $('status').textContent = `${result.status} ${result.status_text || ''}`.trim();
-      $('status').className = `metric ${result.status < 400 ? 'good' : result.status < 500 ? 'warn' : 'bad'}`;
-      $('time').textContent = `${result.elapsed_ms} ms`;
-      $('size').textContent = formatBytes(result.size);
-    } catch (error) {
-      state.body = error.name === 'AbortError' ? 'リクエストを中止しました。' : `Request failed: ${error.message}`;
-      state.headers = '(no headers)';
-      show('body');
-      $('status').textContent = error.name === 'AbortError' ? 'ABORTED' : 'ERROR';
-      $('status').className = `metric ${error.name === 'AbortError' ? 'warn' : 'bad'}`;
-    } finally {
-      state.controller = null;
-      $('send').textContent = 'Send';
-    }
-  }
-
-  $('send').onclick = send;
-  document.addEventListener('keydown', event => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') send();
-    if (event.key === 'Escape' && state.controller) state.controller.abort();
-  });
-})();
-</script>
+  <dialog id="modal"><form id="modalForm"><div class="dialog-heading"><h2 id="modalTitle"></h2><button type="button" id="closeModal" class="icon-button" aria-label="閉じる">×</button></div><div id="modalBody"></div><div class="dialog-footer"><span id="modalMessage" role="status"></span><button type="button" id="cancelModal" class="button">閉じる</button><button type="submit" id="modalSubmit" class="button primary">保存</button></div></form></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input id="importFiles" type="file" accept=".json,application/json" multiple hidden>
 </body>
 </html>
