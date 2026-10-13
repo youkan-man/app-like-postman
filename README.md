@@ -51,4 +51,8 @@ docker compose up -d --build
 
 Health、Session、Hosted ports、Remote gateways、認証なし401、ログインCookie確認に加え、Demoポートの作成→開始→イベント取得→Read-only変更→停止→削除の12リクエストを用意しています。Demo lifecycleはテスト環境のメモリー内デモポート用です。サンプルの読み込みだけではAPIへ送信しません。
 
-**2026-10-13の再検証:** Nodeのインポート・送信生成49件、Pythonの実HTTP／自己署名HTTPS・インポート後の実送信26件が成功しました。Python側の宛先はループバックのEchoサーバーであり、実COM Gatewayではありません。前回のブラウザDOM操作16項目は通信を模擬した結果で、今回は再実行していません。実Gateway結合試験はリモート確認要求がOpenAIの安全チェックで拒否されて未実施、ブラウザE2Eは通常のURLアクセスが管理ポリシーで拒否されて未完了、Dockerビルドも未実施です。詳細と再現コマンドは [TESTING.md](TESTING.md) を参照してください。
+## 検証
+
+**2026-10-13にGitHub Actionsで確認済み:** Node 49件、Python 26件、実ブラウザE2E 18項目、実COM Gatewayへの12リクエストが成功しました。Dockerイメージのビルド・起動・HTTPプロキシも確認しています。
+
+アプリ側の `MiniPost verification` が回帰試験・ブラウザ・Dockerを実行します。Gatewayとの結合試験はGateway側のActionsで別実行し、ログもそちらに保持します。ブラウザE2Eの画面は実HTTPのEchoサーバー応答であり、Gatewayの画面ではありません。物理COM/USBの試験は含みません。実行方法・試験範囲・Artifactsは [TESTING.md](TESTING.md) を参照してください。
