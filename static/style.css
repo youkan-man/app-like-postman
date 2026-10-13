@@ -4,7 +4,7 @@
   --line: #3a414b; --subtle: #2a3038; --text: #e8edf2; --muted: #acb5c1;
   --accent: #ff916b; --accent-bg: #3f2b23; --primary-ink: #21130e;
   --green: #79d6ad; --blue: #8ac4fa; --yellow: #f0c577; --red: #ffa5a1;
-  --sidebar: 260px; --rail: 6.462rem; --topbar-height: 3.538rem; --request-fr: .46fr; --response-fr: .54fr;
+  --sidebar: 260px; --rail: 7.231rem; --topbar-height: 3.538rem; --request-fr: .46fr; --response-fr: .54fr;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif;
   font-size: 13px;
 }
@@ -43,7 +43,7 @@ button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke
 .icon-button[aria-pressed=true] { color: var(--accent); background: var(--accent-bg); }
 .text-button { border: 0; background: transparent; color: var(--text); padding: 5px 8px; min-height: 32px; border-radius: 4px; white-space: nowrap; }
 .env-picker { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.env-picker label { color: var(--muted); }
+.env-picker label { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
 .env-picker select { width: clamp(170px, 19vw, 310px); text-overflow: ellipsis; background: var(--bg); }
 .workspace { display: grid; grid-template-columns: calc(var(--rail) + var(--sidebar)) 5px minmax(0, 1fr); height: calc(100dvh - var(--topbar-height)); }
 .navigation { display: grid; grid-template-columns: var(--rail) minmax(0,1fr); min-width: 0; min-height: 0; }
@@ -80,7 +80,7 @@ button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke
 :root[data-navigation=closed] .workspace { grid-template-columns: 0 0 minmax(0,1fr); }
 :root[data-navigation=closed] .navigation, :root[data-navigation=closed] .sidebar-resize { visibility: hidden; }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
-.workspace-toolbar { display: flex; align-items: stretch; flex-shrink: 0; height: 40px; border-bottom: 1px solid var(--line); }
+.workspace-toolbar { display: flex; align-items: stretch; flex-shrink: 0; min-height: 40px; height: 3.077rem; border-bottom: 1px solid var(--line); }
 .request-tabs { display: flex; min-width: 0; flex: 1; overflow: auto; scrollbar-width: thin; }
 .request-tab { display: flex; position: relative; align-items: center; gap: 8px; min-width: 160px; max-width: 280px; flex-shrink: 0; padding: 0 5px 0 12px; border-right: 1px solid var(--line); border-top: 2px solid transparent; background: var(--surface); cursor: pointer; }
 .request-tab.active { background: var(--bg); border-top-color: var(--accent); }

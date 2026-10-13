@@ -53,6 +53,7 @@ def main():
             page.on('pageerror', lambda error: errors.append(str(error)))
 
             def capture(name):
+                page.wait_for_function('document.fonts.status === "loaded"')
                 page.screenshot(path=str(out / f'{name}.png'), full_page=True)
                 shots.append({'name': name, 'viewport': page.viewport_size, 'theme': page.locator('html').get_attribute('data-theme'), 'layout': page.locator('html').get_attribute('data-layout')})
 
@@ -234,6 +235,8 @@ def main():
             page.locator('#modal').get_by_label('Value 2', exact=True).fill('uncommitted-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
             expect(page.locator('#modal').get_by_label('Value 2', exact=True)).to_have_value('uncommitted-mobile-edit')
+            # Viewport updates precede the asynchronous matchMedia change event.
+            expect(page.locator('#modal')).to_have_attribute('aria-modal', 'true')
             assert page.locator('#modal').evaluate('el => el.matches(":modal")')
             capture('mobile-variables')
             page.locator('#cancelModal').click()

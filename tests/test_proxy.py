@@ -214,9 +214,14 @@ class ProxyTests(unittest.TestCase):
         with urlopen(self.proxy_url + '/api/health') as r:
             self.assertTrue(json.load(r)['ok'])
         with urlopen(self.proxy_url + '/') as r:
-            self.assertIn(b'API workspace', r.read())
-        with urlopen(self.proxy_url + '/core.mjs') as r:
-            self.assertIn('javascript', r.headers['Content-Type'])
+            html = r.read()
+            self.assertIn(b'<title>MiniPost</title>', html)
+            self.assertIn(b'id="requestTabs"', html)
+            self.assertIn(b'src="/app.js"', html)
+        for path in ['/core.mjs', '/workbench.mjs']:
+            with self.subTest(path=path), urlopen(self.proxy_url + path) as r:
+                self.assertIn('javascript', r.headers['Content-Type'])
+                self.assertGreater(len(r.read()), 0)
 
     def test_example_endpoint(self):
         with urlopen(self.proxy_url + '/api/examples/gateway') as r:
