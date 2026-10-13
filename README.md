@@ -33,7 +33,9 @@ docker compose up -d --build
 | `collections` / `environments` / `globals` を持つJSONダンプ | まとめて取り込み |
 | Postman APIの `collection` / `environment` ラッパー | 内側のデータを取り込み |
 
-同名でも別コレクション・別環境として追加し、既存データは上書きしません。複数ファイルの解析に失敗した場合は、その取り込み全体を反映しません。Collection／Environmentは再エクスポートできます。
+展開したdata dumpの `archive.json` がCollection／EnvironmentのID一覧だけを持つ場合は、索引として警告を表示して読み飛ばします。**索引だけでは設定を復元できません。同じフォルダーのCollection／Environment本体のJSONも一緒に選択してください。** 壊れたJSONや不正なリソースを黙って無視する動作ではありません。
+
+同名でも別コレクション・別環境として追加し、既存データは上書きしません。複数ファイルの解析に失敗した場合は、その取り込み全体を反映しません。Collection／Environmentは再エクスポートできます。Collection v2.0のオブジェクト形式とv2.1の配列形式の認証属性を扱い、編集後も宣言されたスキーマに合わせて出力します。
 
 送信できる認証は **No Auth / Basic / Bearer / API Key**、および取得済みアクセストークンを設定したOAuth 2.0です。Bodyはraw（JSON・Text・XML・HTML・JavaScript）、x-www-form-urlencoded、form-data（ファイル含む）、binary、GraphQLに対応します。無効行は送信せず、重複クエリ・ヘッダーを保持します。未設定・循環変数は送信前に表示します。
 
@@ -49,4 +51,4 @@ docker compose up -d --build
 
 Health、Session、Hosted ports、Remote gateways、認証なし401、ログインCookie確認に加え、Demoポートの作成→開始→イベント取得→Read-only変更→停止→削除の12リクエストを用意しています。Demo lifecycleはテスト環境のメモリー内デモポート用です。サンプルの読み込みだけではAPIへ送信しません。
 
-**2026-10-13時点の検証:** インポート・送信生成32件、実HTTP/自己署名HTTPSプロキシ22件、通信を模擬したブラウザDOM操作16項目が成功しています。実Gatewayとの結合テスト、実ネットワークを通すブラウザE2E、Dockerイメージのビルドはこの環境では未実施です。手順と区別は [TESTING.md](TESTING.md) を参照してください。
+**2026-10-13の再検証:** Nodeのインポート・送信生成49件、Pythonの実HTTP／自己署名HTTPS・インポート後の実送信26件が成功しました。Python側の宛先はループバックのEchoサーバーであり、実COM Gatewayではありません。前回のブラウザDOM操作16項目は通信を模擬した結果で、今回は再実行していません。実Gateway結合試験はリモート確認要求がOpenAIの安全チェックで拒否されて未実施、ブラウザE2Eは通常のURLアクセスが管理ポリシーで拒否されて未完了、Dockerビルドも未実施です。詳細と再現コマンドは [TESTING.md](TESTING.md) を参照してください。

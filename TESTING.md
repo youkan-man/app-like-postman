@@ -1,26 +1,33 @@
 # Tests
 
-## 実行結果 — 2026-10-13
+## 再検証結果 — 2026-10-13
 
 | レイヤー | 結果 | 内容 |
 | --- | --- | --- |
-| core | 32 / 32 pass | Collection v2.0/v2.1、環境・Globals、階層、変数優先順位・循環検出、認証、Body、エクスポート等 |
-| Python proxy | 22 / 22 pass | 実際のループバックHTTPサーバーとの通信。重複ヘッダー、multipart、binary、リダイレクト、gzip、エラー、自己署名TLS等 |
-| Browser DOM | 16 / 16 pass | 実UIの操作。ただしfetchとlocalStorageを明示的に模擬したオフライン検証 |
-| Browser live E2E | 未完了 | 最初のURLアクセスがブラウザ管理ポリシーで拒否されたため、シナリオ未実行 |
-| COM Gateway integration | 未実施 | ローカルリレーへの要求がツール側で拒否され、Gatewayの実プロセスに接続できていない |
-| Docker build | 未実施 | この環境ではDockerによるビルドを実行していない |
+| Node core / import compatibility | 49 / 49 pass | 既存32件と追加17件。Collection v2.0/v2.1、変数、認証継承、Body、認証属性の形式変換、data dumpの索引、再エクスポート等 |
+| Python proxy | 22 / 22 pass | 実ループバックHTTP。重複ヘッダー、multipart、binary、リダイレクト、gzip、エラー、自己署名TLS等を再実行 |
+| Import → compile → proxy → HTTP | 4 / 4 pass | 新規4テスト内で13リクエストを送信。認証方式、継承・No Auth、v2.0/v2.1再エクスポート、索引と環境の同時読み込み |
+| Browser DOM | 前回 16 / 16 pass | fetchとlocalStorageを模擬した結果。今回は再実行していない |
+| Browser live E2E | 未完了 | 通常のChromium URLアクセスが `ERR_BLOCKED_BY_ADMINISTRATOR`。アプリのE2Eシナリオは未実行 |
+| COM Gateway integration | 未実施 | リレー接続とテストVMの起動処理までは確認。続く確認要求がOpenAIの安全チェックで拒否され、Gatewayの配置・起動・結合試験には至っていない |
+| Docker build | 未実施 | Dockerによるビルドを実行していない |
 
-Gatewayサンプルは指定リポジトリのAPIソースを確認して作成しています。サンプルを読み込むDOMテストは実Gatewayとの疎通試験ではありません。スクリーンショットのレスポンスも模擬応答です。
+**今回実行したNode 49件とPython 26件、計75件が成功しました。** ブラウザDOMの前回結果を今回の成功件数には含めません。追加17件のNode回帰テストは修正前に10件失敗し、修正後にすべて成功しました。
+
+追加したHTTP試験は、実際の `core.mjs` でPostman JSONを読み込み、Node.jsで生成した送信データをMiniPostの `/api/request` に渡し、別のループバックEchoサーバーで到着内容を検査します。HTTP通信自体は模擬していませんが、**COM Gateway試験でもブラウザ試験でもありません。** 使う認証値はテスト用の合成値です。
+
+Gatewayサンプルは指定リポジトリのAPIソースを確認して作成しています。サンプルを読み込むDOMテストは実Gatewayとの疎通試験ではありません。前回提出したスクリーンショットのレスポンスも模擬応答です。
 
 ## 単体・プロキシ
 
 Python 3.12+、Node.js 20+。本体に追加パッケージは不要です。自己署名TLSテストはopensslコマンドを使います。
 
 ```bash
-node --test tests/core.test.mjs
-python -m unittest discover -s tests -p 'test_proxy.py' -v
+node --test tests/*.test.mjs
+python -m unittest discover -s tests -p 'test_*.py' -v
 ```
+
+`test_import_proxy.py` はNode.jsがない場合に失敗し、成功やスキップ扱いにはしません。プロキシ単体だけを実行する場合はパターンを `test_proxy.py` に変更できます。
 
 ## ブラウザ
 
@@ -44,3 +51,9 @@ GATEWAY_CHECKOUT=../app-com-transport-gateway python tests/gateway_integration.p
 ```
 
 Node.jsで実core.mjsからサンプルをインポート・変数展開し、MiniPostの `/api/request` を通して12リクエストを送信します。認証なし401、正常な認証、Demoの作成・開始・停止・削除、Cookie応答を確認します。ソースや依存関係がない場合は非ゼロ終了し、成功扱いにしません。このスクリプトの結合実行は上記日時点では未確認です。
+
+### リモート再試行の到達点
+
+リレーの接続先一覧とSandbox APIの情報取得はHTTP 200で成功しました。最初のテスト用VMは既定容量ではディスク不足のため作成待ちになり、今回作成したその割り当てだけを取り消して `deleted` を確認しました。容量を小さくした別のテスト用VMは起動・初期化処理まで進みましたが、続く確認要求がツールの安全チェックで拒否されたため、その経路での作業を停止しました。
+
+後者についても削除要求はHTTP 202、`queued_delete` として受け付けられています。**削除完了は未確認です。** 既存VMや既存Gatewayの設定は変更していません。Gatewayソースの配置前に停止したため、リモート側でアプリや結合テストが実行されたとは扱いません。
