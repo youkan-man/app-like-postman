@@ -216,10 +216,13 @@ class Handler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             self.send_json(200, send_http_request(payload))
-        except (ValueError, UnicodeError, TypeError, KeyError) as error:
-            self.send_json(400, {"ok": False, "error": str(error)})
         except Exception as error:
             diagnostic = getattr(error, "minipost_network", None)
+            # SSLCertVerificationError is also a ValueError. Network context takes
+            # precedence over input validation so TLS failures retain their cause.
+            if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):
+                self.send_json(400, {"ok": False, "error": str(error)})
+                return
             self.send_json(502, {"ok": False, "error_origin": "minipost",
                 "error": format_network_error(error, diagnostic) if diagnostic else str(error),
                 "diagnostic": diagnostic})
