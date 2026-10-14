@@ -14,7 +14,7 @@
 <body>
   <header class="topbar">
     <button id="toggleSidebar" class="icon-button" aria-label="一覧の開閉" aria-controls="navigation" aria-expanded="true" title="一覧を開閉">☰</button>
-    <strong class="brand"><span class="brand-mark" aria-hidden="true">↗</span><span>MiniPost<small>API WORKBENCH</small></span></strong>
+    <strong class="brand"><span class="brand-mark" aria-hidden="true">↗</span><span>MiniPost</span></strong>
     <div class="header-actions">
       <button id="addTab" class="button" title="新規リクエスト">＋ 新規</button>
       <button id="import" class="button" title="全体または個別のインポート">インポート</button>
@@ -30,13 +30,7 @@
   <div id="navBackdrop" class="nav-backdrop" hidden></div>
   <div class="workspace">
     <div id="navigation" class="navigation">
-      <nav class="rail" aria-label="クイック作成">
-        <button id="railNewRequest" class="rail-button" title="新規リクエスト"><span aria-hidden="true">＋</span>リクエスト</button>
-        <button id="railNewCollection" class="rail-button" title="新規コレクション"><span aria-hidden="true">▤</span>コレクション</button>
-        <button id="railNewEnvironment" class="rail-button" title="新規環境"><span aria-hidden="true">◫</span>環境</button>
-      </nav>
       <aside class="sidebar" aria-label="保存済みデータ">
-        <div class="sidebar-heading"><strong>WORKSPACE</strong><span class="local-pill">LOCAL</span></div>
         <div class="sidebar-tools">
           <input id="search" type="search" placeholder="すべて検索" aria-label="保存済みデータを検索">
           <button id="sidebarAdd" class="icon-button" title="コレクションを追加" aria-label="コレクションを追加">＋</button>
@@ -49,13 +43,11 @@
     </div>
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
-      <div class="workspace-toolbar"><span class="toolbar-label">REQUEST EDITOR</span><strong id="currentContext">新規リクエスト</strong><span class="top-spacer"></span><button id="requestHistory" class="text-button">このリクエストの変更履歴</button></div>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
-          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
           <div id="requestWarning" class="warning" role="status" hidden></div>
-          <div class="editor-hint"><span>設定は自動保存されます</span><span>セクションを開いてそのまま編集</span></div>
           <div id="editorContent" class="editor-content" aria-label="リクエスト設定"></div>
         </section>
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
