@@ -129,34 +129,38 @@ export function bindTabStrip(root, selector) {
 }
 
 /** Anchored item actions: one visible trigger also supports keyboard and touch. */
-let menuAnchor;
+let menuAnchor, menuAnchorRect;
 export function closeItemMenu(restore = true) {
   const menu = $('itemMenu');
   if (menu.hidden) return;
   menu.hidden = true; menuAnchor?.setAttribute('aria-expanded', 'false');
   if (restore && menuAnchor?.isConnected) menuAnchor.focus();
 }
-export function openItemMenu(anchor, actions) {
+export function openItemMenu(anchor, actions, event) {
   closeItemMenu(false); menuAnchor = anchor;
-  const menu = $('itemMenu'); menu.replaceChildren();
+  const menu = $('itemMenu');
+  (anchor.closest('dialog[open]') || document.body).append(menu);
+  menu.replaceChildren();
   anchor.setAttribute('aria-haspopup', 'menu'); anchor.setAttribute('aria-expanded', 'true');
   menu.setAttribute('aria-label', anchor.getAttribute('aria-label') || '操作');
   for (const action of actions) {
     if (!action) { const line = document.createElement('hr'); line.setAttribute('role', 'separator'); menu.append(line); continue; }
     const item = document.createElement('button'); item.type = 'button'; item.setAttribute('role', 'menuitem'); item.textContent = action.label;
     if (action.danger) item.className = 'danger';
+    item.disabled = Boolean(action.disabled);
     item.onclick = () => { closeItemMenu(); action.run(); }; menu.append(item);
   }
   menu.hidden = false;
-  const box = anchor.getBoundingClientRect();
-  menu.style.left = `${clamp(box.right - menu.offsetWidth, 8, innerWidth - menu.offsetWidth - 8)}px`;
-  menu.style.top = `${clamp(box.bottom + 4, 8, innerHeight - menu.offsetHeight - 8)}px`;
-  menu.querySelector('button')?.focus();
+  const box = anchor.getBoundingClientRect(); menuAnchorRect = box;
+  const pointer = event?.type === 'contextmenu' && (event.clientX || event.clientY);
+  menu.style.left = `${clamp(pointer ? event.clientX : box.right - menu.offsetWidth, 8, innerWidth - menu.offsetWidth - 8)}px`;
+  menu.style.top = `${clamp(pointer ? event.clientY : box.bottom + 4, 8, innerHeight - menu.offsetHeight - 8)}px`;
+  menu.querySelector('button:not(:disabled)')?.focus({preventScroll: true});
 }
 export function bindItemMenu() {
   const menu = $('itemMenu');
   menu.onkeydown = event => {
-    const items = [...menu.querySelectorAll('button')];
+    const items = [...menu.querySelectorAll('button:not(:disabled)')];
     if (event.key === 'Escape' || event.key === 'Tab') { closeItemMenu(); if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); } return; }
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault(); const current = items.indexOf(document.activeElement);
@@ -164,7 +168,12 @@ export function bindItemMenu() {
   };
   document.addEventListener('pointerdown', event => { if (!menu.hidden && !menu.contains(event.target) && !menuAnchor?.contains(event.target)) closeItemMenu(false); });
   window.addEventListener('resize', () => closeItemMenu());
-  document.addEventListener('scroll', event => { if (!menu.contains(event.target)) closeItemMenu(false); }, true);
+  document.addEventListener('scroll', event => {
+    if (menu.hidden || menu.contains(event.target) || !menuAnchor?.isConnected) return;
+    const box = menuAnchor.getBoundingClientRect();
+    // Ignore queued scroll events from revealing the trigger before opening.
+    if (Math.abs(box.x - menuAnchorRect.x) > .5 || Math.abs(box.y - menuAnchorRect.y) > .5) closeItemMenu(false);
+  }, true);
 }
 
 // Variable editing keeps the request visible on desktop; compact screens use

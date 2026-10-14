@@ -1,8 +1,9 @@
 import {SCHEMA, clone, uid, rows, enabled, urlParts, displayUrl, setUrlText, setQuery, newRequest, normalizeRequest, walkItems, findItem, importPostman, exportCollection, contextFor, compileRequest} from './core.mjs';
 
-import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, openSurface, bindSurface} from './workbench.mjs';
+import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
 
 import {createNetworkControls, sendThroughProxy} from './network.mjs';
+import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snapshotSettings, applySettings} from './editops.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, networkControls;
@@ -24,6 +25,8 @@ try {
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
 let pane = 'params', side = 'collections', responseView = 'pretty', selectedCollectionId = '', modalAction = null;
 let saveTimer, toastTimer, responseSearchTimer;
+let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
+let saveStatus = 'ローカルに保存済み';
 const active = () => workspace.tabs.find(t => t.id === workspace.activeId) || workspace.tabs[0];
 const describe = value => typeof value === 'string' ? value : value?.content || '';
 const element = (tag, className, text) => {const e = document.createElement(tag); if (className) e.className = className; if (text != null) e.textContent = text; return e;};
@@ -32,15 +35,22 @@ function input(value, placeholder, change, type = 'text') {const e = element('in
 function select(options, value, change) {const e = element('select'); for (const [v, label] of options) {const o = element('option', '', label); o.value = v; e.append(o);} e.value = value; e.onchange = () => change(e.value); return e;}
 function field(label, control) {const e = element('div', 'form-field'); control.id ||= uid(); const text = element('label', '', label); text.htmlFor = control.id; e.append(text, control); return e;}
 function toast(message) {$('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 6500);}
+function setSaveStatus(message, failed = false) {
+  saveStatus = message;
+  $('saveState').textContent = message;
+  const status = $('drawerSaveState');
+  if (status) {status.textContent = message; status.classList.toggle('save-error', failed);}
+}
 function persist(now = false) {
   clearTimeout(saveTimer);
-  $('saveState').textContent = '保存中…';
+  setSaveStatus('保存中…');
   const save = () => {
-    try {localStorage.setItem(KEY, JSON.stringify(workspace)); $('saveState').textContent = 'ローカルに保存済み';}
-    catch { $('saveState').textContent = '保存できません'; toast('ブラウザの保存領域が不足しているか、保存が許可されていません。Collectionをエクスポートしてください。'); }
+    try {localStorage.setItem(KEY, JSON.stringify(workspace)); setSaveStatus('ローカルに保存済み');}
+    catch {setSaveStatus('保存できません。エクスポートしてください。', true); toast('ブラウザに保存できません。編集中の値は画面に残しています。エクスポートして退避してください。');}
   };
   if (now) save(); else saveTimer = setTimeout(save, 220);
 }
+
 function touch() {active().dirty = true; persist(); renderTabs(); updateCounts(); networkControls?.render();}
 function download(name, content, type = 'application/json') {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
@@ -48,8 +58,13 @@ function download(name, content, type = 'application/json') {
   a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function exportFile(name, value) {download(name, JSON.stringify(value, null, 2));}
-function closeModal() {$('modal').close(); modalAction = null;}
+function closeModal() {if (settingsDrawer) persist(true); closeItemMenu(false); $('modal').close(); modalAction = null; settingsDrawer = null;}
 function showModal(title, content, action, submit = '保存', kind = 'dialog') {
+  if (settingsDrawer) persist(true);
+  settingsDrawer = null;
+  $('cancelModal').textContent = 'キャンセル';
+  delete $('modal').dataset.settingsKind;
+  delete $('modal').dataset.settingsId;
   $('modalTitle').textContent = title; $('modalBody').replaceChildren(content);
   $('modalSubmit').textContent = submit; $('modalSubmit').hidden = !action;
   $('modalSubmit').disabled = false; $('modalMessage').textContent = '';
@@ -65,14 +80,108 @@ $('modalForm').onsubmit = async event => {
   finally {$('modalSubmit').disabled = false;}
 };
 $('closeModal').onclick = $('cancelModal').onclick = closeModal;
-$('modal').addEventListener('cancel', () => {modalAction = null;});
-$('modal').addEventListener('close', () => {if (!$('modal').open) modalAction = null;});
+$('modal').addEventListener('cancel', () => {if (settingsDrawer) persist(true); closeItemMenu(false); modalAction = null;});
+$('modal').addEventListener('close', () => {if (!$('modal').open) {if (settingsDrawer) persist(true); closeItemMenu(false); settingsDrawer = null; modalAction = null;}});
 window.addEventListener('pagehide', () => persist(true));
+
+// All selection changes use the same state, including an already-open drawer.
+function chooseEnvironment(id, open = false) {
+  const environment = workspace.environments.find(e => e.id === id);
+  workspace.environmentId = environment?.id || '';
+  persist(); renderEnvironments(); renderSidebar(); networkControls?.render(); updateCounts();
+  if (open || (settingsDrawer?.kind === 'environment' && $('modal').open)) {
+    const focused = document.activeElement;
+    if (environment) editEnvironment(environment);
+    else emptyEnvironmentDrawer();
+    if (!open && focused?.isConnected && !$('modal').contains(focused)) focused.focus();
+  }
+}
+function showSettings(title, box, descriptor) {
+  showModal(title, box, null, '保存', 'drawer');
+  settingsDrawer = descriptor;
+  $('modal').dataset.settingsKind = descriptor.kind;
+  $('modal').dataset.settingsId = descriptor.id || '';
+  $('cancelModal').textContent = '閉じる';
+  const status = element('span', 'drawer-save-state', saveStatus);
+  status.id = 'drawerSaveState'; status.setAttribute('role', 'status');
+  status.classList.toggle('save-error', saveStatus.startsWith('保存できません'));
+  const meta = element('div', 'settings-meta'); meta.append(element('span', '', '自動保存'), status);
+  box.prepend(meta);
+}
+function settingsChanged(rename = false) {
+  persist();
+  if (rename) {renderEnvironments(); renderSidebar();}
+  updateCounts(); networkControls?.render();
+}
+function refreshSettingsDrawer() {
+  const descriptor = settingsDrawer;
+  if (!descriptor || !$('modal').open) return;
+  if (descriptor.kind === 'environment') {
+    const env = workspace.environments.find(e => e.id === workspace.environmentId);
+    if (env) editEnvironment(env); else emptyEnvironmentDrawer();
+  } else if (descriptor.kind === 'globals') editEnvironment(null, true);
+  else {
+    const collection = workspace.collections.find(c => c._mpId === descriptor.collectionId);
+    const folder = descriptor.kind === 'folder' ? findItem(collection, descriptor.id)?.item : null;
+    if (collection && (descriptor.kind !== 'folder' || folder)) editCollection(collection, folder);
+    else closeModal();
+  }
+}
+function emptyEnvironmentDrawer() {
+  const box = element('div');
+  box.append(element('p', 'empty-state', 'No environment — 環境は選択されていません。'), button('環境を作成', () => editEnvironment()));
+  showSettings('Environment variables', box, {kind: 'environment', id: ''});
+}
+function copyConfiguration(owner, kind) {
+  settingsClipboard = snapshotSettings(owner, kind);
+  toast('設定をコピーしました。貼り付け先のメニューから貼り付けできます。');
+}
+function pasteConfiguration(owner, kind) {
+  applySettings(owner, kind, settingsClipboard);
+  settingsChanged(true); refreshSettingsDrawer();
+  toast('設定を貼り付けました。名前は変更していません。');
+}
+function configurationActions(owner, kind) {
+  return [
+    {label: '設定をコピー', run: () => copyConfiguration(owner, kind)},
+    {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== kind,
+      run: () => pasteConfiguration(owner, kind)}
+  ];
+}
+async function copyText(value) {
+  const text = String(value ?? ''), focused = document.activeElement;
+  const selection = focused && typeof focused.selectionStart === 'number' ? [focused.selectionStart, focused.selectionEnd] : null;
+  try {
+    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+    else {
+      const area = element('textarea'); area.value = text; area.style.cssText = 'position:fixed;opacity:0;left:0;top:0;';
+      ($('modal').open ? $('modal') : document.body).append(area);
+      try {area.select(); if (!document.execCommand('copy')) throw new Error('Clipboard unavailable');}
+      finally {area.remove();}
+    }
+    toast('コピーしました。');
+  } catch {toast('クリップボードへコピーできません。入力欄で文字列を選択してコピーしてください。');}
+  finally {if (focused?.isConnected) {focused.focus(); if (selection) focused.setSelectionRange(...selection);}}
+}
+function bindContext(target, anchor, menu) {
+  anchor.setAttribute('aria-haspopup', 'menu');
+  anchor.onclick = event => menu(anchor, event);
+  target.addEventListener('contextmenu', event => {
+    // Preserve normal text selection/copy inside editable controls.
+    if (event.target.closest('input,textarea,select,[contenteditable=true]')) return;
+    event.preventDefault(); event.stopPropagation(); menu(anchor, event);
+  });
+  target.addEventListener('keydown', event => {
+    if (event.target.closest('input,textarea,select,[contenteditable=true]')) return;
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    event.preventDefault(); event.stopPropagation(); menu(anchor);
+  });
+}
 
 function kvEditor(list, changed, options = {}) {
   const wrap = element('div', 'kv-editor'); const table = element('table', 'kv-table');
   const head = element('tr');
-  const columns = [['', 'check'], ['KEY', ''], ...(options.files ? [['TYPE', 'type']] : []), ['VALUE', ''], ['DESCRIPTION', ''], ['', 'action']];
+  const columns = [['', 'check'], ['KEY', ''], ...(options.files ? [['TYPE', 'type']] : []), ['VALUE', ''], ['DESCRIPTION', ''], ['', 'action row-actions']];
   for (const [name, cls] of columns) head.append(element('th', cls, name));
   const thead = element('thead'); thead.append(head); table.append(thead);
   const tbody = element('tbody'); table.append(tbody);
@@ -96,19 +205,44 @@ function kvEditor(list, changed, options = {}) {
       } else valueCell.append(input(row.value, `Value ${index + 1}`, value => {row.value = value; changed();}, options.secret && row.type === 'secret' ? 'password' : 'text'));
       tr.append(valueCell);
       const descriptionCell = element('td'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
-      const actionCell = element('td'); const remove = button('×', () => {
-        list.splice(index, 1);
+      const actionCell = element('td', 'row-actions');
+      function editRows(at, remove, additions = []) {
+        list.splice(at, remove, ...additions);
         if (options.files) {
-          const files = selectedFiles.get(active().id) || {};
-          delete files[`form-${index}`];
-          for (let n = index + 1; n <= list.length; n++) {files[`form-${n - 1}`] = files[`form-${n}`]; delete files[`form-${n}`];}
+          const files = selectedFiles.get(active().id) || {}, previous = {...files};
+          for (const key of Object.keys(files)) if (key.startsWith('form-')) delete files[key];
+          const oldLength = list.length + remove - additions.length;
+          for (let n = 0; n < oldLength; n++) {
+            if (n >= at && n < at + remove) continue;
+            const next = n < at ? n : n - remove + additions.length;
+            if (previous[`form-${n}`]) files[`form-${next}`] = previous[`form-${n}`];
+          }
         }
         changed(); paint();
-      }, 'icon-button'); remove.title = '行を削除'; remove.setAttribute('aria-label', `行 ${index + 1} を削除`); actionCell.append(remove); tr.append(actionCell);
+      }
+      const more = button('⋯', () => {}, 'icon-button row-menu');
+      more.setAttribute('aria-label', `行 ${index + 1} の操作`);
+      bindContext(tr, more, (anchor, event) => openItemMenu(anchor, [
+        {label: '値をコピー', run: () => copyText(row.value)},
+        {label: '行をコピー', run: () => {rowClipboard = clone(row); toast('行をコピーしました。');}},
+        {label: '行を複製', run: () => editRows(index + 1, 0, [clone(row)])},
+        {label: 'コピーした行を下に貼り付け', disabled: !rowClipboard,
+          run: () => editRows(index + 1, 0, [clone(rowClipboard)])},
+        {label: enabled(row) ? '無効にする' : '有効にする', run: () => {row.disabled = enabled(row); delete row.enabled; changed(); paint();}},
+        {label: '削除', danger: true, run: () => editRows(index, 1)}
+      ], event));
+      const remove = button('×', () => editRows(index, 1), 'icon-button');
+      remove.title = '行を削除'; remove.setAttribute('aria-label', `行 ${index + 1} を削除`);
+      actionCell.append(more, remove); tr.append(actionCell);
       tbody.append(tr);
     });
   }
   paint(); wrap.append(table, button('＋ 行を追加', () => {list.push({key: '', value: '', disabled: false, ...(options.files ? {type: 'text'} : {})}); changed(); paint(); tbody.lastElementChild?.querySelector('input[type=text]')?.focus();}, 'table-add'));
+  const paste = button('行を貼り付け', () => {
+    if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;}
+    list.push(clone(rowClipboard)); changed(); paint();
+  }, 'text-button table-paste');
+  paste.setAttribute('aria-label', 'コピーした行を末尾に貼り付け'); wrap.append(paste);
   return wrap;
 }
 function caption(title, parent) {const line = element('div', 'section-caption', title); parent.append(line); return line;}
@@ -239,8 +373,19 @@ function renderTabs() {
     if (tab.dirty) el.append(element('span', 'dirty-dot', '●'));
     const close = button('×', event => {event.stopPropagation(); closeTab(tab.id);}, 'icon-button tab-close'); close.setAttribute('aria-label', `${tab.name}を閉じる`); el.append(close);
     el.onclick = () => {workspace.activeId = tab.id; persist(); renderAll();};
+    const tabMenu = event => openItemMenu(el, [
+      {label: '複製', run: () => addTab({...clone(tab), id: uid(), itemId: undefined, name: copyName(tab.name, workspace.tabs.map(t => t.name)), dirty: true})},
+      {label: '設定をコピー', run: () => copyConfiguration(tab, 'request')},
+      {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {
+        applySettings(tab, 'request', settingsClipboard); tab.dirty = true; selectedFiles.delete(tab.id); persist(); renderAll();
+      }},
+      {label: '閉じる', run: () => closeTab(tab.id)}
+    ], event);
+    el.oncontextmenu = event => {event.preventDefault(); tabMenu(event);};
+
     el.onkeydown = event => {
       if (event.target !== el) return;
+      if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {event.preventDefault(); tabMenu(); return;}
       if (event.key === 'Enter' || event.key === ' ') {event.preventDefault(); el.click();}
       if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {event.preventDefault(); const index = workspace.tabs.indexOf(tab); const next = workspace.tabs[(index + (event.key === 'ArrowRight' ? 1 : -1) + workspace.tabs.length) % workspace.tabs.length]; workspace.activeId = next.id; persist(); renderAll(); $('requestTabs').querySelector('[aria-selected=true]')?.focus();}
     };
@@ -285,7 +430,7 @@ function renderRequestFooter() {
 }
 function renderEnvironments() {
   $('environment').replaceChildren(new Option('No environment', ''));
-  for (const env of workspace.environments) $('environment').append(new Option(env.name, env.id));
+  for (const env of workspace.environments) $('environment').append(new Option(env.name || '名前なしの環境', env.id));
   $('environment').value = workspace.environmentId || '';
 }
 function renderSidebar() {
@@ -297,15 +442,23 @@ function renderSidebar() {
   document.querySelectorAll('[data-sidebar]').forEach(b => (b.classList.toggle('active', b.dataset.sidebar === side), b.setAttribute('aria-current', b.dataset.sidebar === side ? 'true' : 'false')));
   const root = $('sidebarContent'); root.replaceChildren(); const search = $('search').value.trim().toLowerCase();
   if (side === 'environments') {
-    const globalsButton = button('◫  Globals', () => editEnvironment(null, true), 'tree-open tree-row'); globalsButton.id = 'globalVariables'; root.append(globalsButton);
+    const globalRow = element('div', 'tree-row');
+    const globalsButton = button('◫  Globals', () => editEnvironment(null, true), 'tree-open'); globalsButton.id = 'globalVariables';
+    const globalMore = button('⋯', () => {}, 'icon-button'); globalMore.setAttribute('aria-label', 'Globalsの操作');
+    globalRow.append(globalsButton, globalMore); root.append(globalRow);
+    bindContext(globalRow, globalMore, (anchor, event) => environmentMenu(null, true, anchor, event));
     workspace.environments.filter(e => e.name.toLowerCase().includes(search)).forEach(env => {
       const row = element('div', `tree-row${env.id === workspace.environmentId ? ' selected' : ''}`);
-      const edit = button(`◫  ${env.name}`, () => {workspace.environmentId = env.id; persist(); renderEnvironments(); renderPane(); editEnvironment(env);}, 'tree-open'); edit.id = `env-${env.id}`; row.append(edit);
-      root.append(row);
+      row.dataset.environmentId = env.id;
+      const edit = button(`◫  ${env.name || '名前なしの環境'}`, () => chooseEnvironment(env.id, true), 'tree-open'); edit.id = `env-${env.id}`;
+      edit.setAttribute('aria-current', String(env.id === workspace.environmentId));
+      const more = button('⋯', () => {}, 'icon-button'); more.setAttribute('aria-label', `${env.name || '名前なしの環境'}の操作`);
+      row.append(edit, more); root.append(row);
+      bindContext(row, more, (anchor, event) => environmentMenu(env, false, anchor, event));
     });
   } else if (side === 'history') {
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
-      const row = button('', () => {if (workspace.environments.some(e => e.id === entry.environmentId)) workspace.environmentId = entry.environmentId; addTab({...clone(entry.tab), id: uid(), dirty: true});}, 'history-entry');
+      const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), dirty: true});}, 'history-entry');
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
       row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR')); root.append(row);
     }
@@ -323,7 +476,7 @@ function renderSidebar() {
       else open.append(element('span', `method-label method-${item.request.method}`, item.request.method));
       if (isFolder) open.setAttribute('aria-expanded', String(Boolean(expanded)));
       open.append(element('span', 'tree-label', item.name)); open.title = item.request ? displayUrl(item.request.url) : item.name; row.append(open);
-      const more = button('⋯', event => isFolder ? collectionMenu(collection, item, event.currentTarget) : editRequestItem(collection, item, event.currentTarget), 'icon-button'); more.setAttribute('aria-haspopup', 'menu'); row.oncontextmenu = event => {event.preventDefault(); more.click();}; more.title = `${item.name}の操作`; more.setAttribute('aria-label', `${item.name}の操作`); row.append(more); root.append(row);
+      const more = button('⋯', () => {}, 'icon-button'); bindContext(row, more, (anchor, event) => isFolder ? collectionMenu(collection, item, anchor, event) : editRequestItem(collection, item, anchor, event)); more.title = `${item.name}の操作`; more.setAttribute('aria-label', `${item.name}の操作`); row.append(more); root.append(row);
       if (isFolder && expanded) item.item.forEach(child => paintItem(collection, child, level + 1, force || item.name.toLowerCase().includes(search)));
     }
     for (const c of workspace.collections) {
@@ -334,7 +487,7 @@ function renderSidebar() {
       const open = button('', () => {selectedCollectionId = c._mpId; toggleCollapse(c._mpId); renderSidebar();}, 'tree-open');
       open.append(element('span', 'tree-arrow', expanded ? '▾' : '▸'), element('span', 'tree-folder', '▤'), element('strong', 'tree-label', c.info.name));
       open.setAttribute('aria-expanded', String(Boolean(expanded)));
-      const more = button('⋯', event => collectionMenu(c, null, event.currentTarget), 'icon-button'); more.setAttribute('aria-haspopup', 'menu'); row.oncontextmenu = event => {event.preventDefault(); more.click();}; more.title = `${c.info.name}の設定`; more.setAttribute('aria-label', `${c.info.name}の設定`); row.append(open, more); root.append(row);
+      const more = button('⋯', () => {}, 'icon-button'); bindContext(row, more, (anchor, event) => collectionMenu(c, null, anchor, event)); more.title = `${c.info.name}の設定`; more.setAttribute('aria-label', `${c.info.name}の設定`); row.append(open, more); root.append(row);
       if (expanded) c.item.forEach(item => paintItem(c, item, 1, match));
     }
   }
@@ -372,7 +525,7 @@ function saveRequest() {
     side = 'collections'; closeModal(); persist(); renderAll(); toast('コレクションに保存しました。');
   });
 }
-function collectionMenu(collection, folder, anchor) {
+function collectionMenu(collection, folder, anchor, event) {
   selectedCollectionId = collection._mpId;
   const owner = folder || collection, name = folder?.name || collection.info.name;
   const actions = [
@@ -382,29 +535,43 @@ function collectionMenu(collection, folder, anchor) {
       showModal('New folder', box, () => {if (!value.trim()) throw new Error('名前を入力してください。'); owner.item.push({_mpId: uid(), name: value.trim(), item: []}); closeModal(); persist(); renderAll();}, '作成');
     }},
     {label: '変数・認証を編集', run: () => editCollection(collection, folder)},
+    {label: '複製', run: () => {
+      if (folder) {
+        const parent = findItem(collection, folder._mpId)?.parents.at(-1) || collection;
+        const copy = duplicateItem(folder); copy.name = copyName(folder.name, parent.item.map(i => i.name)); parent.item.push(copy);
+      } else workspace.collections.push(duplicateCollection(collection, workspace.collections.map(c => c.info.name)));
+      persist(); renderSidebar(); toast('複製しました。');
+    }},
+    ...configurationActions(owner, 'scope'),
   ];
   if (!folder) actions.push({label: 'エクスポート', run: () => exportFile(`${name}.postman_collection.json`, exportCollection(collection))});
   actions.push(null, {label: '削除', danger: true, run: () => {
     if (!confirm(`「${name}」と配下の保存済みリクエストを削除しますか？開いているタブの内容は残ります。`)) return;
     if (folder) {const parent = findItem(collection, folder._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(item => item._mpId !== folder._mpId);}
     else workspace.collections = workspace.collections.filter(c => c !== collection);
-    persist(); renderAll();
+    persist(); renderAll(); refreshSettingsDrawer();
   }});
-  openItemMenu(anchor, actions);
+  openItemMenu(anchor, actions, event);
 }
 function editCollection(collection, folder = null) {
-  const original = folder || collection, draft = clone(original); let name = folder ? draft.name : draft.info.name;
-  draft.variable = rows(draft.variable);
-  const box = element('div'); box.append(field('Name', input(name, 'Name', value => name = value)));
-  caption('Variables', box); box.append(kvEditor(draft.variable, () => {})); caption('Authorization', box); box.append(authEditor(draft));
+  const owner = folder || collection;
+  owner.variable = rows(owner.variable);
+  const box = element('div');
+  const name = input(folder ? owner.name : owner.info.name, 'Name', value => {
+    if (folder) owner.name = value; else owner.info.name = value;
+    settingsChanged(true);
+  });
+  box.append(field('Name', name));
+  const tools = element('div', 'settings-tools');
+  const more = button('⋯', event => collectionMenu(collection, folder, event.currentTarget), 'icon-button'); more.setAttribute('aria-label', 'この設定の操作'); tools.append(more); box.append(tools);
+  caption('Variables', box); box.append(kvEditor(owner.variable, settingsChanged));
+  caption('Authorization', box); box.append(authEditor(owner, false, settingsChanged));
   box.append(element('p', 'input-condition', '認証値はこのブラウザに平文で保存されます。'));
-  showModal(folder ? 'Folder settings' : 'Collection settings', box, () => {
-    if (!name.trim()) throw new Error('名前を入力してください。');
-    if (folder) original.name = name.trim(); else original.info.name = name.trim();
-    original.variable = draft.variable; original.auth = draft.auth; closeModal(); persist(); renderAll();
-  }, '保存', 'drawer');
+  showSettings(folder ? 'Folder settings' : 'Collection settings', box,
+    {kind: folder ? 'folder' : 'collection', id: owner._mpId, collectionId: collection._mpId});
 }
-function editRequestItem(collection, item, anchor) {
+
+function editRequestItem(collection, item, anchor, event) {
   openItemMenu(anchor, [
     {label: '名前を変更', run: () => {
       let value = item.name; const box = field('Name', input(value, 'Name', text => value = text));
@@ -415,30 +582,56 @@ function editRequestItem(collection, item, anchor) {
         closeModal(); persist(); renderAll();
       });
     }},
-    {label: '複製', run: () => {const copy = {...clone(item), _mpId: uid(), name: `${item.name} copy`}; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item.push(copy); openRequest(collection, copy); persist();}},
+    {label: '複製', run: () => {const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; const copy = duplicateItem(item); copy.name = copyName(item.name, parent.item.map(i => i.name)); parent.item.push(copy); openRequest(collection, copy); persist();}},
+    {label: '設定をコピー', run: () => copyConfiguration({request: item.request}, 'request')},
+    {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {
+      openRequest(collection, item); const tab = active(); applySettings(tab, 'request', settingsClipboard);
+      selectedFiles.delete(tab.id); touch(); renderEditor();
+    }},
+    {label: 'URLをコピー', run: () => copyText(displayUrl(item.request.url))},
     {label: '削除', danger: true, run: () => {if (!confirm(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
-  ]);
+  ], event);
+}
+function environmentMenu(env, globals, anchor, event) {
+  const owner = globals ? {get values() {return workspace.globals;}, set values(value) {workspace.globals = value;}} : env;
+  const actions = [{label: '変数を編集', run: () => globals ? editEnvironment(null, true) : chooseEnvironment(env.id, true)}];
+  if (!globals) actions.push({label: '複製', run: () => {
+    const copy = duplicateEnvironment(env, workspace.environments.map(e => e.name));
+    workspace.environments.push(copy); chooseEnvironment(copy.id, true); toast('環境を複製しました。');
+  }});
+  actions.push(...configurationActions(owner, 'environment'),
+    {label: 'エクスポート', run: () => exportEnvironment(env, globals)});
+  if (!globals) actions.push(null, {label: '削除', danger: true, run: () => {
+    if (!confirm(`環境「${env.name}」を削除しますか？`)) return;
+    workspace.environments = workspace.environments.filter(e => e.id !== env.id);
+    chooseEnvironment(workspace.environmentId === env.id ? '' : workspace.environmentId);
+  }});
+  openItemMenu(anchor, actions, event);
+}
+function exportEnvironment(env, globals = false) {
+  const name = globals ? 'Globals' : env.name || 'Environment', values = globals ? workspace.globals : env.values;
+  exportFile(`${name}.postman_${globals ? 'globals' : 'environment'}.json`, {
+    ...(globals ? {} : {id: env.id}), name, values: values.map(v => ({...v, enabled: enabled(v)})),
+    _postman_variable_scope: globals ? 'globals' : 'environment'
+  });
 }
 function editEnvironment(env, globals = false) {
-  const draft = env ? clone(env) : {id: uid(), name: 'New environment', values: []};
-  const values = globals ? rows(clone(workspace.globals)) : rows(draft.values);
-  const box = element('div'); let name = draft.name;
-  if (!globals) box.append(field('Environment name', input(name, 'Environment name', v => name = v)));
-  const actions = element('div', 'collection-menu');
-  actions.append(button('Export', () => exportFile(`${globals ? 'globals' : name}.postman_${globals ? 'globals' : 'environment'}.json`, {id: draft.id, name: globals ? 'Globals' : name, values: values.map(v => ({...v, enabled: enabled(v)})), _postman_variable_scope: globals ? 'globals' : 'environment'})));
-  if (env && !globals) actions.append(button('削除', () => {if (!confirm(`環境「${env.name}」を削除しますか？`)) return; workspace.environments = workspace.environments.filter(e => e.id !== env.id); if (workspace.environmentId === env.id) workspace.environmentId = ''; closeModal(); persist(); renderAll();}));
-  box.append(actions, kvEditor(values, () => {}, {secret: true}), element('p', 'input-condition', '認証値はブラウザとエクスポートに平文で保存されます。'));
-  showModal(globals ? 'Global variables' : 'Environment variables', box, () => {
-    if (globals) workspace.globals = values;
-    else {
-      if (!name.trim()) throw new Error('環境名を入力してください。');
-      Object.assign(draft, {name: name.trim(), values});
-      const index = workspace.environments.findIndex(e => e.id === draft.id);
-      if (index < 0) workspace.environments.push(draft); else workspace.environments[index] = draft;
-      workspace.environmentId = draft.id;
-    }
-    closeModal(); persist(); renderAll();
-  }, '保存', 'drawer');
+  if (!globals && !env) {
+    const names = workspace.environments.map(e => e.name);
+    env = {id: uid(), name: names.includes('New environment') ? copyName('New environment', names) : 'New environment', values: []};
+    workspace.environments.push(env); workspace.environmentId = env.id; persist();
+  }
+  if (!globals) workspace.environmentId = env.id;
+  if (globals) workspace.globals = rows(workspace.globals); else env.values = rows(env.values);
+  const box = element('div');
+  if (!globals) box.append(field('Environment name', input(env.name, 'Environment name', value => {env.name = value; settingsChanged(true);} )));
+  const tools = element('div', 'settings-tools');
+  tools.append(button('Export', () => exportEnvironment(env, globals)));
+  const more = button('⋯', event => environmentMenu(env, globals, event.currentTarget), 'icon-button'); more.setAttribute('aria-label', 'この設定の操作'); tools.append(more);
+  box.append(tools, kvEditor(globals ? workspace.globals : env.values, settingsChanged, {secret: true}),
+    element('p', 'input-condition', '認証値はブラウザとエクスポートに平文で保存されます。'));
+  renderEnvironments(); renderSidebar(); networkControls?.render();
+  showSettings(globals ? 'Global variables' : 'Environment variables', box, {kind: globals ? 'globals' : 'environment', id: globals ? '' : env.id});
 }
 
 function importDialog(initialFiles = []) {
@@ -570,7 +763,7 @@ $('saveRequest').onclick = saveRequest;
 $('requestName').oninput = () => {active().name = $('requestName').value; touch();};
 $('method').onchange = () => {active().request.method = $('method').value; $('method').className = `method-${$('method').value}`; touch();};
 $('url').oninput = () => {setUrlText(active().request, $('url').value); touch(); if (pane === 'params') renderPane();};
-$('environment').onchange = () => {workspace.environmentId = $('environment').value; persist(); renderSidebar(); renderPane();};
+$('environment').onchange = () => chooseEnvironment($('environment').value);
 $('search').oninput = renderSidebar;
 $('import').onclick = () => importDialog();
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
@@ -602,6 +795,7 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'dark';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
+  if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
   if ($('modal').open && ($('modal').matches(':modal') || $('modal').contains(document.activeElement))) return;
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {event.preventDefault(); sendRequest();}
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
