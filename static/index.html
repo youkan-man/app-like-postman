@@ -7,6 +7,7 @@
   <title>MiniPost · API Workbench</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/settings.css">
+  <link rel="stylesheet" href="/selection.css">
   <link rel="stylesheet" href="/redesign.css">
   <script type="module" src="/app.js"></script>
 </head>
@@ -51,7 +52,7 @@
       <div class="workspace-toolbar"><span class="toolbar-label">REQUEST EDITOR</span><strong id="currentContext">新規リクエスト</strong><span class="top-spacer"></span><button id="requestHistory" class="text-button">このリクエストの変更履歴</button></div>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
-          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
           <div id="requestWarning" class="warning" role="status" hidden></div>
           <div class="editor-hint"><span>設定は自動保存されます</span><span>セクションを開いてそのまま編集</span></div>
