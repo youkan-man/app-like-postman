@@ -35,11 +35,11 @@ def main():
                 ],
             }
             page.locator('#import').click()
-            page.get_by_label('Postman JSON').fill(json.dumps(collection))
+            page.get_by_label('インポートJSON').fill(json.dumps(collection))
             page.locator('#modalSubmit').click()
             expect(page.locator('#modalTitle')).to_have_text('インポート完了')
             page.locator('#modalSubmit').click()
-            page.locator('[data-pane=authorization]').click()
+            page.locator('details.editor-section[data-pane=authorization]').evaluate('el => el.open = true')
             expect(page.get_by_label('Token', exact=True)).to_have_value('original-token')
             page.get_by_label('Token', exact=True).fill('edited-token')
             page.locator('#send').click()
@@ -61,12 +61,12 @@ def main():
             assert dict(received['headers'])['Authorization'] == 'Bearer edited-inherited-token'
             passed('v2.0 collection auth edits in drawer and remains inherited')
 
-            page.locator('[data-sidebar=history]').click()
+            page.locator('details.sidebar-group[data-group=history]').evaluate('el => el.open = true')
             today = page.evaluate('new Date().toLocaleDateString()')
             expect(page.locator('.history-entry').first).to_contain_text(today)
             page.screenshot(path=str(out / 'history.png'), full_page=True)
             passed('history retains the date as well as time and request URL')
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
             page.evaluate('document.documentElement.style.fontSize="26px"')
             for row in page.locator('.tree-row').all():
                 method = row.locator('.method-label')
