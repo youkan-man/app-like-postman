@@ -23,7 +23,6 @@ spec = importlib.util.spec_from_file_location('minipost', ROOT / 'app.py')
 proxy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(proxy)
 
-
 class EchoHandler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
@@ -69,8 +68,7 @@ class EchoHandler(BaseHTTPRequestHandler):
 
 def start_server(handler=EchoHandler):
     server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f'http://127.0.0.1:{server.server_port}'
 
 
@@ -101,62 +99,62 @@ class ProxyTests(unittest.TestCase):
         return proxy.send_http_request({'url': self.url + path, **kwargs})
 
     def test_get_and_query(self):
-        r = self.send('/echo?x=1&x=2')
-        self.assertEqual(r['status'], 200)
-        self.assertEqual(json.loads(r['body'])['path'], '/echo?x=1&x=2')
+        result = self.send('/echo?x=1&x=2')
+        self.assertEqual(result['status'], 200)
+        self.assertEqual(json.loads(result['body'])['path'], '/echo?x=1&x=2')
 
     def test_all_http_methods(self):
         for method in ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']:
             with self.subTest(method=method):
-                r = self.send(method=method, body='hello')
-                self.assertEqual(json.loads(r['body'])['method'], method)
-                self.assertEqual(json.loads(r['body'])['body'], 'hello')
+                result = self.send(method=method, body='hello')
+                self.assertEqual(json.loads(result['body'])['method'], method)
+                self.assertEqual(json.loads(result['body'])['body'], 'hello')
 
     def test_head_and_empty(self):
         self.assertEqual(self.send(method='HEAD')['body'], '')
-        r = self.send('/empty')
-        self.assertEqual(r['status'], 204); self.assertEqual(r['size'], 0)
+        result = self.send('/empty')
+        self.assertEqual(result['status'], 204); self.assertEqual(result['size'], 0)
 
     def test_unicode_json_and_content_length(self):
-        r = self.send(method='POST', body='{"日本語":true}', headers=[{'key': 'Content-Length', 'value': '999'}])
-        received = json.loads(r['body'])
+        result = self.send(method='POST', body='{"日本語":true}', headers=[{'key': 'Content-Length', 'value': '999'}])
+        received = json.loads(result['body'])
         self.assertEqual(received['body'], '{"日本語":true}')
         self.assertEqual(dict(received['headers'])['Content-Length'], str(len('{"日本語":true}'.encode())))
 
     def test_duplicate_request_headers_and_disabled(self):
-        r = self.send(headers=[{'key': 'X-Repeat', 'value': '1'}, {'key': 'X-Repeat', 'value': '2'}, {'key': 'X-Off', 'value': 'no', 'disabled': True}])
-        headers = json.loads(r['body'])['headers']
+        result = self.send(headers=[{'key': 'X-Repeat', 'value': '1'}, {'key': 'X-Repeat', 'value': '2'}, {'key': 'X-Off', 'value': 'no', 'disabled': True}])
+        headers = json.loads(result['body'])['headers']
         self.assertEqual([v for k, v in headers if k == 'X-Repeat'], ['1', '2'])
         self.assertNotIn('X-Off', dict(headers))
 
     def test_binary_response_is_lossless(self):
-        r = self.send('/binary')
-        self.assertEqual(r['body_encoding'], 'base64')
-        self.assertEqual(base64.b64decode(r['body_base64']), bytes(range(256)))
+        result = self.send('/binary')
+        self.assertEqual(result['body_encoding'], 'base64')
+        self.assertEqual(base64.b64decode(result['body_base64']), bytes(range(256)))
 
     def test_binary_request_is_lossless(self):
-        data = bytes(range(256)); encoded = base64.b64encode(data).decode()
+        encoded = base64.b64encode(bytes(range(256))).decode()
         received = json.loads(self.send(method='POST', body_base64=encoded)['body'])
         self.assertEqual(received['body_base64'], encoded)
 
     def test_urlencoded_repeated_fields(self):
-        r = self.send(method='POST', body='x=1&x=2&q=a+b', headers=[{'key': 'Content-Type', 'value': 'application/x-www-form-urlencoded'}])
-        self.assertEqual(json.loads(r['body'])['body'], 'x=1&x=2&q=a+b')
+        result = self.send(method='POST', body='x=1&x=2&q=a+b', headers=[{'key': 'Content-Type', 'value': 'application/x-www-form-urlencoded'}])
+        self.assertEqual(json.loads(result['body'])['body'], 'x=1&x=2&q=a+b')
 
     def test_multipart_bytes_filename_and_generated_boundary(self):
-        r = self.send(method='POST', headers=[{'key': 'Content-Type', 'value': 'multipart/form-data; boundary=wrong'}], multipart=[{'key': 'text', 'value': '日本語'}, {'key': 'upload', 'filename': 'a.bin', 'data': 'AAEC/w==', 'content_type': 'application/octet-stream'}])
-        received = json.loads(r['body']); body = base64.b64decode(received['body_base64'])
+        result = self.send(method='POST', headers=[{'key': 'Content-Type', 'value': 'multipart/form-data; boundary=wrong'}], multipart=[{'key': 'text', 'value': '日本語'}, {'key': 'upload', 'filename': 'a.bin', 'data': 'AAEC/w==', 'content_type': 'application/octet-stream'}])
+        received = json.loads(result['body']); body = base64.b64decode(received['body_base64'])
         content_type = dict(received['headers'])['Content-Type']; boundary = content_type.split('boundary=')[1]
         self.assertNotEqual(boundary, 'wrong'); self.assertIn(b'\x00\x01\x02\xff', body)
         self.assertTrue(body.endswith(('--' + boundary + '--\r\n').encode()))
         self.assertIn('日本語'.encode(), body); self.assertIn(b'filename="a.bin"', body)
 
     def test_empty_multipart_still_has_terminating_boundary(self):
-        r = self.send(method='POST', multipart=[])
-        received = json.loads(r['body']); self.assertTrue(received['body'].endswith('--\r\n'))
+        result = self.send(method='POST', multipart=[])
+        received = json.loads(result['body']); self.assertTrue(received['body'].endswith('--\r\n'))
 
     def test_target_http_errors_are_responses_not_proxy_errors(self):
-        for status in [400, 401, 403, 404, 409, 422, 500]:
+        for status in [400, 401, 403, 404, 409, 422, 500, 502]:
             with self.subTest(status=status):
                 result = self.send(f'/echo?status={status}')
                 self.assertTrue(result['ok']); self.assertEqual(result['status'], status); self.assertIn('method', json.loads(result['body']))
@@ -210,24 +208,25 @@ class ProxyTests(unittest.TestCase):
 
     def test_real_proxy_api_and_static_files(self):
         data = json.dumps({'url': self.url + '/echo', 'method': 'POST', 'body': 'via proxy'}).encode()
-        with urlopen(Request(self.proxy_url + '/api/request', data=data, headers={'Content-Type': 'application/json'})) as r:
-            result = json.load(r)
+        with urlopen(Request(self.proxy_url + '/api/request', data=data, headers={'Content-Type': 'application/json'})) as response:
+            result = json.load(response)
         self.assertEqual(json.loads(result['body'])['body'], 'via proxy')
-        with urlopen(self.proxy_url + '/api/health') as r:
-            self.assertTrue(json.load(r)['ok'])
-        with urlopen(self.proxy_url + '/') as r:
-            html = r.read()
+        with urlopen(self.proxy_url + '/api/health') as response:
+            self.assertTrue(json.load(response)['ok'])
+        with urlopen(self.proxy_url + '/') as response:
+            html = response.read()
             self.assertIn(b'<title>MiniPost</title>', html)
-            self.assertIn(b'id="requestTabs"', html)
+            self.assertNotIn(b'id="requestTabs"', html)
+            self.assertIn(b'id="requestHistory"', html)
             self.assertIn(b'src="/app.js"', html)
-        for path in ['/core.mjs', '/workbench.mjs', '/network.mjs']:
-            with self.subTest(path=path), urlopen(self.proxy_url + path) as r:
-                self.assertIn('javascript', r.headers['Content-Type'])
-                self.assertGreater(len(r.read()), 0)
+        for path in ['/core.mjs', '/workbench.mjs', '/transport.mjs', '/revisions.mjs']:
+            with self.subTest(path=path), urlopen(self.proxy_url + path) as response:
+                self.assertIn('javascript', response.headers['Content-Type'])
+                self.assertGreater(len(response.read()), 0)
 
     def test_example_endpoint(self):
-        with urlopen(self.proxy_url + '/api/examples/gateway') as r:
-            data = json.load(r)
+        with urlopen(self.proxy_url + '/api/examples/gateway') as response:
+            data = json.load(response)
         self.assertEqual(data['info']['name'], 'COM Transport Gateway')
 
     def test_proxy_validation_status(self):

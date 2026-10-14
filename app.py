@@ -16,11 +16,10 @@ from email.message import Message
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
+from network import runtime_info, connection_details, connection_diagnostic, format_network_error
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 EXAMPLE_DIR = Path(__file__).resolve().parent / "examples"
-from network import runtime_info, connection_details, connection_diagnostic, format_network_error
-
 TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
@@ -84,7 +83,7 @@ def send_http_request(payload):
         value = str(item.get("value", ""))
         if not TOKEN.fullmatch(key) or "\r" in value or "\n" in value:
             raise ValueError("ヘッダー名または値が不正です。")
-        # This proxy sends a complete byte buffer, not a caller-supplied chunk stream.
+        # The caller cannot supply conflicting byte-buffer framing.
         if key.lower() not in {"content-length", "transfer-encoding", "connection"}:
             headers.append((key, value))
     body = prepare_body(payload, headers)
@@ -103,13 +102,12 @@ def send_http_request(payload):
         if target.username is not None:
             raise ValueError("URL内の認証情報はAuthorizationのBasic Authに設定してください。")
         port = target.port or (443 if target.scheme == "https" else 80)
-        details = connection_details(target, payload.get("loopback_target", "direct"))
-        # Keep the logical host for HTTP Host and TLS SNI/certificate validation.
-        # Only the TCP destination changes, and only after explicit user selection.
+        details = connection_details(target)
+        # URL host is unchanged for TCP, HTTP Host and TLS verification.
         connection = http.client.HTTPConnection(target.hostname, port, timeout=timeout)
         phase = "connect"
         try:
-            connection.sock = socket.create_connection((details["connect_host"], port), timeout)
+            connection.sock = socket.create_connection((target.hostname, port), timeout)
             details["peer_ip"] = connection.sock.getpeername()[0]
             if target.scheme == "https":
                 phase = "tls"
@@ -218,8 +216,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(200, send_http_request(payload))
         except Exception as error:
             diagnostic = getattr(error, "minipost_network", None)
-            # SSLCertVerificationError is also a ValueError. Network context takes
-            # precedence over input validation so TLS failures retain their cause.
+            # Certificate verification errors are ValueErrors too. Preserve TLS cause.
             if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):
                 self.send_json(400, {"ok": False, "error": str(error)})
                 return

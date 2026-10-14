@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import tempfile
-
 from playwright.sync_api import expect, sync_playwright
 from test_proxy import proxy, start_server
 
@@ -72,7 +71,7 @@ def main():
                 page.locator('#send').click()
                 expect(page.locator('#responseStatus')).to_contain_text('200')
 
-            page.goto(app_url)
+            page.goto(app_url, wait_until='domcontentloaded')
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             assert page.locator('#newRequest, #sidebarMore, #editEnvironment').count() == 0
             expect(page.locator('#addTab')).to_be_visible()
@@ -178,18 +177,13 @@ def main():
             expect(page.locator('#navigation')).to_be_visible()
             passed('desktop sidebar collapse and restore')
 
-            # More tabs than fit: the environment picker and new-tab control remain usable.
             for i in range(12):
                 open_request(f'Request {i:02d}')
-            assert page.locator('#requestTabs').evaluate('el => el.scrollWidth > el.clientWidth')
+            expect(page.locator('#requestTabs, .request-tab')).to_have_count(0)
             expect(page.locator('#environment')).to_be_visible()
             expect(page.locator('#addTab')).to_be_visible()
-            passed('many tabs scroll independently of environment selection')
-            close = page.get_by_role('button', name='Request 11を閉じる', exact=True)
-            close.focus(); page.keyboard.press('Enter')
-            expect(page.locator('#requestName')).not_to_have_value('Request 11')
-            assert page.locator('.request-tab.active').count() == 1
-            passed('keyboard tab close does not activate a removed tab')
+            expect(page.locator('#requestName')).to_have_value('Request 11')
+            passed('list selection opens one request without a tab strip')
             page.locator('#search').fill('Request 44')
             open_request('Request 44')
             expect(page.locator('#search')).to_have_value('Request 44')
@@ -238,7 +232,6 @@ def main():
             page.locator('#modal').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
             expect(page.locator('#modal').get_by_label('Value 2', exact=True)).to_have_value('autosaved-mobile-edit')
-            # Viewport updates precede the asynchronous matchMedia change event.
             expect(page.locator('#modal')).to_have_attribute('aria-modal', 'true')
             assert page.locator('#modal').evaluate('el => el.matches(":modal")')
             capture('mobile-variables')
@@ -254,10 +247,10 @@ def main():
             capture('text-200-percent')
             page.evaluate('document.documentElement.style.fontSize=""')
             passed('200 percent root text enlargement keeps actions reachable')
-            touch_context = browser.new_context(viewport={'width': 390, 'height': 844}, has_touch=True, storage_state=context.storage_state())
+            touch_context = browser.new_context(viewport={'width':390,'height':844}, has_touch=True, storage_state=context.storage_state())
             page = touch_context.new_page()
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(app_url)
+            page.goto(app_url, wait_until='domcontentloaded')
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             page.locator('#toggleSidebar').tap()
             page.get_by_role('button', name='Read channelsの操作', exact=True).tap()
@@ -277,7 +270,6 @@ def main():
         report()
         for server in [app, echo]:
             server.shutdown(); server.server_close()
-
 
 if __name__ == '__main__':
     main()
