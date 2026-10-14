@@ -632,24 +632,107 @@ function editEnvironment(env, globals = false) {
   renderEnvironments(); renderSidebar();
   showSettings(globals ? 'Global variables' : 'Environment variables', box, {kind: globals ? 'globals' : 'environment', id: globals ? '' : env.id});
 }
+function preferencesForArchive() {
+  let layout = null;
+  try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
+  return {layout, sections: expandedSections};
+}
+function saveFullBackup() {
+  persist(true);
+  exportFile('MiniPost-full-' + new Date().toISOString().slice(0,10) + '.json', exportWorkspace(workspace, preferencesForArchive()));
+}
+function showArchiveImport(bundle, source = 'ファイル') {
+  const parsed = readWorkspaceBundle(bundle);
+  const contents = parsed.workspace;
+  const box = element('div');
+  const intro = element('p', 'input-condition', `取込元: ${source}
+コレクション ${contents.collections.length}件、環境 ${contents.environments.length}件、変数 ${contents.globals.length}件、送信履歴 ${contents.history.length}件。
+設定別の変更履歴・下書き・選択環境も含まれます。`);
+  intro.style.whiteSpace = 'pre-wrap';
+  const mode = select([['replace','現在のワークスペースを置換（完全復元）'],['merge','現在の内容に追加（IDを再発行）']], 'replace', () => {});
+  mode.id = 'importMode';
+  const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
+  box.append(intro, field('インポート方式', mode), warning);
+  showModal('MiniPost 全体バックアップを取り込む', box, () => {
+    const previous = workspace;
+    const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
+    if (!next.tabs.length) next.tabs.push(freshTab());
+    if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
+    // A failed quota write must not replace live in-memory data.
+    clearTimeout(saveTimer);
+    localStorage.setItem(KEY, JSON.stringify(next));
+    if (mode.value === 'replace' && parsed.layout) {
+      if (parsed.layout.layout) localStorage.setItem('minipost.layout.v1', JSON.stringify(parsed.layout.layout));
+      if (Array.isArray(parsed.layout.sections)) localStorage.setItem(sectionKey, JSON.stringify(parsed.layout.sections));
+    }
+    workspace = next;
+    revisionStore = new RevisionStore(workspace);
+    responses.clear(); requests.forEach(x => x.abort()); requests.clear(); selectedFiles.clear();
+    closeModal();
+    // Recreate layout handlers only once with imported preferences.
+    window.location.reload();
+  }, 'インポートして反映');
+}
+async function saveToServer() {
+  persist(true);
+  const button = $('serverSave'); button.disabled = true;
+  try {
+    const content = exportWorkspace(workspace, preferencesForArchive());
+    const response = await fetch('/api/workspace', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(content)});
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    $('serverSaveState').classList.remove('error');
+    $('serverSaveState').classList.add('saved');
+    $('serverSaveState').textContent = 'サーバーへ明示保存済み';
+    toast('サーバーの永続領域に保存しました。自動送信はしません。');
+  } catch(error) {
+    $('serverSaveState').classList.add('error');
+    $('serverSaveState').textContent = 'サーバー保存失敗';
+    toast('サーバーへ保存できません: ' + error.message);
+  } finally {button.disabled = false;}
+}
+async function loadFromServer() {
+  const button = $('serverLoad'); button.disabled = true;
+  try {
+    const response = await fetch('/api/workspace',{cache:'no-store'});
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+    showArchiveImport(body, 'サーバー保存');
+  } catch(error) {toast('サーバーから読み込めません: ' + error.message);}
+  finally {button.disabled = false;}
+}
 function importDialog(initialFiles = []) {
-  let files = [...initialFiles]; const box = element('div'), drop = element('div', 'import-drop'), fileList = element('div', 'file-list');
-  drop.append(element('strong', '', 'Postman JSONをドロップ'));
+  let files = [...initialFiles]; const box = element('div'), drop = element('div','import-drop'), fileList = element('div','file-list');
+  drop.append(element('strong','','MiniPost 全体バックアップ / Postman JSON'));
   const picker = element('input'); picker.type = 'file'; picker.accept = '.json,application/json'; picker.multiple = true; picker.hidden = true;
-  const folderPicker = element('input'); folderPicker.type = 'file'; folderPicker.multiple = true; folderPicker.setAttribute('webkitdirectory', ''); folderPicker.hidden = true;
-  const refreshFiles = () => fileList.textContent = files.map(f => f.webkitRelativePath || f.name).join('\n');
-  picker.onchange = () => {files = [...picker.files]; refreshFiles();}; folderPicker.onchange = () => {files = [...folderPicker.files].filter(f => f.name.toLowerCase().endsWith('.json')); refreshFiles();};
-  drop.append(button('ファイルを選択', () => picker.click()), button('フォルダーを選択', () => folderPicker.click()), picker, folderPicker, fileList);
-  drop.ondragover = event => {event.preventDefault(); drop.classList.add('dragover');}; drop.ondragleave = () => drop.classList.remove('dragover');
-  drop.ondrop = event => {event.preventDefault(); drop.classList.remove('dragover'); files = [...event.dataTransfer.files]; refreshFiles();};
-  const paste = element('textarea', 'import-paste'); paste.placeholder = 'または、PostmanのJSONを貼り付け'; paste.setAttribute('aria-label', 'Postman JSON'); paste.spellcheck = false;
-  box.append(drop, field('Raw JSON', paste)); refreshFiles();
-  showModal('Import Postman', box, async () => {
-    const inputs = await Promise.all(files.map(async file => ({name: file.name, content: await file.text()})));
-    if (paste.value.trim()) inputs.push({name: 'Pasted JSON', content: paste.value});
-    if (!inputs.length) throw new Error('JSONファイルを選択するか、JSONを貼り付けてください。');
-    const parsed = inputs.map(i => {try {return importPostman(i.content, i.name);} catch (error) {throw new Error(`${i.name}: ${error.message}`);}}); applyImports(parsed);
-  }, 'Import');
+  const folderPicker = element('input'); folderPicker.type = 'file'; folderPicker.multiple = true; folderPicker.setAttribute('webkitdirectory',''); folderPicker.hidden = true;
+  const refreshFiles = () => fileList.textContent = files.map(f=>f.webkitRelativePath || f.name).join('\n');
+  picker.onchange = () => {files = [...picker.files]; refreshFiles();};
+  folderPicker.onchange = () => {files = [...folderPicker.files].filter(f => f.name.toLowerCase().endsWith('.json')); refreshFiles();};
+  drop.append(button('JSONファイルを選択',()=>picker.click()),button('フォルダーを選択',()=>folderPicker.click()),picker,folderPicker,fileList);
+  drop.ondragover = e => {e.preventDefault();drop.classList.add('dragover');};
+  drop.ondragleave = () => drop.classList.remove('dragover');
+  drop.ondrop = e => {e.preventDefault();drop.classList.remove('dragover');files=[...e.dataTransfer.files];refreshFiles();};
+  const paste = element('textarea','import-paste');paste.placeholder='またはJSONを貼り付け';paste.spellcheck=false;paste.setAttribute('aria-label','インポートJSON');
+  box.append(drop,field('JSONを貼り付け',paste));refreshFiles();
+  showModal('インポート',box,async()=>{
+    const inputs = await Promise.all(files.map(async f => ({name:f.name,content:await f.text()})));
+    if(paste.value.trim())inputs.push({name:'貼り付けJSON',content:paste.value});
+    if(!inputs.length)throw new Error('JSONファイルまたはJSONテキストを指定してください。');
+    if(inputs.some(i=>i.content.length>10*1024*1024))throw new Error('1ファイル10 MiBまで対応します。');
+    // Validate every file before touching the current workspace.
+    const parsed=inputs.map(i=>{
+      try {
+        const data=JSON.parse(i.content);
+        return isWorkspaceBundle(data) ? {name:i.name,kind:'full',data} : {name:i.name,kind:'individual',data:importPostman(data,i.name)};
+      }catch(error){throw new Error(i.name+': '+error.message);}
+    });
+    const full=parsed.filter(x=>x.kind==='full');
+    if(full.length) {
+      if(parsed.length!==1)throw new Error('全体バックアップは単独で読み込んでください。個別ファイルは別途追加できます。');
+      showArchiveImport(full[0].data,full[0].name);
+    } else applyImports(parsed.map(x=>x.data));
+  },'読み込む');
 }
 function applyImports(parsed) {
   const collections = parsed.flatMap(p => p.collections), environments = parsed.flatMap(p => p.environments), globals = parsed.flatMap(p => p.globals), warnings = [...new Set(parsed.flatMap(p => p.warnings))];
@@ -771,8 +854,14 @@ $('url').oninput = () => {setUrlText(active().request, $('url').value); touch();
 $('environment').onchange = () => chooseEnvironment($('environment').value);
 $('search').oninput = renderSidebar;
 $('import').onclick = () => importDialog();
+$('exportWorkspace').onclick = saveFullBackup;
+$('serverSave').onclick = saveToServer;
+$('serverLoad').onclick = loadFromServer;
+$('railNewRequest').onclick = () => $('addTab').click();
+$('railNewCollection').onclick = newCollection;
+$('railNewEnvironment').onclick = () => editEnvironment();
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
-$('sidebarAdd').onclick = () => side === 'environments' ? editEnvironment() : newCollection();
+$('sidebarAdd').onclick = newCollection;
 $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
 $('gatewayExample').onclick = async () => {
   try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
