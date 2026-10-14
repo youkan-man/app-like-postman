@@ -58,7 +58,7 @@ def main():
 
             def import_raw(value):
                 page.locator('#import').click()
-                page.get_by_label('Postman JSON').fill(json.dumps(value))
+                page.get_by_label('インポートJSON').fill(json.dumps(value))
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了')
                 page.locator('#modalSubmit').click()
@@ -89,7 +89,7 @@ def main():
             expect(page.locator('[data-pane=authorization]')).to_have_attribute('aria-selected', 'true')
             page.keyboard.press('End')
             expect(page.locator('[data-pane=settings]')).to_be_focused()
-            page.locator('[data-pane=params]').click()
+            page.locator('details.editor-section[data-pane=params]').evaluate('el => el.open = true')
             passed('editor tab arrow and End key navigation')
 
             trigger = page.get_by_role('button', name='Read channelsの操作', exact=True)
@@ -111,7 +111,7 @@ def main():
             capture('item-menu')
             page.keyboard.press('Escape')
 
-            page.locator('[data-sidebar=environments]').click()
+            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             expect(page.locator('#modal')).to_have_attribute('data-kind', 'drawer')
             assert not page.locator('#modal').evaluate('el => el.matches(":modal")')
@@ -129,10 +129,10 @@ def main():
             send()
             assert dict(json.loads(page.locator('.response-code').inner_text())['headers'])['Authorization'] == 'Bearer ui-updated-token'
             passed('nonmodal variable drawer autosave and close with real auth round trip')
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
 
             open_request('Update channel')
-            page.locator('[data-pane=body]').click()
+            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             send()
             capture('desktop-dark')
             page.locator('#theme').click()
@@ -156,12 +156,12 @@ def main():
             passed('split position and wrapping preferences survive reload')
             page.locator('#wrapResponse').click()
             page.locator('#layoutToggle').click()
-            page.locator('[data-pane=body]').click()
+            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             send()
             page.locator('[data-response=pretty]').focus()
             page.keyboard.press('ArrowRight')
             expect(page.locator('[data-response=raw]')).to_be_focused()
-            page.locator('[data-response=pretty]').click()
+            page.locator('#responseMode').select_option('pretty')
             passed('response tab keyboard navigation')
 
             before = page.locator('.sidebar').bounding_box()['width']
@@ -218,7 +218,7 @@ def main():
                     page.locator('#toggleSidebar').click()
                     page.keyboard.press('Escape')
                     expect(page.locator('#toggleSidebar')).to_be_focused()
-                page.locator('[data-pane=params]').click()
+                page.locator('details.editor-section[data-pane=params]').evaluate('el => el.open = true')
                 page.locator('#url').fill('{{baseUrl}}/echo?channel=1')
                 send()
                 expect(page.locator('#responseSearch')).to_be_visible()
@@ -227,7 +227,7 @@ def main():
 
             page.set_viewport_size({'width': 1440, 'height': 920})
             page.locator('#search').fill('')
-            page.locator('[data-sidebar=environments]').click()
+            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             page.locator('#modal').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
@@ -238,7 +238,7 @@ def main():
             page.locator('#cancelModal').click()
             page.set_viewport_size({'width': 1440, 'height': 920})
             passed('variable drawer changes to modal without losing in-progress fields')
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
             open_request('Read channels')
             page.evaluate('document.documentElement.style.fontSize="26px"')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
