@@ -251,11 +251,11 @@ def main():
             page.locator('#closeModal').click()
             drawer_env('Staging renamed copy')
             # A storage failure is displayed, not falsely acknowledged as persisted.
-            page.evaluate("window.__originalSetItem = Storage.prototype.setItem; Storage.prototype.setItem = function(k,v) { if(k==='minipost.workspace.v2') throw new DOMException('full','QuotaExceededError'); return window.__originalSetItem.call(this,k,v); }")
+            page.evaluate("() => { window.__originalSetItem = Storage.prototype.setItem; Storage.prototype.setItem = function(k,v) { if(k==='minipost.workspace.v2') throw new DOMException('full','QuotaExceededError'); return window.__originalSetItem.call(this,k,v); }; }")
             modal.get_by_label('Value 2', exact=True).fill('survives-save-error')
             expect(page.locator('#drawerSaveState')).to_contain_text('保存できません')
             expect(modal.get_by_label('Value 2', exact=True)).to_have_value('survives-save-error')
-            page.evaluate('Storage.prototype.setItem = window.__originalSetItem')
+            page.evaluate('() => { Storage.prototype.setItem = window.__originalSetItem; }')
             modal.get_by_label('Value 2', exact=True).fill('recovered')
             saved()
             passed('storage errors keep the editor values and show a failed-save state, then recover')
