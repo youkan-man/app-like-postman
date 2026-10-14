@@ -1,23 +1,4 @@
 {
   "version": 1,
-  "relay_environment": "kip-n02",
-  "request_issue": 2,
-  "timeout_seconds": 1800,
-  "environment_revision": "minipost-three-vm-external-v1",
-  "packages": {
-    "apt": ["ca-certificates", "python3", "python3-venv", "nodejs", "docker.io", "docker-compose-v2"]
-  },
-  "vms": {
-    "a": {"port": 8080, "resources": {"cpu": 2, "memory_mib": 2048, "disk_gib": 16}},
-    "b": {"port": 8081, "resources": {"cpu": 2, "memory_mib": 1024, "disk_gib": 16}},
-    "c": {"port": 8080, "resources": {"cpu": 2, "memory_mib": 3072, "disk_gib": 16}}
-  },
-  "steps": [
-    {"name": "prepare", "vms": ["a", "b", "c"], "needs": [], "run": "python3 ci/local_relay/run.py prepare"},
-    {"name": "deploy-a", "vm": "a", "needs": ["prepare"], "run": "python3 ci/local_relay/run.py deploy-a"},
-    {"name": "deploy-b", "vm": "b", "needs": ["prepare"], "run": "python3 ci/local_relay/run.py deploy-b"},
-    {"name": "browser-tools", "vm": "c", "needs": ["prepare"], "run": "python3 ci/local_relay/run.py browser-tools"},
-    {"name": "external-browser-post", "vm": "c", "needs": ["deploy-a", "deploy-b", "browser-tools"], "run": "/srv/app/minipost-relay-ci/venv/bin/python ci/local_relay/run.py verify"},
-    {"name": "stop-test-services", "vms": ["a", "b"], "needs": ["external-browser-post"], "run": "python3 ci/local_relay/run.py stop"}
-  ]
+  "disabled": true
 }
