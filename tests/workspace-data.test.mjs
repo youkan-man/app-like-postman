@@ -25,6 +25,7 @@ test('full archive retains environments, globals, history, drafts, layout and re
   const history = new RevisionStore(ws);
   ws.environments[0].values[0].value='us';
   ws.collections[0].item[0].item[0].request.method='PUT';
+  ws.tabs[0].request.method='PUT';
   history.capture();
   const archive=exportWorkspace(ws,{layout:{sidebar:333},sections:['headers']});
   assert.ok(isWorkspaceBundle(archive));
