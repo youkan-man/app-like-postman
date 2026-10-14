@@ -367,7 +367,6 @@ function renderSelection() {
   const draft = active(), collection = workspace.collections.find(c => c._mpId === draft.collectionId);
   const inCollection = Boolean(findItem(collection, draft.itemId)?.item.request);
   $('requestDirty').textContent = draft.dirty ? '自動保存済み · 未登録' : '';
-  $('currentContext').textContent = draft.name || '新規リクエスト';
   $('saveRequest').hidden = inCollection;
 }
 function selectRequest(id) {
@@ -841,7 +840,7 @@ function showRevisions(key) {
   const box = element('div', 'revision-panel'); box.dataset.revisionKey = key;
   const heading = element('div', 'revision-toolbar');
   heading.append(element('strong', '', row.name || '名前なし'), button('履歴をエクスポート', () => exportFile(`${row.name || 'settings'}.revisions.json`, {key, revisions: workspace.revisions[key] || []})));
-  box.append(heading, element('p', 'input-condition', 'この設定だけの変更履歴です。認証情報を含む場合があります。復元してもリクエストは送信しません。'));
+  box.append(heading);
   const entries = workspace.revisions[key] || [];
   if (!entries.length) box.append(element('p', 'empty-state', '変更履歴はまだありません。'));
   for (const entry of [...entries].reverse()) {
@@ -867,11 +866,11 @@ $('import').onclick = () => importDialog();
 $('exportWorkspace').onclick = saveFullBackup;
 $('serverSave').onclick = saveToServer;
 $('serverLoad').onclick = loadFromServer;
-$('railNewRequest').onclick = () => $('addTab').click();
-$('railNewCollection').onclick = newCollection;
-$('railNewEnvironment').onclick = () => editEnvironment();
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
-$('sidebarAdd').onclick = newCollection;
+$('sidebarAdd').onclick = event => openItemMenu(event.currentTarget, [
+  {label:'コレクションを作成',run:newCollection},
+  {label:'環境を作成',run:()=>editEnvironment()}
+]);
 $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
 $('gatewayExample').onclick = async () => {
   try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
