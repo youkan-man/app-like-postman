@@ -16,11 +16,10 @@ from email.message import Message
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
+from network import runtime_info, connection_details, connection_diagnostic, format_network_error
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 EXAMPLE_DIR = Path(__file__).resolve().parent / "examples"
-from network import runtime_info, connection_details, connection_diagnostic, format_network_error
-
 TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
@@ -84,6 +83,7 @@ def send_http_request(payload):
         value = str(item.get("value", ""))
         if not TOKEN.fullmatch(key) or "\r" in value or "\n" in value:
             raise ValueError("ヘッダー名または値が不正です。")
+        # The caller cannot supply conflicting byte-buffer framing.
         if key.lower() not in {"content-length", "transfer-encoding", "connection"}:
             headers.append((key, value))
     body = prepare_body(payload, headers)
@@ -196,7 +196,7 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             self.wfile.write(body)
         except (BrokenPipeError, ConnectionResetError):
-            pass
+            pass  # The user stopped receiving this response.
 
     def do_GET(self):
         if self.path == "/api/health":
@@ -212,30 +212,18 @@ class Handler(SimpleHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length))
-        except (ValueError, json.JSONDecodeError) as error:
-            self.send_json(400, {"ok": False, "error": str(error)})
-            return
-        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
             self.send_json(200, send_http_request(payload))
-        except ValueError as error:
-            self.send_json(400, {"ok": False, "error": str(error)})
         except Exception as error:
             diagnostic = getattr(error, "minipost_network", None)
-            self.send_json(502, {
-                "ok": False,
-                "error": format_network_error(error, diagnostic) if diagnostic else f"{type(error).__name__}: {error}",
-                "error_origin": "minipost", "diagnostic": diagnostic,
-            })
+            # Certificate verification errors are ValueErrors too. Preserve TLS cause.
+            if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):
+                self.send_json(400, {"ok": False, "error": str(error)})
+                return
+            self.send_json(502, {"ok": False, "error_origin": "minipost",
+                "error": format_network_error(error, diagnostic) if diagnostic else str(error),
+                "diagnostic": diagnostic})
 
 
 if __name__ == "__main__":
-    host, port = os.environ.get("HOST", "0.0.0.0"), int(os.environ.get("PORT", "8080"))
-    server = ThreadingHTTPServer((host, port), Handler)
-    print(f"MiniPost: http://{host}:{port}", flush=True)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        server.server_close()
+    ThreadingHTTPServer((os.environ.get("HOST", "0.0.0.0"), int(os.environ.get("PORT", "8080"))), Handler).serve_forever()

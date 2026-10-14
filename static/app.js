@@ -49,7 +49,8 @@ function persist(now = false) {
   };
   if (now) save(); else saveTimer = setTimeout(save, 220);
 }
-function touch() {active().settings = requestSettings(active().settings); active().dirty = true; persist(); renderSelection(); if (side === 'collections') renderSidebar(); updateCounts();}
+// Keep the live settings object: controls already rendered close over this object.
+function touch() {active().dirty = true; persist(); renderSelection(); if (side === 'collections') renderSidebar(); updateCounts();}
 function download(name, content, type = 'application/json') {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
   const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -333,7 +334,7 @@ function discardDraft(id) {
   if (workspace.activeId === id) workspace.activeId = workspace.tabs[0].id;
   persist(); renderAll();
 }
-function addTab(tab = freshTab()) {persist(true); workspace.tabs.push(tab); selectRequest(tab.id);}
+function addTab(tab = freshTab()) {persist(true); tab.settings = requestSettings(tab.settings); workspace.tabs.push(tab); selectRequest(tab.id);}
 function openRequest(collection, item) {
   workbench?.closeNavigation(); selectedCollectionId = collection._mpId;
   const existing = workspace.tabs.find(t => t.collectionId === collection._mpId && t.itemId === item._mpId);
@@ -381,7 +382,7 @@ function renderSidebar() {
     });
   } else if (side === 'history') {
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
-      const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), dirty: true});}, 'history-entry');
+      const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), itemId: undefined, dirty: true});}, 'history-entry');
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
       row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR')); root.append(row);
     }
@@ -411,7 +412,7 @@ function renderSidebar() {
           {label: '変更履歴', run: () => showRevisions(requestKey(workspace, draft))},
           {label: '複製', run: () => addTab({...clone(draft), id: uid(), name: copyName(draft.name, workspace.tabs.map(t => t.name)), dirty: true})},
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
-          {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {applySettings(draft, 'request', settingsClipboard); draft.dirty = true; selectedFiles.delete(draft.id); persist(); renderAll();}},
+          {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {applySettings(draft, 'request', settingsClipboard); draft.settings = requestSettings(draft.settings); draft.dirty = true; selectedFiles.delete(draft.id); persist(); renderAll();}},
           {label: '下書きを削除', danger: true, run: () => discardDraft(draft.id)}
         ], event)); row.append(open, more); root.append(row);
       }
@@ -517,7 +518,7 @@ function editRequestItem(collection, item, anchor, event) {
     }},
     {label: '複製', run: () => {const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; const copy = duplicateItem(item); copy.name = copyName(item.name, parent.item.map(i => i.name)); parent.item.push(copy); openRequest(collection, copy); persist();}},
     {label: '設定をコピー', run: () => copyConfiguration({request: item.request, settings: item.settings}, 'request')},
-    {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {openRequest(collection, item); const tab = active(); applySettings(tab, 'request', settingsClipboard); selectedFiles.delete(tab.id); touch(); renderEditor();}},
+    {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {openRequest(collection, item); const tab = active(); applySettings(tab, 'request', settingsClipboard); tab.settings = requestSettings(tab.settings); selectedFiles.delete(tab.id); touch(); renderEditor();}},
     {label: 'URLをコピー', run: () => copyText(displayUrl(item.request.url))},
     {label: '削除', danger: true, run: () => {if (!confirm(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
   ], event);
@@ -676,7 +677,7 @@ function showRevisions(key) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
     details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', () => {
       if (!confirm('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。')) return;
-      revisionStore.restore(key, entry); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
+      revisionStore.restore(key, entry); selectedFiles.delete(active().id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
