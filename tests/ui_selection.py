@@ -37,7 +37,7 @@ def main():
 
             def load(value):
                 page.locator('#import').click()
-                page.get_by_label('Postman JSON').fill(json.dumps(value))
+                page.get_by_label('インポートJSON').fill(json.dumps(value))
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了')
                 page.locator('#modalSubmit').click()
@@ -68,7 +68,7 @@ def main():
             page.keyboard.press('Escape')
             assert abs(before['height']-row.bounding_box()['height']) < .5
             passed('long labels keep row height and position on select, focus and context menu')
-            page.locator('[data-pane=body]').click()
+            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             page.get_by_label('Raw body').fill('after-one')
             saved()
             first = state()
@@ -113,7 +113,7 @@ def main():
             page.locator('#closeModal').click()
             env = {'name':'Dev','_postman_variable_scope':'environment','values':[{'key':'x','value':'1','enabled':True}]}
             load(env)
-            page.locator('[data-sidebar=environments]').click()
+            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
             page.get_by_role('button',name='◫  Dev',exact=True).click()
             modal = page.locator('#modal')
             env_id = modal.get_attribute('data-settings-id')
@@ -132,9 +132,9 @@ def main():
             # Reload does not persist another edit. Read the existing record only.
             restored = page.evaluate('(k)=>JSON.parse(localStorage.getItem(k))', KEY)
             assert restored['revisions'][key][-1]['reason'] == '復元'
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
             choose(long)
-            page.locator('[data-pane=body]').click()
+            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             page.screenshot(path=str(out/'single-selection.png'), full_page=True)
             passed('drafts and revisions survive reload')
@@ -157,7 +157,7 @@ def main():
             assert current['revisions'][newkey]
             assert 'draft:'+active['id'] not in current['revisions']
             passed('unsaved work stays in the list and its history follows the first collection save')
-            page.locator('[data-pane=settings]').click()
+            page.locator('details.editor-section[data-pane=settings]').evaluate('el => el.open = true')
             page.get_by_label('TLS証明書を検証する', exact=True).check()
             page.get_by_label('リダイレクトを追従する', exact=True).uncheck()
             page.get_by_label('Timeout ms', exact=True).fill('12500')
