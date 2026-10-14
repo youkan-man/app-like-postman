@@ -46,7 +46,7 @@ def main():
             passed('initial workspace and real proxy health')
 
             def import_raw(data):
-                page.locator('#import').click(); page.get_by_label('Postman JSON').fill(json.dumps(data)); page.locator('#modalSubmit').click()
+                page.locator('#import').click(); page.get_by_label('インポートJSON').fill(json.dumps(data)); page.locator('#modalSubmit').click()
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
             def open_request(name):
                 page.locator('.tree-open').filter(has=page.locator('.tree-label', has_text=name)).first.click()
@@ -74,12 +74,12 @@ def main():
             page.keyboard.press('Control+s')
             passed('bidirectional URL / Params editing and save')
 
-            open_request('JSON request'); page.locator('[data-pane=body]').click()
+            open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             expect(page.get_by_label('Raw body')).to_contain_text('')
             send(); payload = body_json(); assert json.loads(payload['body'])['message'] == 'hello workspace'
             page.get_by_label('Raw body').fill('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
             page.keyboard.press('Control+s'); page.reload(); expect(page.get_by_label('リクエスト名')).to_have_value('JSON request')
-            page.locator('[data-pane=body]').click(); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
+            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
             send(); assert json.loads(body_json()['body'])['message'] == 'edited workspace'
             passed('JSON body variables, keyboard save and reload persistence')
 
@@ -111,17 +111,17 @@ def main():
             passed('multipart text variables and actual file bytes')
 
             page.locator('input[name=bodyMode][value=raw]').check(); page.keyboard.press('Control+s')
-            open_request('Cookie response'); send(); page.locator('[data-response=cookies]').click()
+            open_request('Cookie response'); send(); page.locator('#responseMode').select_option('cookies')
             expect(page.locator('.kv-readonly')).to_contain_text('a=1'); expect(page.locator('.kv-readonly')).to_contain_text('b=2')
             passed('separate duplicate Set-Cookie response rows')
 
-            open_request('HTML preview'); send(); page.locator('[data-response=preview]').click()
+            open_request('HTML preview'); send(); page.locator('#responseMode').select_option('preview')
             expect(page.locator('iframe.preview-frame')).to_be_visible(); assert not page.evaluate('Boolean(window.__PWNED)')
             assert page.locator('iframe.preview-frame').get_attribute('sandbox') == ''
             assert 'default-src' in page.locator('iframe.preview-frame').get_attribute('srcdoc')
             passed('HTML preview sandbox and network-restricting CSP')
 
-            page.locator('[data-response=pretty]').click(); open_request('Slow request'); page.locator('#send').click()
+            page.locator('#responseMode').select_option('pretty'); open_request('Slow request'); page.locator('#send').click()
             open_request('Query and bearer'); send(); assert body_json()['path'] == '/echo?edited=yes'
             page.wait_for_timeout(600); open_request('Slow request'); expect(page.locator('#responseStatus')).to_contain_text('200')
             assert body_json()['path'].startswith('/delay')
@@ -131,14 +131,14 @@ def main():
             expect(page.locator('#responseStatus')).to_have_text('CANCELLED'); expect(page.locator('.response-code')).to_contain_text('取り消せません')
             passed('cancel receive and explicit target-side cancellation limitation')
 
-            page.locator('[data-sidebar=history]').click(); expect(page.locator('.history-entry').first).to_be_visible()
+            page.locator('details.sidebar-group[data-group=history]').evaluate('el => el.open = true'); expect(page.locator('.history-entry').first).to_be_visible()
             assert page.locator('.history-entry').count() >= 7
             page.locator('.history-entry').first.click(); expect(page.locator('#requestName')).not_to_have_value('Untitled request')
             passed('history persistence and reopen')
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
 
             before = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).collections.length')
-            page.locator('#import').click(); page.get_by_label('Postman JSON').fill('{"bad":"data"}'); page.locator('#modalSubmit').click()
+            page.locator('#import').click(); page.get_by_label('インポートJSON').fill('{"bad":"data"}'); page.locator('#modalSubmit').click()
             expect(page.locator('#modalMessage')).to_contain_text('Collection'); page.locator('#closeModal').click()
             after = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).collections.length'); assert before == after
             passed('invalid import leaves existing workspace unchanged')
@@ -146,12 +146,12 @@ def main():
             malicious = json.loads(json.dumps(sample)); malicious['info']['name'] = '<img src=x onerror="window.__XSS=1">'
             malicious['event'] = [{'listen': 'prerequest', 'script': {'exec': ['window.__SCRIPT_RAN=true;']}}]
             import_raw(malicious); expect(page.locator('#requestWarning')).to_be_visible(); assert not page.evaluate('Boolean(window.__XSS || window.__SCRIPT_RAN)')
-            page.locator('[data-pane=scripts]').click(); expect(page.locator('.scripts-block')).to_contain_text('window.__SCRIPT_RAN')
+            page.locator('details.editor-section[data-pane=scripts]').evaluate('el => el.open = true'); expect(page.locator('.scripts-block')).to_contain_text('window.__SCRIPT_RAN')
             passed('untrusted imported names remain text; scripts retained but never executed')
 
             # Imported hostile labels remain visible as escaped text in this test.
             page.locator('#gatewayExample').click(); expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
-            open_request('JSON request'); page.locator('[data-pane=body]').click(); send()
+            open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); send()
             page.wait_for_timeout(300)
             page.screenshot(path=str(out / 'browser-e2e.png'), full_page=True)
 
