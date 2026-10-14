@@ -1,0 +1,19 @@
+/* Settings stay visible while edits persist; no save-and-dismiss workflow. */
+.settings-meta { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--muted); border-bottom:1px solid var(--subtle); padding:0 0 10px; margin-bottom:14px; }
+.drawer-save-state { margin-left:auto; color:var(--green); }
+.drawer-save-state.save-error { color:var(--red); }
+.settings-tools { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
+.settings-tools > .icon-button { margin-left:auto; }
+.kv-table th.row-actions { width:68px; }
+.kv-table td.row-actions { white-space:nowrap; }
+.kv-table td.row-actions .icon-button { width:32px; min-width:32px; padding:2px; }
+.table-add + .table-add { margin-left:12px; }
+@media (pointer:coarse) { .kv-table th.row-actions { width:76px; }.kv-table td.row-actions .icon-button { width:36px; min-width:36px; } }
+
+@media (min-width:1001px) {
+  body:has(#modal[open][data-kind=drawer]) { --settings-drawer-width:min(540px,40vw); }
+  body:has(#modal[open][data-kind=drawer]) .workspace { margin-right:var(--settings-drawer-width); }
+  #modal[data-kind=drawer] { width:var(--settings-drawer-width, min(620px,48vw)); }
+  body:has(#modal[open][data-kind=drawer]) .urlbar kbd { display:none; }
+  body:has(#modal[open][data-kind=drawer]) .urlbar .primary { min-width:72px; }
+}

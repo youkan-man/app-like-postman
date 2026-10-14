@@ -1,0 +1,12 @@
+# Standalone alternative, not an override. Native Linux Docker Engine.
+# Shares host networking so host-only 127.0.0.1 listeners remain reachable.
+services:
+  app-like-postman:
+    build: .
+    container_name: app-like-postman
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      MINIPOST_NETWORK_MODE: host
+      HOST: "${MINIPOST_BIND:-127.0.0.1}"
+      PORT: "${MINIPOST_PORT:-8080}"

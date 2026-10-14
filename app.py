@@ -8,6 +8,7 @@ import json
 import os
 import re
 import ssl
+import socket
 import time
 import uuid
 import zlib
@@ -18,6 +19,8 @@ from urllib.parse import urljoin, urlsplit
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 EXAMPLE_DIR = Path(__file__).resolve().parent / "examples"
+from network import runtime_info, connection_details, connection_diagnostic, format_network_error
+
 TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
@@ -100,12 +103,18 @@ def send_http_request(payload):
         if target.username is not None:
             raise ValueError("URL内の認証情報はAuthorizationのBasic Authに設定してください。")
         port = target.port or (443 if target.scheme == "https" else 80)
-        connection_class = http.client.HTTPSConnection if target.scheme == "https" else http.client.HTTPConnection
-        options = {"timeout": timeout}
-        if target.scheme == "https":
-            options["context"] = context
-        connection = connection_class(target.hostname, port, **options)
+        details = connection_details(target, payload.get("loopback_target", "direct"))
+        # Keep the logical host for HTTP Host and TLS SNI/certificate validation.
+        # Only the TCP destination changes, and only after explicit user selection.
+        connection = http.client.HTTPConnection(target.hostname, port, timeout=timeout)
+        phase = "connect"
         try:
+            connection.sock = socket.create_connection((details["connect_host"], port), timeout)
+            details["peer_ip"] = connection.sock.getpeername()[0]
+            if target.scheme == "https":
+                phase = "tls"
+                connection.sock = context.wrap_socket(connection.sock, server_hostname=target.hostname)
+            phase = "send"
             path = (target.path or "/") + ("?" + target.query if target.query else "")
             connection.putrequest(method, path, skip_host=any(k.lower() == "host" for k, _ in headers), skip_accept_encoding=True)
             for key, value in headers:
@@ -116,6 +125,7 @@ def send_http_request(payload):
             elif method in {"POST", "PUT", "PATCH"}:
                 connection.putheader("Content-Length", "0")
             connection.endheaders(body)
+            phase = "receive"
             response = connection.getresponse()
             response_headers = response.getheaders()
             raw_body = response.read()
@@ -123,6 +133,9 @@ def send_http_request(payload):
             location = response.getheader("Location")
             content_type = response.getheader("Content-Type", "")
             content_encoding = response.getheader("Content-Encoding", "").lower()
+        except Exception as error:
+            error.minipost_network = connection_diagnostic(error, details, phase)
+            raise
         finally:
             connection.close()
         if payload.get("follow_redirects", True) and status in {301, 302, 303, 307, 308} and location:
@@ -166,6 +179,7 @@ def send_http_request(payload):
             "body_base64": base64.b64encode(raw_body).decode("ascii"),
             "content_type": content_type, "size": len(raw_body), "wire_size": wire_size,
             "elapsed_ms": round((time.perf_counter() - started) * 1000), "redirects": redirects,
+            "network": details,
         }
     raise RuntimeError("リダイレクト処理に失敗しました。")
 
@@ -188,7 +202,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/health":
-            self.send_json(200, {"ok": True})
+            self.send_json(200, {"ok": True, "runtime": runtime_info()})
         elif self.path == "/api/examples/gateway":
             self.send_json(200, json.loads((EXAMPLE_DIR / "com-gateway.postman_collection.json").read_text()))
         else:
@@ -202,10 +216,16 @@ class Handler(SimpleHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             self.send_json(200, send_http_request(payload))
-        except (ValueError, UnicodeError, TypeError, KeyError) as error:
-            self.send_json(400, {"ok": False, "error": str(error)})
         except Exception as error:
-            self.send_json(502, {"ok": False, "error": str(error)})
+            diagnostic = getattr(error, "minipost_network", None)
+            # SSLCertVerificationError is also a ValueError. Network context takes
+            # precedence over input validation so TLS failures retain their cause.
+            if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):
+                self.send_json(400, {"ok": False, "error": str(error)})
+                return
+            self.send_json(502, {"ok": False, "error_origin": "minipost",
+                "error": format_network_error(error, diagnostic) if diagnostic else str(error),
+                "diagnostic": diagnostic})
 
 
 if __name__ == "__main__":
