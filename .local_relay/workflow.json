@@ -1,6 +1,5 @@
 {
   "version": 1,
-  "relay_environment": "kip-n02",
   "environment_revision": "minipost-published-url-20261014-v1",
   "vms": {
     "app": {
