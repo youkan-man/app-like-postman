@@ -1,0 +1,19 @@
+/* Selection and focus never expand a truncated name or alter row height. */
+.tree-row .tree-label,
+.tree-open:focus-visible .tree-label,
+.tree-row:focus-within .tree-label {
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  -webkit-line-clamp:unset;
+}
+#addTab {flex:0 0 auto; height:auto; margin:0;}
+#requestDirty {white-space:nowrap; font-size:.85rem;}
+.revision-toolbar {display:flex; align-items:center; flex-wrap:wrap; gap:12px; justify-content:space-between;}
+.revision-entry {border-bottom:1px solid var(--line); padding:12px 0;}
+.revision-entry summary {cursor:pointer; overflow-wrap:anywhere;}
+.revision-value {max-height:340px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;}
+.settings-history {margin-top:12px;}
+@media(max-width:600px) {
+  #requestHistory {padding:4px 6px;}
+  .request-title {flex-wrap:wrap;}
+  .request-title input {flex-basis:50%;}
+}

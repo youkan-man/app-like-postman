@@ -7,6 +7,7 @@
   <title>MiniPost</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/settings.css">
+  <link rel="stylesheet" href="/selection.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -35,10 +36,9 @@
     </div>
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
-      <div class="workspace-toolbar"><div id="requestTabs" class="request-tabs" role="tablist" aria-label="リクエスト"></div><button id="addTab" class="icon-button" aria-label="新しいリクエスト" title="新しいリクエスト">＋</button></div>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
-          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request"><button id="saveRequest" class="button">保存</button><button id="duplicateRequest" class="icon-button" aria-label="編集中のリクエストを複製" title="編集中のリクエストを複製">⧉</button></div>
+          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="addTab" class="icon-button" aria-label="新しいリクエスト" title="新しいリクエスト">＋</button><button id="requestHistory" class="button" title="選択中の設定の変更履歴">変更履歴</button><button id="saveRequest" class="button">保存</button><button id="duplicateRequest" class="icon-button" aria-label="編集中のリクエストを複製" title="編集中のリクエストを複製">⧉</button></div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">Send</button></div>
           <div id="editorTabs" class="editor-tabs" role="tablist" aria-label="リクエスト設定"><button data-pane="params" class="active" role="tab">Params <span id="paramsCount"></span></button><button data-pane="authorization" role="tab">Authorization</button><button data-pane="headers" role="tab">Headers <span id="headersCount"></span></button><button data-pane="body" role="tab">Body <span id="bodyDot"></span></button><button data-pane="scripts" role="tab">Scripts <span id="scriptDot"></span></button><button data-pane="settings" role="tab">Settings</button></div>
           <div id="requestWarning" class="warning" role="status" hidden></div>

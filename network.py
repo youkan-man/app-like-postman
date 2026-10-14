@@ -1,4 +1,4 @@
-"""Explicit loopback routing and credential-free connection diagnostics."""
+"""Direct URL connections and credential-free diagnostics; no routing overrides."""
 from __future__ import annotations
 
 import errno
@@ -11,8 +11,7 @@ import ssl
 
 def runtime_info():
     container = os.environ.get("MINIPOST_CONTAINER") == "1" or Path("/.dockerenv").exists()
-    mode = os.environ.get("MINIPOST_NETWORK_MODE", "unknown" if container else "native")
-    return {"container": container, "network_mode": mode, "docker_host": "host.docker.internal"}
+    return {"container": container, "network_mode": "container" if container else "native"}
 
 
 def is_loopback(host):
@@ -24,17 +23,12 @@ def is_loopback(host):
         return False
 
 
-def connection_details(target, route="direct"):
-    if route not in {"direct", "docker-host"}:
-        raise ValueError("localhostの接続先は direct または docker-host を指定してください。")
-    runtime = runtime_info()
-    use_host = route == "docker-host" and is_loopback(target.hostname) and runtime["network_mode"] != "host"
+def connection_details(target):
     return {
         "scheme": target.scheme, "url_host": target.hostname,
-        "connect_host": runtime["docker_host"] if use_host else target.hostname,
+        "connect_host": target.hostname,
         "port": target.port or (443 if target.scheme == "https" else 80),
-        "loopback_target": route, "host_routing_applied": use_host,
-        "runtime": runtime,
+        "host_routing_applied": False, "runtime": runtime_info(),
     }
 
 
@@ -54,12 +48,8 @@ def connection_diagnostic(error, details, phase):
         code, hint = "CONNECTION_RESET", "送信先が接続を切断しました。HTTP/HTTPSの指定と送信先ログを確認してください。"
     elif getattr(error, "errno", None) in {errno.ENETUNREACH, errno.EHOSTUNREACH}:
         code, hint = "NETWORK_UNREACHABLE", "ネットワークへの経路がありません。Dockerネットワーク、VPN、LAN経路を確認してください。"
-    runtime = details["runtime"]
-    if details["connect_host"] == "host.docker.internal":
-        hint += " DockerホストへはComposeのextra_hosts、またはdocker run --add-host=host.docker.internal:host-gatewayが必要です。Linuxのホスト側が127.0.0.1だけで待ち受ける場合はhostネットワーク構成を使用してください。"
-    elif is_loopback(details["url_host"]) and runtime["container"] and runtime["network_mode"] != "host":
-        hint += " このlocalhostはMiniPostコンテナ自身です。ホスト上のAPIには画面のlocalhost接続先でDockerホストを選択してください。"
-    # No URL path, query, Authorization, request body, or proxy credentials.
+    if is_loopback(details["url_host"]) and details["runtime"]["container"]:
+        hint += " localhostはMiniPostコンテナ自身です。送信したいAPIの到達可能なURLを入力してください。"
     return {**details, "code": code, "phase": phase, "hint": hint}
 
 

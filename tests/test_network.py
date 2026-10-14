@@ -1,4 +1,4 @@
-"""Fast route/diagnosis regressions; actual Docker routes live in docker_network.py."""
+"""Direct routing and diagnostic regression; no host/subnet overrides."""
 import json
 import socket
 import ssl
@@ -8,36 +8,33 @@ from unittest.mock import patch
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-
 from test_proxy import ROOT, proxy, start_server
 sys.path.insert(0, str(ROOT))
 import network
 
-
 class NetworkTests(unittest.TestCase):
-    def test_only_literal_loopback_reroutes(self):
-        with patch.dict('os.environ', {'MINIPOST_NETWORK_MODE': 'bridge'}):
-            for host in ['localhost', 'localhost.', '127.0.0.1', '127.1.2.3', '[::1]']:
-                details = network.connection_details(urlsplit(f'http://{host}:1234/a?q=secret'), 'docker-host')
-                self.assertEqual(details['connect_host'], 'host.docker.internal')
-                self.assertNotIn('secret', json.dumps(details))
-            for host in ['192.168.1.5', 'gateway', 'api.example.com']:
-                details = network.connection_details(urlsplit(f'http://{host}/'), 'docker-host')
-                self.assertEqual(details['connect_host'], host)
-                self.assertFalse(details['host_routing_applied'])
+    def test_connections_keep_url_host_unchanged(self):
+        for host in ['localhost', 'localhost.', '127.0.0.1', '[::1]', '192.168.1.5', 'gateway', 'api.example.com']:
+            target = urlsplit(f'http://{host}:1234/private?token=secret')
+            details = network.connection_details(target)
+            self.assertEqual(details['connect_host'], target.hostname)
+            self.assertEqual(details['port'], 1234)
+            self.assertFalse(details['host_routing_applied'])
+            self.assertNotIn('secret', json.dumps(details))
 
-    def test_no_silent_loopback_rewrite(self):
-        details = network.connection_details(urlsplit('http://localhost:8081/'))
-        self.assertEqual(details['connect_host'], 'localhost')
-        self.assertFalse(details['host_routing_applied'])
-
-    def test_host_network_does_not_need_gateway_alias(self):
+    def test_old_network_mode_environment_does_not_change_destination(self):
         with patch.dict('os.environ', {'MINIPOST_NETWORK_MODE': 'host'}):
-            self.assertEqual(network.connection_details(urlsplit('https://localhost/'), 'docker-host')['connect_host'], 'localhost')
+            self.assertEqual(network.connection_details(urlsplit('https://localhost/'))['connect_host'], 'localhost')
 
-    def test_invalid_route_is_rejected(self):
-        with self.assertRaises(ValueError):
-            network.connection_details(urlsplit('http://localhost/'), 'surprise')
+    def test_deprecated_client_route_field_cannot_rewrite_destination(self):
+        echo, base = start_server()
+        try:
+            result = proxy.send_http_request({'url': base + '/echo', 'loopback_target': 'docker-host'})
+            self.assertEqual(result['status'], 200)
+            self.assertEqual(result['network']['connect_host'], '127.0.0.1')
+            self.assertFalse(result['network']['host_routing_applied'])
+        finally:
+            echo.shutdown(); echo.server_close()
 
     def test_error_classes_are_distinct(self):
         details = network.connection_details(urlsplit('https://example.com/'))
@@ -61,7 +58,6 @@ class NetworkTests(unittest.TestCase):
             self.assertNotIn('NEVER-DISCLOSE', json.dumps(result))
         finally:
             app.shutdown(); app.server_close()
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -3,9 +3,5 @@ services:
     build: .
     container_name: app-like-postman
     restart: unless-stopped
-    environment:
-      MINIPOST_NETWORK_MODE: bridge
     ports:
-      - "${MINIPOST_BIND:-0.0.0.0}:${MINIPOST_PORT:-8080}:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "${MINIPOST_PORT:-8080}:8080"
