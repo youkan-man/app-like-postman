@@ -32,7 +32,7 @@ test('full archive retains environments, globals, history, drafts, layout and re
   const recovered=readWorkspaceBundle(JSON.stringify(archive));
   assert.deepEqual(recovered.workspace,ws);
   assert.equal(recovered.layout.layout.sidebar,333);
-  assert.equal(recovered.workspace.revisions['environment:e1'].at,undefined); // revisions are arrays
+  assert.ok(Array.isArray(recovered.workspace.revisions['environment:e1']));
   assert.ok(recovered.workspace.revisions['environment:e1'].length>=2);
   assert.ok(recovered.workspace.revisions['request:c1:i1'].length>=2);
 });
