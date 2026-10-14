@@ -435,7 +435,16 @@ function renderSidebarSection() {
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
       const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), itemId: undefined, dirty: true});}, 'history-entry');
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
-      row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR')); root.append(row);
+      row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR'));
+      const menu = event => {event?.preventDefault(); openItemMenu(row, [
+        {label:'編集用に開く',run:()=>row.click()},
+        {label:'もう一度送信',run:()=>{row.click(); sendRequest();}}
+      ],event);};
+      row.oncontextmenu = menu;
+      row.onkeydown = event => {
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event);
+      };
+      root.append(row);
     }
   } else {
     function matches(item) {return item.name?.toLowerCase().includes(search) || (item.request && displayUrl(item.request.url).toLowerCase().includes(search)) || item.item?.some(matches);}
@@ -460,6 +469,7 @@ function renderSidebarSection() {
         open.append(element('span', `method-label method-${draft.request.method}`, draft.request.method), element('span', 'tree-label', draft.name)); open.title = draft.name;
         const more = button('⋯', () => {}, 'icon-button'); more.setAttribute('aria-label', `${draft.name}の下書き操作`);
         bindContext(row, more, (anchor, event) => openItemMenu(anchor, [
+          {label: '送信', run: () => {selectRequest(draft.id); sendRequest();}},
           {label: '変更履歴', run: () => showRevisions(requestKey(workspace, draft))},
           {label: '複製', run: () => addTab({...clone(draft), id: uid(), name: copyName(draft.name, workspace.tabs.map(t => t.name)), dirty: true})},
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
@@ -586,6 +596,7 @@ function editCollection(collection, folder = null) {
 }
 function editRequestItem(collection, item, anchor, event) {
   openItemMenu(anchor, [
+    {label: '送信', run: () => {openRequest(collection, item); sendRequest();}},
     {label: '変更履歴', run: () => showRevisions(`request:${collection._mpId}:${item._mpId}`)},
     {label: '名前を変更', run: () => {
       let value = item.name; const box = field('Name', input(value, 'Name', text => value = text));
@@ -654,7 +665,6 @@ function showArchiveImport(bundle, source = 'ファイル') {
   const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
   box.append(intro, field('インポート方式', mode), warning);
   showModal('MiniPost 全体バックアップを取り込む', box, () => {
-    const previous = workspace;
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.length) next.tabs.push(freshTab());
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
@@ -822,7 +832,7 @@ async function sendRequest() {
     const cancelled = error.name === 'AbortError';
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
     if (!cancelled) {workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: 'ERR'}); persist();}
-  } finally {requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} if (side === 'history') renderSidebar();}
+  } finally {requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
 function showRevisions(key) {
   persist(true);
