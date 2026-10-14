@@ -1,0 +1,23 @@
+{
+  "branch": "feat/relay-ui-refinement",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "0001-01-01T00:00:00Z",
+    "id": "lrce-0271bbe6ae8266a94c280381",
+    "release_verified": true,
+    "retained": false,
+    "reused": false,
+    "revision": "882e23d434665dd94712041b1fee3b1bb0ada1efe0ad4a338404dfdc92a182bd",
+    "sandbox_id": "sb-0d5ecf51e9c7",
+    "source_generation": 0
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-a9cb99d2d5e78e72-b",
+  "source_sha": "e5681e0ddfe464954449e10ea36041cb8c82070e",
+  "started_at": "2026-10-14T00:34:13.089561227Z",
+  "status": "preparing",
+  "version": 1
+}

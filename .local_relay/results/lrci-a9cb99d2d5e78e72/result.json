@@ -1,0 +1,48 @@
+{
+  "branch": "feat/relay-ui-refinement",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-14T01:04:15.016971471Z",
+  "reason": "context deadline exceeded",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 2,
+  "run_id": "lrci-a9cb99d2d5e78e72",
+  "source_sha": "e5681e0ddfe464954449e10ea36041cb8c82070e",
+  "started_at": "2026-10-14T00:34:13.089561227Z",
+  "status": "timed_out",
+  "version": 1,
+  "vms": {
+    "a": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-418102320c52",
+      "environment_id": "lrce-323cb97b8e091431278907bf",
+      "expires_at": "0001-01-01T00:00:00Z",
+      "reused": false,
+      "retained": false,
+      "release_verified": true,
+      "port": 8080
+    },
+    "b": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-0d5ecf51e9c7",
+      "environment_id": "lrce-0271bbe6ae8266a94c280381",
+      "expires_at": "0001-01-01T00:00:00Z",
+      "reused": false,
+      "retained": false,
+      "release_verified": true,
+      "port": 8081
+    },
+    "c": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-a687eef1ae32",
+      "environment_id": "lrce-2b699807b17c6194d188ee71",
+      "expires_at": "0001-01-01T00:00:00Z",
+      "reused": false,
+      "retained": false,
+      "release_verified": true,
+      "port": 8080
+    }
+  }
+}
