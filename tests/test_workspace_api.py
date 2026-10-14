@@ -88,7 +88,14 @@ class ExplicitWorkspaceTests(unittest.TestCase):
         self.assertEqual(self.request("POST", EXAMPLE)[0], 200)
         huge = json.loads(json.dumps(EXAMPLE))
         huge["workspace"]["environments"][0]["values"][0]["value"] = "x" * (10 * 1024 * 1024)
-        self.assertEqual(self.request("POST", huge)[0], 413)
+        import http.client
+        conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=5)
+        conn.putrequest('POST', '/api/workspace')
+        conn.putheader('Content-Type', 'application/json')
+        conn.putheader('Content-Length', str(10 * 1024 * 1024 + 1))
+        conn.endheaders()
+        self.assertEqual(conn.getresponse().status, 413)
+        conn.close()
         self.assertEqual(self.request("GET")[1], EXAMPLE)
 
 
