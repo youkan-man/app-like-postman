@@ -86,7 +86,10 @@ def main():
     with DockerApp('minipost-normal-test') as app:
         peer = 'minipost-peer-' + secrets.token_hex(4)
         script = "from http.server import ThreadingHTTPServer;from test_proxy import EchoHandler;ThreadingHTTPServer(('0.0.0.0',8080),EchoHandler).serve_forever()"
-        command('docker', 'run', '-d', '--name', peer, '--network', app.network, '-v', str(ROOT / 'tests') + ':/tests:ro', '-e', 'PYTHONPATH=/tests', app.image, 'python', '-c', script)
+        # Keep tests beside the application, as on the native test runner.
+        command('docker', 'run', '-d', '--name', peer, '--network', app.network,
+                '-v', str(ROOT / 'tests') + ':/app/tests:ro', '-e', 'PYTHONPATH=/app/tests',
+                app.image, 'python', '-c', script)
         checks = []
         try:
             for index in range(30):
@@ -94,7 +97,7 @@ def main():
                 if status == 200:
                     break
                 time.sleep(.3)
-            assert status == 200 and result['status'] == 200
+            assert status == 200 and result['status'] == 200, result
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True)
                 page = browser.new_page(viewport={'width':1440, 'height':920})
@@ -120,7 +123,10 @@ def main():
                 browser.close()
             (OUT / 'results.json').write_text(json.dumps({'status':'passed', 'checks':checks, 'deployment':'shipped default Compose; test name and random port only'}, indent=2))
         finally:
-            command('docker', 'rm', '-f', peer)
+            try:
+                (OUT / 'receiver.log').write_text(command('docker', 'logs', peer))
+            finally:
+                command('docker', 'rm', '-f', peer)
 
 
 if __name__ == '__main__':
