@@ -162,14 +162,17 @@ export function mergeWorkspace(into, source) {
   into.globals.push(...imported.globals);
   into.history.push(...imported.history);
   into.tabs.push(...imported.tabs);
+  into.collapsed ||= [];
   into.collapsed.push(...(imported.collapsed || []).map(remap));
-  into.settingHistory ||= {};
-  for (const [key, values] of Object.entries(imported.settingHistory || {})) {
-    const sep = key.indexOf(':');
-    const renamed = sep < 0 ? key : key.slice(0, sep + 1) + remap(key.slice(sep + 1));
-    if (renamed === 'globals') {
-      into.settingHistory.globals = [...(into.settingHistory.globals || []), ...values].slice(-MAX_REVISIONS);
-    } else into.settingHistory[renamed] = values;
+  for (const property of ['revisions', 'settingHistory']) {
+    into[property] ||= {};
+    for (const [key, values] of Object.entries(imported[property] || {})) {
+      const parts = key.split(':');
+      const renamed = [parts[0], ...parts.slice(1).map(remap)].join(':');
+      if (renamed === 'globals') {
+        into[property].globals = [...(into[property].globals || []), ...values].slice(-MAX_REVISIONS);
+      } else into[property][renamed] = values;
+    }
   }
   if (!into.environmentId && imported.environmentId) into.environmentId = remap(imported.environmentId);
   if (!into.activeId && imported.activeId) into.activeId = remap(imported.activeId);
