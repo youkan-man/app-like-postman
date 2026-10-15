@@ -162,3 +162,38 @@ dialog { border-radius:12px; }
 @media (prefers-reduced-motion:reduce) {
   button, input, textarea, select, summary::before { transition:none !important; }
 }
+
+/* Narrow editors retain every field without forcing horizontal table scrolling. */
+@media (max-width:650px) {
+  .editor-section-body .kv-editor { overflow-x:visible; }
+  .editor-section-body .kv-table { display:block; width:100%; min-width:0; table-layout:auto; }
+  .editor-section-body .kv-table thead { display:none; }
+  .editor-section-body .kv-table tbody { display:block; }
+  .editor-section-body .kv-table tr.kv-data-row {
+    display:grid;
+    grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 75px;
+    grid-template-areas:"enabled key value actions" ". description description actions";
+    padding:3px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .editor-section-body .kv-table tr.kv-data-row--file {
+    grid-template-areas:"enabled key type actions" ". value value actions" ". description description actions";
+  }
+  .editor-section-body .kv-table .kv-data-row td {
+    display:flex; align-items:center; min-width:0; border:0; border-radius:0;
+  }
+  .editor-section-body .kv-table td.kv-enabled { grid-area:enabled; justify-content:center; }
+  .editor-section-body .kv-table td.kv-key { grid-area:key; }
+  .editor-section-body .kv-table td.kv-type { grid-area:type; }
+  .editor-section-body .kv-table td.kv-value { grid-area:value; }
+  .editor-section-body .kv-table td.kv-description { grid-area:description; }
+  .editor-section-body .kv-table td.kv-actions { grid-area:actions; justify-content:center; }
+  .editor-section-body .kv-table td.kv-description input { border-top:1px dashed var(--subtle); }
+  .editor-section-body .kv-table td.kv-actions .icon-button {
+    flex:0 0 35px; width:35px; min-width:35px; padding:2px;
+  }
+  .editor-section-body .kv-table td.kv-value input,
+  .editor-section-body .kv-table td.kv-key input,
+  .editor-section-body .kv-table td.kv-description input,
+  .editor-section-body .kv-table td.kv-type select { min-width:0; width:100%; }
+}
