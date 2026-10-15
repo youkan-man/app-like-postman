@@ -93,18 +93,18 @@ def main():
 
             page.locator('input[name=bodyMode][value=file]').check()
             with page.expect_file_chooser() as chooser:
-                page.get_by_role('button', name='ファイルを選択', exact=True).click()
+                page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'payload.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
             send(); assert body_json()['body_base64'] == 'AAH/'
             passed('binary file upload through browser and Python proxy')
 
             page.locator('input[name=bodyMode][value=formdata]').check()
             page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
-            page.get_by_label('Key 1', exact=True).fill('metadata'); page.get_by_label('Value 1', exact=True).fill('hello {{label}}')
+            page.locator('details.editor-section[data-pane=body]').get_by_label('Key 1', exact=True).fill('metadata'); page.locator('details.editor-section[data-pane=body]').get_by_label('Value 1', exact=True).fill('hello {{label}}')
             page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
-            page.get_by_label('Key 2', exact=True).fill('upload'); page.locator('details.editor-section[data-pane=body] .kv-table tbody tr').nth(1).locator('select').select_option('file')
+            page.locator('details.editor-section[data-pane=body]').get_by_label('Key 2', exact=True).fill('upload'); page.locator('details.editor-section[data-pane=body] .kv-table tbody tr').nth(1).locator('select').select_option('file')
             with page.expect_file_chooser() as chooser:
-                page.get_by_role('button', name='ファイルを選択', exact=True).click()
+                page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'a.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
             send(); payload = body_json()
             assert 'hello workspace' in payload['body']; assert 'filename="a.bin"' in payload['body']; assert 'boundary=' in dict(payload['headers'])['Content-Type']
