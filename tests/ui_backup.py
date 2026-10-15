@@ -72,7 +72,7 @@ def main():
                 item.click()
                 page.get_by_role('menuitem', name='送信', exact=True).click()
                 expect(page.locator('#responseStatus')).to_contain_text('200')
-                assert page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).history.length') > 0
+                page.wait_for_function('JSON.parse(localStorage.getItem("minipost.workspace.v2")).history.length > 0')
                 assert server_workspace()[0] == 404
                 passed('saved request is sent by context menu without server workspace persistence')
 
