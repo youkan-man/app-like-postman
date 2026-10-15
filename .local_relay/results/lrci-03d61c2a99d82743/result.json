@@ -1,0 +1,23 @@
+{
+  "branch": "fix/flat-disclosure-spacing-20261015",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T05:39:44.806589452Z",
+  "environment": {
+    "expires_at": "2026-10-15T08:33:45.142987Z",
+    "id": "lrce-e4b4292844174fbca3434c10",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "minipost-ui-recreate-20261015",
+    "sandbox_id": "sb-6afd07d98895",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-03d61c2a99d82743",
+  "source_sha": "bab4c0ab80fc8cb902f1802a5cd2c4394e439421",
+  "started_at": "2026-10-15T05:36:37.17999325Z",
+  "status": "succeeded",
+  "version": 1
+}
