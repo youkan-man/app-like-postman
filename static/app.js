@@ -691,12 +691,11 @@ function showArchiveImport(bundle, source = 'ファイル') {
   const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
   box.append(intro, field('インポート方式', mode), warning);
   showModal('MiniPost 全体バックアップを取り込む', box, () => {
+    persist(true);
+    if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.length) next.tabs.push(freshTab());
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
-    // Capture any pending local edits before attempting a multi-key import.
-    persist(true);
-    if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
     commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);
     workspace = next;
     revisionStore = new RevisionStore(workspace);
