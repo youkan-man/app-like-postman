@@ -73,8 +73,20 @@ export class RevisionStore {
     if (row.kind === 'globals') this.workspace.globals = value.values;
     else if (row.kind === 'environment') {owner.name = value.name; owner.values = value.values;}
     else if (row.kind === 'request') {
-      Object.assign(owner, value);
-      if (this.workspace.tabs.includes(owner)) owner.dirty = true;
+      const [kind, collectionId, itemId] = key.split(':');
+      let targets;
+      if (kind === 'request') {
+        const collection = this.workspace.collections.find(c => c._mpId === collectionId);
+        const stored = findItem(collection, itemId)?.item;
+        if (!stored?.request) throw new Error('復元先の保存済みリクエストがありません。');
+        targets = [stored, ...this.workspace.tabs.filter(tab => tab.collectionId === collectionId && tab.itemId === itemId)];
+      } else targets = [owner];
+      for (const target of targets) {
+        target.name = value.name;
+        target.request = clone(value.request);
+        target.settings = requestSettings(value.settings);
+        if (this.workspace.tabs.includes(target)) target.dirty = kind !== 'request';
+      }
     } else {
       if (row.kind === 'collection') owner.info.name = value.name; else owner.name = value.name;
       owner.variable = value.variable; owner.auth = value.auth;
