@@ -99,10 +99,10 @@ def main():
             passed('binary file upload through browser and Python proxy')
 
             page.locator('input[name=bodyMode][value=formdata]').check()
-            page.get_by_role('button', name='＋ 行を追加').click()
+            page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
             page.get_by_label('Key 1', exact=True).fill('metadata'); page.get_by_label('Value 1', exact=True).fill('hello {{label}}')
             page.get_by_role('button', name='＋ 行を追加').click()
-            page.get_by_label('Key 2', exact=True).fill('upload'); page.locator('.kv-table tbody tr').nth(1).locator('select').select_option('file')
+            page.get_by_label('Key 2', exact=True).fill('upload'); page.locator('details.editor-section[data-pane=body] .kv-table tbody tr').nth(1).locator('select').select_option('file')
             with page.expect_file_chooser() as chooser:
                 page.get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'a.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
