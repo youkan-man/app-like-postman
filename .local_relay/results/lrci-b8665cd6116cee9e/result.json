@@ -1,0 +1,23 @@
+{
+  "branch": "fix/flat-request-editor-20261015",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T05:08:28.732679248Z",
+  "environment": {
+    "expires_at": "2026-10-15T08:02:48.059641Z",
+    "id": "lrce-e578a30a3af916ba01512eb9",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "minipost-ui-recreate-20261015",
+    "sandbox_id": "sb-c136d4a60438",
+    "source_generation": 1
+  },
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-b8665cd6116cee9e",
+  "source_sha": "aa828b6de0919f5d138864722c422f5bb5a969e5",
+  "started_at": "2026-10-15T05:06:11.495665409Z",
+  "status": "cancelled",
+  "version": 1
+}
