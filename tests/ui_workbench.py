@@ -79,8 +79,12 @@ def main():
             expect(page.locator('#responseStatus')).to_be_visible()
             expect(page.locator('#responseStatus')).to_have_text('未送信')
             assert 35 <= page.locator('.response-panel').bounding_box()['height'] < 90
+            expect(page.locator('html')).to_have_attribute('data-theme', 'light')
+            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == '#f4f6f9'
+            expect(page.locator('.sidebar-group').first.locator('summary')).to_contain_text('コレクション')
+            assert page.locator('#editorTabs, #responseTabs, #requestTabs, .request-tab').count() == 0
             capture('empty-desktop')
-            passed('unsent response collapses to status while retaining the editor')
+            passed('formal light corporate default, localized navigation and no tab strips')
             import_raw(sample)
             import_raw(environment)
             send()
@@ -141,10 +145,12 @@ def main():
             open_request('Update channel')
             page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
             send()
-            capture('desktop-dark')
-            page.locator('#theme').click()
             capture('desktop-light')
             page.locator('#theme').click()
+            expect(page.locator('html')).to_have_attribute('data-theme', 'dark')
+            capture('desktop-dark')
+            page.locator('#theme').click()
+            expect(page.locator('html')).to_have_attribute('data-theme', 'light')
             page.locator('#layoutToggle').click()
             expect(page.locator('html')).to_have_attribute('data-layout', 'side')
             left, right = page.locator('.request-editor').bounding_box(), page.locator('.response-panel').bounding_box()
