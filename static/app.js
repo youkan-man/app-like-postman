@@ -818,6 +818,7 @@ function codeView(text, json = false, search = '') {
 function emptyResponse(title, message) {const box = element('div', 'response-empty'); box.append(element('strong', '', title)); if (message) box.append(element('p', '', message)); return box;}
 function renderResponse() {
   const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id);
+  document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
   $('responseMode').value = responseView;
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
   if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
