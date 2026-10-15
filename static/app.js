@@ -172,24 +172,25 @@ function kvEditor(list, changed, options = {}) {
   function paint() {
     tbody.replaceChildren();
     list.forEach((row, index) => {
-      const tr = element('tr', enabled(row) ? '' : 'disabled');
-      const checkCell = element('td', 'check'), check = element('input');
+      const tr = element('tr', enabled(row) ? 'kv-data-row' : 'kv-data-row disabled');
+      if (options.files) tr.classList.add('kv-data-row--file');
+      const checkCell = element('td', 'check kv-enabled'), check = element('input');
       check.type = 'checkbox'; check.checked = enabled(row); check.setAttribute('aria-label', `行 ${index + 1} を有効にする`);
       check.onchange = () => {row.disabled = !check.checked; delete row.enabled; tr.classList.toggle('disabled', row.disabled); changed();};
       checkCell.append(check); tr.append(checkCell);
-      const keyCell = element('td'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
+      const keyCell = element('td', 'kv-key'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
       if (options.files) {
-        const typeCell = element('td'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint();})); tr.append(typeCell);
+        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint();})); tr.append(typeCell);
       }
-      const valueCell = element('td');
+      const valueCell = element('td', 'kv-value');
       if (options.files && row.type === 'file') {
         const chosen = selectedFiles.get(active().id)?.[`form-${index}`];
         const names = chosen?.map(f => f.name).join(', ') || (Array.isArray(row.src) ? row.src.join(', ') : row.src);
         valueCell.append(button(chosen ? names : names ? `${names} — 再選択` : 'ファイルを選択', () => chooseFiles(`form-${index}`, true, names => {row.src = names; changed(); paint();}), 'file-pick'));
       } else valueCell.append(input(row.value, `Value ${index + 1}`, value => {row.value = value; changed();}, options.secret && row.type === 'secret' ? 'password' : 'text'));
       tr.append(valueCell);
-      const descriptionCell = element('td'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
-      const actionCell = element('td', 'row-actions');
+      const descriptionCell = element('td', 'kv-description'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
+      const actionCell = element('td', 'row-actions kv-actions');
       function editRows(at, remove, additions = []) {
         list.splice(at, remove, ...additions);
         if (options.files) {
