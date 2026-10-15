@@ -76,7 +76,9 @@ def main():
             assert page.locator('#newRequest, #sidebarMore, #editEnvironment').count() == 0
             expect(page.locator('#addTab')).to_be_visible()
             expect(page.locator('html')).to_have_attribute('data-response-empty', 'true')
-            assert page.locator('.response-panel').bounding_box()['height'] < 90
+            expect(page.locator('#responseStatus')).to_be_visible()
+            expect(page.locator('#responseStatus')).to_have_text('未送信')
+            assert 35 <= page.locator('.response-panel').bounding_box()['height'] < 90
             capture('empty-desktop')
             passed('unsent response collapses to status while retaining the editor')
             import_raw(sample)
