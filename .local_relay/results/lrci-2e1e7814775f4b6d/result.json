@@ -1,0 +1,23 @@
+{
+  "branch": "main",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T04:49:59.630856946Z",
+  "environment": {
+    "expires_at": "2026-10-15T07:44:16.540893Z",
+    "id": "lrce-e16e97c2e6c4d55c7e5d71d0",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "minipost-ui-recreate-20261015",
+    "sandbox_id": "sb-a90234dcd6a9",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-2e1e7814775f4b6d",
+  "source_sha": "faec1187114518eea99e95ad01636acf3c2f76e6",
+  "started_at": "2026-10-15T04:44:15.38913031Z",
+  "status": "succeeded",
+  "version": 1
+}

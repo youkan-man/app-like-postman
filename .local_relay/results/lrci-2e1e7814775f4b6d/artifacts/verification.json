@@ -1,0 +1,8 @@
+{
+  "tests": [
+    "node-regression",
+    "python-regression"
+  ],
+  "environment": "local-relay-owned-branch-sandbox",
+  "generated_at": "2026-10-15T04:49:27.436000+00:00"
+}
