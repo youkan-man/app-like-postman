@@ -1,12 +1,22 @@
 {
   "version": 1,
-  "environment_revision": "minipost-published-url-20261014-v1",
+  "environment_revision": "minipost-published-url-20261015-v2",
   "vms": {
     "app": {
-      "port": 8080
+      "port": 8080,
+      "resources": {
+        "cpu": 1,
+        "memory_mib": 1024,
+        "disk_gib": 8
+      }
     },
     "probe": {
-      "port": 8080
+      "port": 8080,
+      "resources": {
+        "cpu": 1,
+        "memory_mib": 1024,
+        "disk_gib": 8
+      }
     }
   },
   "steps": [
