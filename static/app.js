@@ -684,7 +684,7 @@ function showArchiveImport(bundle, source = 'ファイル') {
 }
 async function saveToServer() {
   persist(true);
-  const button = $('serverSave'); button.disabled = true;
+  const button = $('dataActions'); button.disabled = true;
   try {
     const content = exportWorkspace(workspace, preferencesForArchive());
     const response = await fetch('/api/workspace', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(content)});
@@ -701,7 +701,7 @@ async function saveToServer() {
   } finally {button.disabled = false;}
 }
 async function loadFromServer() {
-  const button = $('serverLoad'); button.disabled = true;
+  const button = $('dataActions'); button.disabled = true;
   try {
     const response = await fetch('/api/workspace',{cache:'no-store'});
     const body = await response.json();
@@ -863,9 +863,11 @@ $('url').oninput = () => {setUrlText(active().request, $('url').value); touch();
 $('environment').onchange = () => chooseEnvironment($('environment').value);
 $('search').oninput = renderSidebar;
 $('import').onclick = () => importDialog();
-$('exportWorkspace').onclick = saveFullBackup;
-$('serverSave').onclick = saveToServer;
-$('serverLoad').onclick = loadFromServer;
+$('dataActions').onclick = event => openItemMenu(event.currentTarget, [
+  {label:'全体エクスポート',run:saveFullBackup},
+  {label:'サーバーへ保存',run:saveToServer},
+  {label:'サーバーから読込',run:loadFromServer}
+], event);
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
 $('sidebarAdd').onclick = event => openItemMenu(event.currentTarget, [
   {label:'コレクションを作成',run:newCollection},
