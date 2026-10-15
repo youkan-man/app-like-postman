@@ -1,0 +1,139 @@
+name: Apply checked flat editor patch
+on:
+  push:
+    branches: [fix/flat-request-editor-20261015]
+    paths: [.github/workflows/apply-flat-editor.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.repository == 'youkan-man/app-like-postman' && github.ref == 'refs/heads/fix/flat-request-editor-20261015'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/flat-request-editor-20261015
+          fetch-depth: 0
+      - name: Apply verified source and test edits
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git hash-object static/app.js)" = '05ca82e3fbd4b1819c8e2dd191eb3a6cca8bfebc'
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          def replace_once(s, old, new):
+              if s.count(old) != 1: raise RuntimeError('Patch context changed: '+old[:90])
+              return s.replace(old, new, 1)
+          p=Path('static/app.js'); s=p.read_text()
+          a=s.index("const sectionKey = 'minipost.sections.v1';")
+          b=s.index('async function chooseFiles', a)
+          s=s[:a]+'''// Retain archive compatibility, but no saved collapse preference controls visibility.
+          const sectionKey = 'minipost.sections.v1';
+          const expandedSections = editorSections.map(([name]) => name);
+          function renderPane() {
+            const root = $('editorContent'), scrollTop = root.scrollTop;
+            const content = document.createDocumentFragment();
+            for (const [name, title] of editorSections) {
+              const section = element('section', 'editor-section'); section.dataset.pane = name;
+              const heading = element('h2', 'editor-section-heading', title);
+              heading.id = `request-section-${name}`;
+              section.setAttribute('aria-labelledby', heading.id);
+              const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
+              if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; heading.append(count);}
+              const fields = element('div', 'editor-section-body');
+              renderPaneSection(fields, name);
+              section.append(heading, fields);
+              content.append(section);
+            }
+            root.replaceChildren(content);
+            root.scrollTop = scrollTop;
+            updateCounts();
+          }
+          '''+s[b:]
+          s=replace_once(s,"const details = element('details', 'scripts-block'); details.open = true;", "const details = element('section', 'scripts-block');")
+          s=replace_once(s,"details.append(element('summary', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));", "details.append(element('h3', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));")
+          s=replace_once(s,'// Accordion sections replace the tab-based editor and response strip.', '// Flat, always-visible sections replace cards and tab-based editors.')
+          p.write_text(s)
+          p=Path('static/corporate.css'); s=p.read_text()
+          a=s.index('.editor-section {'); b=s.index('.editor-section-body .section-caption', a)
+          s=s[:a]+'''.editor-section {
+            margin:0;
+            padding:0 0 10px;
+            background:transparent;
+            border:0;
+            border-radius:0;
+            box-shadow:none;
+            min-width:0;
+          }
+          .editor-section + .editor-section { border-top:1px solid var(--line); }
+          .editor-section-heading {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            margin:0;
+            padding:9px 0 7px;
+            min-height:34px;
+            font-size:1rem;
+            line-height:1.4;
+            font-weight:650;
+            color:var(--text);
+          }
+          .editor-section-count { color:var(--muted); font-size:inherit; font-weight:400; }
+          .editor-section-body { padding:0; min-width:0; border:0; background:transparent; }
+          .editor-section-body .scripts-block { padding:0; border:0; background:transparent; }
+          .editor-section-body .scripts-block h3 { margin:6px 0; font-size:1rem; font-weight:600; }
+          .editor-section-body .scripts-block pre { margin:0; padding:8px 0; }
+          '''+s[b:]
+          s=replace_once(s,'  .editor-section > summary { min-height:37px; }','  .editor-section-heading { min-height:34px; padding:8px 0 6px; }')
+          s=replace_once(s,'  .editor-section-body { padding:7px 8px 9px; }','  .editor-section-body { padding:0; }')
+          s=replace_once(s,'  background:var(--bg);\n  scrollbar-gutter:stable;','  background:var(--surface);\n  scrollbar-gutter:stable;')
+          p.write_text(s)
+          p=Path('static/redesign.css'); s=p.read_text()
+          s='\n'.join(line for line in s.split('\n') if not (line.startswith('.editor-section {') or line.startswith('.editor-section > summary') or line.startswith('.editor-section:not([open])') or line.startswith('.editor-section-body {')))
+          p.write_text(s)
+          for p in Path('tests').glob('*.py'):
+              s=p.read_text()
+              s=re.sub(r"page\.locator\('details\.editor-section\[data-pane=([a-z]+)\]'\)\.evaluate\('el => el.open = true'\)", r"expect(page.locator('section.editor-section[data-pane=\1] .editor-section-body')).to_be_visible()",s)
+              s=s.replace('details.editor-section','section.editor-section')
+              p.write_text(s)
+          p=Path('tests/ui_workbench.py');s=p.read_text()
+          a=s.index("            params = page.locator('section.editor-section[data-pane=params]')")
+          b=s.index('            trigger = ', a)
+          s=s[:a]+'''            # The entire request is readable without opening a card or switching a tab.
+                      expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
+                      expect(page.locator('section.editor-section')).to_have_count(6)
+                      for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
+                          section = page.locator(f'section.editor-section[data-pane={name}]')
+                          expect(section.locator('.editor-section-body')).to_be_visible()
+                          expect(section).to_have_css('border-top-left-radius', '0px')
+                          expect(section.locator('.editor-section-body')).to_have_css('padding-left', '0px')
+                          title = section.locator('h2')
+                          title.click()
+                          expect(section.locator('.editor-section-body')).to_be_visible()
+                      expect(page.locator('#editorTabs, [role=tab]')).to_have_count(0)
+                      page.locator('#editorContent').evaluate('el => el.scrollTop = 0')
+                      passed('flat request fields stay visible without collapsible cards or tabs')
+          
+          '''+s[b:]
+          p.write_text(s)
+          p=Path('tests/ui_selection.py');s=p.read_text()
+          a="            page.goto(app_url, wait_until='domcontentloaded')"
+          b=a+"\n            page.evaluate(\"localStorage.setItem('minipost.sections.v1', '[]')\")\n            page.reload(wait_until='domcontentloaded')\n            expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)\n            for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:\n                expect(page.locator(f'section.editor-section[data-pane={name}] .editor-section-body')).to_be_visible()"
+          s=replace_once(s,a,b);p.write_text(s)
+          p=Path('README.md');s=p.read_text()
+          s=replace_once(s,'設定はクエリ・ヘッダー・認証・本文・通信設定・スクリプトの各セクションをその場で開閉できます。','クエリ・ヘッダー・認証・本文・通信設定・スクリプトは、折りたたみカードを使わず常に表示します。')
+          p.write_text(s)
+          PY
+          node --check static/app.js
+          python3 -m compileall -q tests
+          git diff --check
+          rm .github/workflows/apply-flat-editor.yml
+          git add README.md static/app.js static/corporate.css static/redesign.css tests .github/workflows/apply-flat-editor.yml
+          git config user.name 'MiniPost UI automation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(ui): replace collapsible cards with always-visible flat fields'
+          git fetch origin fix/flat-request-editor-20261015
+          git rebase origin/fix/flat-request-editor-20261015
+          git push origin HEAD:fix/flat-request-editor-20261015
