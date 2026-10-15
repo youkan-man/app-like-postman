@@ -39,7 +39,7 @@ def main():
             page.locator('#modalSubmit').click()
             expect(page.locator('#modalTitle')).to_have_text('インポート完了')
             page.locator('#modalSubmit').click()
-            page.locator('details.editor-section[data-pane=authorization]').evaluate('el => el.open = true')
+            expect(page.locator('section.editor-section[data-pane=authorization] .editor-section-body')).to_be_visible()
             expect(page.get_by_label('Token', exact=True)).to_have_value('original-token')
             page.get_by_label('Token', exact=True).fill('edited-token')
             page.locator('#send').click()

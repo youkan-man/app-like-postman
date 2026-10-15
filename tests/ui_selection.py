@@ -26,6 +26,11 @@ def main():
             page = browser.new_page(viewport={'width':1440, 'height':920})
             page.on('pageerror', lambda e: errors.append(str(e)))
             page.goto(app_url, wait_until='domcontentloaded')
+            page.evaluate("localStorage.setItem('minipost.sections.v1', '[]')")
+            page.reload(wait_until='domcontentloaded')
+            expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
+            for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
+                expect(page.locator(f'section.editor-section[data-pane={name}] .editor-section-body')).to_be_visible()
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
 
             def saved():
@@ -68,7 +73,7 @@ def main():
             page.keyboard.press('Escape')
             assert abs(before['height']-row.bounding_box()['height']) < .5
             passed('long labels keep row height and position on select, focus and context menu')
-            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
+            expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             page.get_by_label('Raw body').fill('after-one')
             saved()
             first = state()
@@ -134,7 +139,7 @@ def main():
             assert restored['revisions'][key][-1]['reason'] == '復元'
             page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
             choose(long)
-            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
+            expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             page.screenshot(path=str(out/'single-selection.png'), full_page=True)
             passed('drafts and revisions survive reload')
@@ -157,7 +162,7 @@ def main():
             assert current['revisions'][newkey]
             assert 'draft:'+active['id'] not in current['revisions']
             passed('unsaved work stays in the list and its history follows the first collection save')
-            page.locator('details.editor-section[data-pane=settings]').evaluate('el => el.open = true')
+            expect(page.locator('section.editor-section[data-pane=settings] .editor-section-body')).to_be_visible()
             page.get_by_label('TLS証明書を検証する', exact=True).check()
             page.get_by_label('リダイレクトを追従する', exact=True).uncheck()
             page.get_by_label('Timeout ms', exact=True).fill('12500')

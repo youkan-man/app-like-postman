@@ -89,12 +89,12 @@ def main():
         page.locator('#url').fill('{{baseUrl}}/echo?edited=yes')
         expect(page.get_by_label('Key 1', exact=True)).to_have_value('edited')
         page.keyboard.press('Control+s'); passed('URL and Params bidirectional editing; Ctrl+S save')
-        open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
+        open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
         request = send(); assert json.loads(request['body'])['message'] == 'hello workspace'
         page.get_by_label('Raw body').fill('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
         page.keyboard.press('Control+s'); page.wait_for_timeout(300)
         storage = page.evaluate('window.__storage'); load()
-        page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
+        expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
         request = send(); assert json.loads(request['body'])['message'] == 'edited workspace'
         passed('JSON edit, template resolution and persisted-state restoration')
         page.locator('#responseSearch').fill('workspace'); expect(page.locator('mark').first).to_be_visible(); page.locator('#responseSearch').fill('')
@@ -128,14 +128,14 @@ def main():
         passed('invalid import is atomic and non-destructive')
         malicious = json.loads(json.dumps(sample)); malicious['info']['name']='<img src=x onerror="window.__XSS=1">'; malicious['event']=[{'listen':'prerequest','script':{'exec':['window.__SCRIPT_RAN=true;']}}]
         import_raw(malicious); expect(page.locator('#requestWarning')).to_be_visible(); assert not page.evaluate('Boolean(window.__XSS || window.__SCRIPT_RAN)')
-        page.locator('details.editor-section[data-pane=scripts]').evaluate('el => el.open = true'); expect(page.locator('.scripts-block')).to_contain_text('__SCRIPT_RAN')
+        expect(page.locator('section.editor-section[data-pane=scripts] .editor-section-body')).to_be_visible(); expect(page.locator('.scripts-block')).to_contain_text('__SCRIPT_RAN')
         passed('untrusted imported labels are text; scripts retained but not executed')
         page.wait_for_timeout(300); storage=page.evaluate('window.__storage')
         state=json.loads(storage['minipost.workspace.v2']); state['collections']=[c for c in state['collections'] if not c['info']['name'].startswith('<img')]
         ids={c['_mpId'] for c in state['collections']}; state['tabs']=[t for t in state['tabs'] if t.get('collectionId') in ids]; state['activeId']=state['tabs'][0]['id']
         storage['minipost.workspace.v2']=json.dumps(state); load()
         page.locator('#gatewayExample').click(); expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
-        open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); send()
+        open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); send()
         passed('built-in COM Gateway collection loads without changing its configuration')
         page.locator('#requestInfo').evaluate("e => e.textContent='画面確認 · 通信モック（実Gatewayには未接続）'")
         page.locator('#connectionStatus').evaluate("e => e.textContent='Offline DOM test · simulated transport'")
