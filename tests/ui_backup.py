@@ -176,6 +176,8 @@ def main():
 
                 page.screenshot(path=str(out / 'whole-backup-desktop.png'), full_page=True)
                 page.set_viewport_size({'width': 390, 'height': 844})
+                expect(page.locator('html')).to_have_attribute('data-response-empty', 'true')
+                assert page.locator('.response-panel').bounding_box()['height'] < 90
                 page.screenshot(path=str(out / 'whole-backup-phone.png'), full_page=True)
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 assert not errors, errors
