@@ -21,15 +21,46 @@ export function exportWorkspace(ws, layout = null) {
 export function isWorkspaceBundle(input) {
   return !!(input && typeof input === 'object' && input.kind === BUNDLE_KIND);
 }
+const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const validId = id => typeof id === 'string' && id.length > 0 && !id.includes(':') && id !== '__proto__';
+const request = value => record(value) && typeof value.method === 'string' && value.url != null;
+function validItems(items, depth = 0) {
+  if (!Array.isArray(items) || depth > 40) return false;
+  return items.every(item => record(item) && validId(item._mpId) && typeof item.name === 'string' &&
+    (Array.isArray(item.item) ? validItems(item.item, depth + 1) : request(item.request)));
+}
+function validRevisions(map) {
+  if (map == null) return true;
+  if (!record(map)) return false;
+  for (const [key, entries] of Object.entries(map)) {
+    if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft):[^:]+(?::[^:]+)?$/.test(key)) return false;
+    if (!Array.isArray(entries) || !entries.every(entry => record(entry) && record(entry.value))) return false;
+  }
+  return true;
+}
+function validWorkspace(ws) {
+  return record(ws) && ws.version === 2 &&
+    Array.isArray(ws.collections) && ws.collections.every(c =>
+      record(c) && validId(c._mpId) && record(c.info) &&
+      typeof c.info.name === 'string' && validItems(c.item)) &&
+    Array.isArray(ws.environments) && ws.environments.every(e =>
+      record(e) && validId(e.id) && typeof e.name === 'string' && Array.isArray(e.values)) &&
+    Array.isArray(ws.globals) && ws.globals.every(record) &&
+    Array.isArray(ws.tabs) && ws.tabs.every(t =>
+      record(t) && validId(t.id) && typeof t.name === 'string' && request(t.request)) &&
+    Array.isArray(ws.history) && ws.history.every(h => record(h) && record(h.tab) &&
+      request(h.tab.request) && typeof h.tab.name === 'string') &&
+    (ws.collapsed == null || Array.isArray(ws.collapsed)) &&
+    (ws.activeId == null || typeof ws.activeId === 'string') &&
+    (ws.environmentId == null || typeof ws.environmentId === 'string') &&
+    validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
+}
 export function readWorkspaceBundle(input) {
   const obj = typeof input === 'string' ? JSON.parse(input) : input;
   if (!isWorkspaceBundle(obj) || obj.version !== BUNDLE_VERSION)
     throw new Error('MiniPost全体バックアップの形式またはバージョンが不正です。');
   const ws = obj.workspace;
-  if (!ws || ws.version !== 2 || !Array.isArray(ws.collections) || !Array.isArray(ws.environments)
-    || !Array.isArray(ws.globals) || !Array.isArray(ws.tabs) || !Array.isArray(ws.history)
-    || (ws.settingHistory && (typeof ws.settingHistory !== 'object' || Array.isArray(ws.settingHistory)))
-    || (ws.revisions && (typeof ws.revisions !== 'object' || Array.isArray(ws.revisions))))
+  if (!validWorkspace(ws))
     throw new Error('保存されたワークスペースの構造が不正です。');
   return {workspace: safeClone(ws), layout: obj.layout && typeof obj.layout === 'object' ? safeClone(obj.layout) : null};
 }
