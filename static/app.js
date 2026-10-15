@@ -649,6 +649,31 @@ function preferencesForArchive() {
   try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
   return {layout, sections: expandedSections};
 }
+function commitImportedWorkspace(next, layout) {
+  const updates = [];
+  if (layout?.layout) updates.push(['minipost.layout.v1', JSON.stringify(layout.layout)]);
+  if (Array.isArray(layout?.sections)) updates.push([sectionKey, JSON.stringify(layout.sections)]);
+  // The complete workspace is written last; a quota/permission failure restores
+  // the previous layout and never changes the live in-memory workspace.
+  updates.push([KEY, JSON.stringify(next)]);
+  const applied = [];
+  try {
+    for (const [key, value] of updates) {
+      const previous = localStorage.getItem(key);
+      localStorage.setItem(key, value);
+      applied.push([key, previous]);
+    }
+  } catch (error) {
+    let rollbackFailed = false;
+    for (const [key, previous] of applied.reverse()) {
+      try {if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);}
+      catch {rollbackFailed = true;}
+    }
+    throw new Error(rollbackFailed
+      ? 'インポートできませんでした。一部の保存設定を戻せません。元のバックアップを保管してください。'
+      : 'インポートを保存できませんでした。既存のワークスペースは維持しています: ' + error.message);
+  }
+}
 function saveFullBackup() {
   persist(true);
   exportFile('MiniPost-full-' + new Date().toISOString().slice(0,10) + '.json', exportWorkspace(workspace, preferencesForArchive()));
@@ -669,13 +694,10 @@ function showArchiveImport(bundle, source = 'ファイル') {
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.length) next.tabs.push(freshTab());
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
-    // A failed quota write must not replace live in-memory data.
-    clearTimeout(saveTimer);
-    localStorage.setItem(KEY, JSON.stringify(next));
-    if (mode.value === 'replace' && parsed.layout) {
-      if (parsed.layout.layout) localStorage.setItem('minipost.layout.v1', JSON.stringify(parsed.layout.layout));
-      if (Array.isArray(parsed.layout.sections)) localStorage.setItem(sectionKey, JSON.stringify(parsed.layout.sections));
-    }
+    // Capture any pending local edits before attempting a multi-key import.
+    persist(true);
+    if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
+    commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);
     workspace = next;
     revisionStore = new RevisionStore(workspace);
     responses.clear(); requests.forEach(x => x.abort()); requests.clear(); selectedFiles.clear();
