@@ -23,7 +23,7 @@ test('legacy request drafts are indexed independently and normalized on selectio
 test('saved request and live draft share one history identity', () => {
  const w=sample();w.tabs=[{id:'d',collectionId:'c',itemId:'r',name:'Request',request:newRequest()}];const store=new RevisionStore(w);
  w.tabs[0].request.method='POST';store.capture();assert.deepEqual(Object.keys(w.revisions),['request:c:r']);assert.equal(settingsIndex(w).get('request:c:r').value.request.method,'POST');
- store.restore('request:c:r',w.revisions['request:c:r'][0]);assert.equal(w.tabs[0].request.method,'GET');assert.equal(w.tabs[0].dirty,true);
+ store.restore('request:c:r',w.revisions['request:c:r'][0]);assert.equal(w.tabs[0].request.method,'GET');assert.equal(w.tabs[0].dirty,false);assert.equal(w.collections[0].item[0].item[0].request.method,'GET');
 });
 test('draft history follows first collection save', () => {
  const w=sample();w.tabs=[{id:'d',name:'Draft',request:newRequest()}];const store=new RevisionStore(w);w.tabs[0].name='Edited';store.capture();store.transfer('draft:d','request:c:new');
@@ -41,4 +41,20 @@ test('request settings drop old routing options while preserving timeout and TLS
 });
 test('reload keeps revisions, unchanged state does not append them', () => {
  const w=sample(),store=new RevisionStore(w);w.environments[0].name='Renamed';store.capture();const saved=JSON.parse(JSON.stringify(w)),again=new RevisionStore(saved);again.capture();assert.equal(saved.revisions['environment:e'].length,2);
+});
+
+test('restoring a saved revision updates collection export and every matching open draft', () => {
+ const w=sample();
+ const item=w.collections[0].item[0].item[0];
+ const draft={id:'d1',collectionId:'c',itemId:'r',name:'Request',request:newRequest(),settings:{verify_tls:false,timeout_ms:200},dirty:false};
+ w.tabs=[draft,{...draft,id:'d2',request:newRequest()}]; const store=new RevisionStore(w);
+ item.request.method='PATCH';w.tabs[0].request.method='PATCH';w.tabs[1].request.method='PATCH';store.capture();
+ item.request.method='DELETE';w.tabs[0].request.method='DELETE';w.tabs[1].request.method='DELETE';store.capture();
+ store.restore('request:c:r',w.revisions['request:c:r'][1]);
+ assert.equal(item.request.method,'PATCH');
+ assert.deepEqual(w.tabs.map(x=>x.request.method),['PATCH','PATCH']);
+ assert.ok(w.tabs.every(x=>x.dirty===false));
+ assert.equal(w.revisions['request:c:r'].at(-1).reason,'復元');
+ const stored=JSON.parse(JSON.stringify(w));
+ assert.equal(stored.collections[0].item[0].item[0].request.method,'PATCH');
 });
