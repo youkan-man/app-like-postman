@@ -1,0 +1,13 @@
+{
+  "branch": "ci/sandbox-published-url-20261014",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T02:36:28.030630809Z",
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-2bfa2e2cd5fe840e",
+  "source_sha": "ee1218fdaf595b222c75b4f7bc6f45078814b6e4",
+  "started_at": "2026-10-14T10:15:30.836034244Z",
+  "status": "cancelled",
+  "version": 1
+}
