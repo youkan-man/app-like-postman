@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "environment_revision": "minipost-published-url-smoke-v1",
+  "vms": {
+    "app": {
+      "port": 8080,
+      "resources": {
+        "cpu": 1,
+        "memory_mib": 1024,
+        "disk_gib": 8
+      }
+    },
+    "probe": {
+      "port": 8080,
+      "resources": {
+        "cpu": 1,
+        "memory_mib": 1024,
+        "disk_gib": 8
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "minipost-launch",
+      "vm": "app",
+      "run": "python3 -m py_compile app.py network.py ci/sandbox_published_url_smoke.py && python3 ci/sandbox_published_url_smoke.py launch"
+    },
+    {
+      "name": "verify-issued-app-url",
+      "vm": "probe",
+      "needs": [
+        "minipost-launch"
+      ],
+      "run": "python3 ci/sandbox_published_url_smoke.py verify"
+    },
+    {
+      "name": "minipost-stop",
+      "vm": "app",
+      "needs": [
+        "verify-issued-app-url"
+      ],
+      "run": "python3 ci/sandbox_published_url_smoke.py stop"
+    }
+  ]
+}
