@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 let workbench;
 const KEY = 'minipost.workspace.v2';
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
-const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'dark'};};
+const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
 let workspace;
 let recoveryMessage = '';
 try {
@@ -499,9 +499,9 @@ function renderSidebar() {
   const previousOpen = Object.fromEntries([...root.querySelectorAll('details.sidebar-group')].map(el => [el.dataset.group, el.open]));
   const groups = [];
   for (const [mode, label, count] of [
-    ['collections', 'COLLECTIONS', workspace.collections.length],
-    ['environments', 'ENVIRONMENTS', workspace.environments.length],
-    ['history', 'SEND HISTORY', workspace.history.length]
+    ['collections', 'コレクション', workspace.collections.length],
+    ['environments', '環境', workspace.environments.length],
+    ['history', '送信履歴', workspace.history.length]
   ]) {
     side = mode; renderSidebarSection();
     const group = element('details', 'sidebar-group');
@@ -913,7 +913,7 @@ $('downloadResponse').onclick = () => {
   const suffix = /json/i.test(result.content_type) ? '.json' : /html/i.test(result.content_type) ? '.html' : result.body_encoding === 'base64' ? '.bin' : '.txt';
   download('response' + suffix, new Blob([data], {type: result.content_type || 'application/octet-stream'}));
 };
-function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'dark';}
+function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
