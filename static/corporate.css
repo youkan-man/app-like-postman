@@ -51,6 +51,9 @@
 body { color:var(--text); background:var(--bg); }
 button,input,select,textarea { font-family:inherit; }
 button:not(:disabled) { touch-action:manipulation; }
+/* A theme switch changes the complete surface at once, rather than animating
+   from bright inputs to dark panels across multiple frames. */
+button,input,select,textarea { transition:none; }
 button:disabled { opacity:.52; }
 button:active:not(:disabled) { transform:translateY(1px); filter:brightness(.97); }
 :focus-visible { outline:2px solid var(--corporate-ring); outline-offset:2px; }
