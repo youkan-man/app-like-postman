@@ -74,12 +74,12 @@ def main():
             page.keyboard.press('Control+s')
             passed('bidirectional URL / Params editing and save')
 
-            open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true')
+            open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             expect(page.get_by_label('Raw body')).to_contain_text('')
             send(); payload = body_json(); assert json.loads(payload['body'])['message'] == 'hello workspace'
             page.get_by_label('Raw body').fill('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
             page.keyboard.press('Control+s'); page.reload(); expect(page.get_by_label('リクエスト名')).to_have_value('JSON request')
-            page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
+            expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
             send(); assert json.loads(body_json()['body'])['message'] == 'edited workspace'
             passed('JSON body variables, keyboard save and reload persistence')
 
@@ -93,18 +93,18 @@ def main():
 
             page.locator('input[name=bodyMode][value=file]').check()
             with page.expect_file_chooser() as chooser:
-                page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
+                page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'payload.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
             send(); assert body_json()['body_base64'] == 'AAH/'
             passed('binary file upload through browser and Python proxy')
 
             page.locator('input[name=bodyMode][value=formdata]').check()
-            page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
-            page.locator('details.editor-section[data-pane=body]').get_by_label('Key 1', exact=True).fill('metadata'); page.locator('details.editor-section[data-pane=body]').get_by_label('Value 1', exact=True).fill('hello {{label}}')
-            page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
-            page.locator('details.editor-section[data-pane=body]').get_by_label('Key 2', exact=True).fill('upload'); page.locator('details.editor-section[data-pane=body] .kv-table tbody tr').nth(1).locator('select').select_option('file')
+            page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
+            page.locator('section.editor-section[data-pane=body]').get_by_label('Key 1', exact=True).fill('metadata'); page.locator('section.editor-section[data-pane=body]').get_by_label('Value 1', exact=True).fill('hello {{label}}')
+            page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
+            page.locator('section.editor-section[data-pane=body]').get_by_label('Key 2', exact=True).fill('upload'); page.locator('section.editor-section[data-pane=body] .kv-table tbody tr').nth(1).locator('select').select_option('file')
             with page.expect_file_chooser() as chooser:
-                page.locator('details.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
+                page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'a.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
             send(); payload = body_json()
             assert 'hello workspace' in payload['body']; assert 'filename="a.bin"' in payload['body']; assert 'boundary=' in dict(payload['headers'])['Content-Type']
@@ -146,12 +146,12 @@ def main():
             malicious = json.loads(json.dumps(sample)); malicious['info']['name'] = '<img src=x onerror="window.__XSS=1">'
             malicious['event'] = [{'listen': 'prerequest', 'script': {'exec': ['window.__SCRIPT_RAN=true;']}}]
             import_raw(malicious); expect(page.locator('#requestWarning')).to_be_visible(); assert not page.evaluate('Boolean(window.__XSS || window.__SCRIPT_RAN)')
-            page.locator('details.editor-section[data-pane=scripts]').evaluate('el => el.open = true'); expect(page.locator('.scripts-block')).to_contain_text('window.__SCRIPT_RAN')
+            expect(page.locator('section.editor-section[data-pane=scripts] .editor-section-body')).to_be_visible(); expect(page.locator('.scripts-block')).to_contain_text('window.__SCRIPT_RAN')
             passed('untrusted imported names remain text; scripts retained but never executed')
 
             # Imported hostile labels remain visible as escaped text in this test.
             page.locator('#gatewayExample').click(); expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
-            open_request('JSON request'); page.locator('details.editor-section[data-pane=body]').evaluate('el => el.open = true'); send()
+            open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); send()
             page.wait_for_timeout(300)
             page.screenshot(path=str(out / 'browser-e2e.png'), full_page=True)
 

@@ -73,14 +73,6 @@ input, select, textarea { border-radius:7px; }
 .urlbar input { font-size:1.01rem; }
 .editor-hint { display:flex; justify-content:space-between; align-items:center; padding:0 14px 9px; gap:12px; color:var(--muted); font-size:.81rem; }
 .editor-content { padding:2px 14px 12px; overflow-y:auto; display:block; }
-.editor-section { border:1px solid var(--line); border-radius:7px; margin-bottom:6px; background:var(--surface); overflow:visible; }
-.editor-section > summary { display:flex; align-items:center; gap:10px; padding:6px 10px; min-height:36px; font-weight:670; list-style:none; border-radius:8px; cursor:pointer; user-select:none; background:transparent; }
-.editor-section > summary::-webkit-details-marker { display:none; }
-.editor-section > summary::before { content:"⌄"; font-weight:400; color:var(--muted); font-size:1.2rem; transition:transform .12s; }
-.editor-section:not([open]) > summary::before { transform:rotate(-90deg); }
-.editor-section > summary:hover { background:var(--hover); }
-.editor-section > summary small { margin-left:auto; font-weight:450; font-size:.77rem; color:var(--muted); }
-.editor-section-body { border-top:1px solid var(--subtle); padding:8px; min-width:0; }
 .editor-section-body .kv-table { min-width:490px; }
 .editor-section-body .kv-editor { max-width:100%; }
 .editor-section-body .code-editor { min-height:140px; }
@@ -110,7 +102,6 @@ dialog { border-radius:12px; }
 .revision-entry summary { font-weight:600; }
 .revision-entry .button { margin:8px 0; }
 .revision-value { background:var(--bg); padding:10px; border-radius:6px; }
-.editor-section > summary .editor-section-title { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .revision-entry .revision-fields { display:block; margin-top:3px; color:var(--muted); overflow-wrap:anywhere; }
 .revision-entry time { color:var(--muted); }
 .revision-entry .button { font-size:.9rem; }

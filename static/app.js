@@ -279,8 +279,8 @@ function renderPaneSection(root, pane) {
   } else if (pane === 'scripts') {
     if (!context.events.length) root.append(element('p', 'empty-state', 'Scriptsなし'));
     context.events.forEach(event => {
-      const details = element('details', 'scripts-block'); details.open = true;
-      details.append(element('summary', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));
+      const details = element('section', 'scripts-block');
+      details.append(element('h3', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));
       const source = event.script?.exec; details.append(element('pre', '', Array.isArray(source) ? source.join('\n') : source || '')); root.append(details);
     });
   }
@@ -293,30 +293,26 @@ const editorSections = [
   ['settings','通信設定'],
   ['scripts','スクリプト（参照のみ）']
 ];
+// Retain archive compatibility, but no saved collapse preference controls visibility.
 const sectionKey = 'minipost.sections.v1';
-let expandedSections;
-try {expandedSections = JSON.parse(localStorage.getItem(sectionKey));} catch {}
-if (!Array.isArray(expandedSections)) expandedSections = ['params','headers','authorization','body'];
+const expandedSections = editorSections.map(([name]) => name);
 function renderPane() {
-  const root = $('editorContent'), oldSections = [...root.querySelectorAll('details.editor-section')];
-  if (oldSections.length) expandedSections = oldSections.filter(section => section.open).map(section => section.dataset.pane);
-  root.replaceChildren();
+  const root = $('editorContent'), scrollTop = root.scrollTop;
+  const content = document.createDocumentFragment();
   for (const [name, title] of editorSections) {
-    const section = element('details','editor-section'); section.dataset.pane = name;
-    section.open = expandedSections.includes(name);
-    const summary = element('summary');
-    summary.append(element('span','editor-section-title',title));
+    const section = element('section', 'editor-section'); section.dataset.pane = name;
+    const heading = element('h2', 'editor-section-heading', title);
+    heading.id = `request-section-${name}`;
+    section.setAttribute('aria-labelledby', heading.id);
     const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
-    if (indicator) {const counter = element('small'); counter.id = indicator; summary.append(counter);}
-    const content = element('div','editor-section-body');
-    renderPaneSection(content,name);
-    section.append(summary,content);
-    section.addEventListener('toggle', () => {
-      expandedSections = [...root.querySelectorAll('details.editor-section')].filter(x => x.open).map(x => x.dataset.pane);
-      try {localStorage.setItem(sectionKey,JSON.stringify(expandedSections));} catch {}
-    });
-    root.append(section);
+    if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; heading.append(count);}
+    const fields = element('div', 'editor-section-body');
+    renderPaneSection(fields, name);
+    section.append(heading, fields);
+    content.append(section);
   }
+  root.replaceChildren(content);
+  root.scrollTop = scrollTop;
   updateCounts();
 }
 async function chooseFiles(key, multiple, done) {
@@ -923,6 +919,6 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
-// Accordion sections replace the tab-based editor and response strip.
+// Flat, always-visible sections replace cards and tab-based editors.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

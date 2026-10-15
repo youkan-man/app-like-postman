@@ -341,44 +341,36 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent); }
 .urlbar .button kbd { font-size:10px; font-weight:400; opacity:.8; }
 .editor-content {
   padding:0 16px 16px;
-  background:var(--bg);
+  background:var(--surface);
   scrollbar-gutter:stable;
 }
 .editor-section {
-  margin-bottom:7px;
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:5px;
-  overflow:visible;
+  margin:0;
+  padding:0 0 10px;
+  background:transparent;
+  border:0;
+  border-radius:0;
   box-shadow:none;
+  min-width:0;
 }
-.editor-section > summary {
-  min-height:37px;
-  padding:7px 12px;
-  background:var(--raised);
-  border-radius:4px 4px 0 0;
-  font-size:12.5px;
+.editor-section + .editor-section { border-top:1px solid var(--line); }
+.editor-section-heading {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:9px 0 7px;
+  min-height:34px;
+  font-size:1rem;
+  line-height:1.4;
   font-weight:650;
-  gap:9px;
   color:var(--text);
 }
-.editor-section:not([open]) > summary { border-radius:4px; }
-.editor-section > summary:hover { background:var(--hover); }
-.editor-section > summary::before { color:var(--muted); font-size:16px; }
-.editor-section > summary small {
-  border:0;
-  border-radius:2px;
-  background:transparent;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.3;
-  padding:0 3px;
-}
-.editor-section-body {
-  padding:7px 11px 10px;
-  min-width:0;
-  border-top:1px solid var(--line);
-}
+.editor-section-count { color:var(--muted); font-size:inherit; font-weight:400; }
+.editor-section-body { padding:0; min-width:0; border:0; background:transparent; }
+.editor-section-body .scripts-block { padding:0; border:0; background:transparent; }
+.editor-section-body .scripts-block h3 { margin:6px 0; font-size:1rem; font-weight:600; }
+.editor-section-body .scripts-block pre { margin:0; padding:8px 0; }
 .editor-section-body .section-caption { margin:6px 0; }
 .editor-section-body .input-condition { color:var(--muted); }
 .editor-section-body .kv-editor { max-width:100%; }
@@ -593,8 +585,8 @@ dialog::backdrop { background:rgba(16,27,44,.42); }
   .urlbar input { min-width:0; padding:6px 8px; font-size:12px; }
   .urlbar .button.primary { min-width:68px; padding:7px 9px; }
   .urlbar kbd { display:none; }
-  .editor-section > summary { min-height:37px; }
-  .editor-section-body { padding:7px 8px 9px; }
+  .editor-section-heading { min-height:34px; padding:8px 0 6px; }
+  .editor-section-body { padding:0; }
   .editor-section-body .kv-editor { overflow-x:visible; }
   .editor-section-body .kv-table { min-width:0; width:100%; }
   .editor-section-body .kv-table tr.kv-data-row {
