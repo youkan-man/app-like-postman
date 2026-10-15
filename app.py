@@ -9,6 +9,7 @@ import os
 import re
 import ssl
 import socket
+import threading
 import time
 import uuid
 import zlib
@@ -20,6 +21,11 @@ from network import runtime_info, connection_details, connection_diagnostic, for
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 EXAMPLE_DIR = Path(__file__).resolve().parent / "examples"
+# No automatic server-side persistence: only an explicit POST from the UI writes here.
+WORKSPACE_FILE = Path(os.getenv("MINIPOST_WORKSPACE_FILE") or
+                      ("/data/workspace.json" if os.getenv("MINIPOST_CONTAINER") else ".minipost/workspace.json")).resolve()
+MAX_WORKSPACE_BYTES = 10 * 1024 * 1024
+WORKSPACE_LOCK = threading.Lock()
 TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
@@ -182,6 +188,40 @@ def send_http_request(payload):
     raise RuntimeError("リダイレクト処理に失敗しました。")
 
 
+def write_workspace(payload):
+    if not isinstance(payload, dict) or payload.get("kind") != "minipost.workspace" or payload.get("version") != 1:
+        raise ValueError("MiniPostワークスペース形式のみ保存できます。")
+    ws = payload.get("workspace")
+    if (not isinstance(ws, dict) or ws.get("version") != 2 or
+            any(not isinstance(ws.get(k), list) for k in ("collections", "environments", "globals", "tabs", "history"))):
+        raise ValueError("ワークスペースの構造が不正です。")
+    content = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    if len(content) > MAX_WORKSPACE_BYTES:
+        raise ValueError("データのサイズ上限は10 MiBです。")
+    with WORKSPACE_LOCK:
+        WORKSPACE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        pending = WORKSPACE_FILE.with_name(".workspace-" + uuid.uuid4().hex + ".tmp")
+        try:
+            with open(pending, "xb") as output:
+                os.chmod(pending, 0o600)
+                output.write(content)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(pending, WORKSPACE_FILE)
+        finally:
+            pending.unlink(missing_ok=True)
+    return {"ok": True, "bytes": len(content), "saved_at": payload.get("exported_at")}
+
+
+def read_workspace():
+    with WORKSPACE_LOCK:
+        if not WORKSPACE_FILE.exists():
+            return None
+        if WORKSPACE_FILE.stat().st_size > MAX_WORKSPACE_BYTES:
+            raise ValueError("保存データが10 MiBを超えています。")
+        return json.loads(WORKSPACE_FILE.read_text("utf-8"))
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
@@ -203,17 +243,40 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(200, {"ok": True, "runtime": runtime_info()})
         elif self.path == "/api/examples/gateway":
             self.send_json(200, json.loads((EXAMPLE_DIR / "com-gateway.postman_collection.json").read_text()))
+        elif self.path == "/api/workspace":
+            try:
+                saved = read_workspace()
+                if saved is None:
+                    self.send_json(404, {"ok": False, "error": "サーバーに保存されたワークスペースはありません。"})
+                else:
+                    self.send_json(200, saved)
+            except (OSError, ValueError, json.JSONDecodeError) as error:
+                self.send_json(500, {"ok": False, "error": str(error)})
         else:
             super().do_GET()
 
     def do_POST(self):
-        if self.path != "/api/request":
+        if self.path not in ("/api/request", "/api/workspace"):
             self.send_json(404, {"ok": False, "error": "Not Found"})
             return
         try:
+            if self.path == "/api/workspace":
+                origin = self.headers.get("Origin")
+                if origin and urlsplit(origin).netloc != self.headers.get("Host"):
+                    self.send_json(403, {"ok": False, "error": "別オリジンからの保存は許可されていません。"})
+                    return
+                if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
+                    self.send_json(415, {"ok": False, "error": "application/jsonが必要です。"})
+                    return
             length = int(self.headers.get("Content-Length", "0"))
+            if length < 1 or (self.path == "/api/workspace" and length > MAX_WORKSPACE_BYTES):
+                self.send_json(413 if length > MAX_WORKSPACE_BYTES else 400, {"ok": False, "error": "保存データのサイズまたは形式が不正です。"})
+                return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            self.send_json(200, send_http_request(payload))
+            if self.path == "/api/workspace":
+                self.send_json(200, write_workspace(payload))
+            else:
+                self.send_json(200, send_http_request(payload))
         except Exception as error:
             diagnostic = getattr(error, "minipost_network", None)
             # Certificate verification errors are ValueErrors too. Preserve TLS cause.

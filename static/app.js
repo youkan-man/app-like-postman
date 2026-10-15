@@ -1,5 +1,6 @@
 import {SCHEMA, clone, uid, rows, enabled, urlParts, displayUrl, setUrlText, setQuery, newRequest, normalizeRequest, walkItems, findItem, importPostman, exportCollection, contextFor, compileRequest} from './core.mjs';
-import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
+import {initWorkbench, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
+import {exportWorkspace, isWorkspaceBundle, readWorkspaceBundle, mergeWorkspace} from './workspace-data.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {RevisionStore, requestKey, requestSettings, settingsIndex} from './revisions.mjs';
 import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snapshotSettings, applySettings} from './editops.mjs';
@@ -8,7 +9,7 @@ const $ = id => document.getElementById(id);
 let workbench;
 const KEY = 'minipost.workspace.v2';
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
-const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'dark'};};
+const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
 let workspace;
 let recoveryMessage = '';
 try {
@@ -22,10 +23,11 @@ try {
   workspace = initial(); recoveryMessage = `保存データを読み込めませんでした。元データは可能な場合に .recovery キーへ保持しています。${error.message}`;
 }
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
-const revisionStore = new RevisionStore(workspace);
+let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
 let pane = 'params', side = 'collections', responseView = 'pretty', selectedCollectionId = '', modalAction = null;
 let saveTimer, toastTimer, responseSearchTimer;
+let localChangeGeneration = 0;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
 let saveStatus = 'ローカルに保存済み';
 const active = () => workspace.tabs.find(t => t.id === workspace.activeId) || workspace.tabs[0];
@@ -42,6 +44,12 @@ function setSaveStatus(message, failed = false) {
   if (status) {status.textContent = message; status.classList.toggle('save-error', failed);}
 }
 function persist(now = false) {
+  localChangeGeneration += 1;
+  const sync = $('serverSaveState');
+  if (sync?.classList.contains('saved')) {
+    sync.classList.remove('saved');
+    sync.textContent = 'サーバーには未反映';
+  }
   clearTimeout(saveTimer); setSaveStatus('保存中…');
   const save = () => {
     try {revisionStore.capture(); localStorage.setItem(KEY, JSON.stringify(workspace)); setSaveStatus('ローカルに保存済み');}
@@ -49,8 +57,16 @@ function persist(now = false) {
   };
   if (now) save(); else saveTimer = setTimeout(save, 220);
 }
-// Keep the live settings object: controls already rendered close over this object.
-function touch() {active().dirty = true; persist(); renderSelection(); if (side === 'collections') renderSidebar(); updateCounts();}
+// Saved requests are updated in the browser collection automatically. Server writes remain opt-in.
+function touch() {
+  const tab = active(), collection = workspace.collections.find(c => c._mpId === tab.collectionId);
+  const item = findItem(collection, tab.itemId)?.item;
+  if (item?.request) {
+    item.name = tab.name; item.request = clone(tab.request); item.settings = clone(tab.settings);
+    tab.dirty = false;
+  } else tab.dirty = true;
+  persist(); renderSelection(); renderSidebar(); updateCounts();
+}
 function download(name, content, type = 'application/json') {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
   const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -151,31 +167,32 @@ function bindContext(target, anchor, menu) {
 }
 function kvEditor(list, changed, options = {}) {
   const wrap = element('div', 'kv-editor'), table = element('table', 'kv-table'), head = element('tr');
-  const columns = [['', 'check'], ['KEY', ''], ...(options.files ? [['TYPE', 'type']] : []), ['VALUE', ''], ['DESCRIPTION', ''], ['', 'action row-actions']];
+  const columns = [['', 'check'], ['キー', ''], ...(options.files ? [['種類', 'type']] : []), ['値', ''], ['説明', ''], ['', 'action row-actions']];
   for (const [name, cls] of columns) head.append(element('th', cls, name));
   const thead = element('thead'); thead.append(head); table.append(thead);
   const tbody = element('tbody'); table.append(tbody);
   function paint() {
     tbody.replaceChildren();
     list.forEach((row, index) => {
-      const tr = element('tr', enabled(row) ? '' : 'disabled');
-      const checkCell = element('td', 'check'), check = element('input');
+      const tr = element('tr', enabled(row) ? 'kv-data-row' : 'kv-data-row disabled');
+      if (options.files) tr.classList.add('kv-data-row--file');
+      const checkCell = element('td', 'check kv-enabled'), check = element('input');
       check.type = 'checkbox'; check.checked = enabled(row); check.setAttribute('aria-label', `行 ${index + 1} を有効にする`);
       check.onchange = () => {row.disabled = !check.checked; delete row.enabled; tr.classList.toggle('disabled', row.disabled); changed();};
       checkCell.append(check); tr.append(checkCell);
-      const keyCell = element('td'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
+      const keyCell = element('td', 'kv-key'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
       if (options.files) {
-        const typeCell = element('td'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint();})); tr.append(typeCell);
+        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint();})); tr.append(typeCell);
       }
-      const valueCell = element('td');
+      const valueCell = element('td', 'kv-value');
       if (options.files && row.type === 'file') {
         const chosen = selectedFiles.get(active().id)?.[`form-${index}`];
         const names = chosen?.map(f => f.name).join(', ') || (Array.isArray(row.src) ? row.src.join(', ') : row.src);
         valueCell.append(button(chosen ? names : names ? `${names} — 再選択` : 'ファイルを選択', () => chooseFiles(`form-${index}`, true, names => {row.src = names; changed(); paint();}), 'file-pick'));
       } else valueCell.append(input(row.value, `Value ${index + 1}`, value => {row.value = value; changed();}, options.secret && row.type === 'secret' ? 'password' : 'text'));
       tr.append(valueCell);
-      const descriptionCell = element('td'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
-      const actionCell = element('td', 'row-actions');
+      const descriptionCell = element('td', 'kv-description'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
+      const actionCell = element('td', 'row-actions kv-actions');
       function editRows(at, remove, additions = []) {
         list.splice(at, remove, ...additions);
         if (options.files) {
@@ -221,7 +238,7 @@ function authEditor(owner, inherited = false, changed = () => {}) {
     const type = owner.auth?.type || 'inherit';
     if (!options.some(([value]) => value === type)) options.push([type, `${type}（送信未対応）`]);
     const typeSelect = select(options, type, value => {owner.auth = value === 'inherit' ? null : {type: value, [value]: []}; changed(); paint();}); typeSelect.setAttribute('aria-label', '認証方式');
-    grid.append(element('label', '', 'Auth type'), typeSelect);
+    grid.append(element('label', '', '認証方式'), typeSelect);
     const specs = {bearer: [['token', 'Token']], basic: [['username', 'Username'], ['password', 'Password']], apikey: [['key', 'Key'], ['value', 'Value'], ['in', 'Add to']], oauth2: [['accessToken', 'Access token'], ['headerPrefix', 'Header prefix']]};
     if (specs[type]) {
       const attrs = owner.auth[type] = rows(owner.auth[type]);
@@ -238,10 +255,8 @@ function authEditor(owner, inherited = false, changed = () => {}) {
   }
   paint(); return box;
 }
-function renderPane() {
-  const root = $('editorContent'); root.replaceChildren();
-  document.querySelectorAll('[data-pane]').forEach(b => {b.classList.toggle('active', b.dataset.pane === pane); b.setAttribute('aria-selected', String(b.dataset.pane === pane)); b.tabIndex = b.dataset.pane === pane ? 0 : -1; b.id = `pane-${b.dataset.pane}`; b.setAttribute('aria-controls', 'editorContent');});
-  $('editorContent').setAttribute('aria-labelledby', `pane-${pane}`);
+function renderPaneSection(root, pane) {
+  root.replaceChildren();
   const tab = active(), r = tab.request, context = contextFor(workspace, tab);
   const scriptWarning = context.events.some(e => e.disabled !== true);
   $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'Scriptsは実行されません。送信に必要な値を変数へ設定してください。';
@@ -268,6 +283,39 @@ function renderPane() {
       details.append(element('summary', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));
       const source = event.script?.exec; details.append(element('pre', '', Array.isArray(source) ? source.join('\n') : source || '')); root.append(details);
     });
+  }
+}
+const editorSections = [
+  ['params','クエリとパス変数'],
+  ['headers','HTTP ヘッダー'],
+  ['authorization','認証'],
+  ['body','リクエスト本文'],
+  ['settings','通信設定'],
+  ['scripts','スクリプト（参照のみ）']
+];
+const sectionKey = 'minipost.sections.v1';
+let expandedSections;
+try {expandedSections = JSON.parse(localStorage.getItem(sectionKey));} catch {}
+if (!Array.isArray(expandedSections)) expandedSections = ['params','headers','authorization','body'];
+function renderPane() {
+  const root = $('editorContent'), oldSections = [...root.querySelectorAll('details.editor-section')];
+  if (oldSections.length) expandedSections = oldSections.filter(section => section.open).map(section => section.dataset.pane);
+  root.replaceChildren();
+  for (const [name, title] of editorSections) {
+    const section = element('details','editor-section'); section.dataset.pane = name;
+    section.open = expandedSections.includes(name);
+    const summary = element('summary');
+    summary.append(element('span','editor-section-title',title));
+    const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
+    if (indicator) {const counter = element('small'); counter.id = indicator; summary.append(counter);}
+    const content = element('div','editor-section-body');
+    renderPaneSection(content,name);
+    section.append(summary,content);
+    section.addEventListener('toggle', () => {
+      expandedSections = [...root.querySelectorAll('details.editor-section')].filter(x => x.open).map(x => x.dataset.pane);
+      try {localStorage.setItem(sectionKey,JSON.stringify(expandedSections));} catch {}
+    });
+    root.append(section);
   }
   updateCounts();
 }
@@ -318,7 +366,12 @@ function renderBody(root, tab) {
 }
 
 // The legacy tabs array is a draft cache only; the DOM contains one editor.
-function renderSelection() {$('requestDirty').textContent = active().dirty ? '変更あり' : '';}
+function renderSelection() {
+  const draft = active(), collection = workspace.collections.find(c => c._mpId === draft.collectionId);
+  const inCollection = Boolean(findItem(collection, draft.itemId)?.item.request);
+  $('requestDirty').textContent = draft.dirty ? '自動保存済み · 未登録' : '';
+  $('saveRequest').hidden = inCollection;
+}
 function selectRequest(id) {
   if (!workspace.tabs.some(t => t.id === id)) return;
   persist(true); workspace.activeId = id; workbench?.closeNavigation();
@@ -360,7 +413,7 @@ function renderEnvironments() {
   for (const env of workspace.environments) $('environment').append(new Option(env.name || '名前なしの環境', env.id));
   $('environment').value = workspace.environmentId || '';
 }
-function renderSidebar() {
+function renderSidebarSection() {
   const title = {collections: 'Collections', environments: 'Environments', history: 'History'}[side];
   document.querySelector('.sidebar').setAttribute('aria-label', title);
   $('sidebarAdd').hidden = side === 'history'; $('clearHistory').hidden = side !== 'history';
@@ -384,7 +437,16 @@ function renderSidebar() {
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
       const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), itemId: undefined, dirty: true});}, 'history-entry');
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
-      row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR')); root.append(row);
+      row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR'));
+      const menu = event => {event?.preventDefault(); openItemMenu(row, [
+        {label:'編集用に開く',run:()=>row.click()},
+        {label:'もう一度送信',run:()=>{row.click(); sendRequest();}}
+      ],event);};
+      row.oncontextmenu = menu;
+      row.onkeydown = event => {
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) menu(event);
+      };
+      root.append(row);
     }
   } else {
     function matches(item) {return item.name?.toLowerCase().includes(search) || (item.request && displayUrl(item.request.url).toLowerCase().includes(search)) || item.item?.some(matches);}
@@ -409,6 +471,7 @@ function renderSidebar() {
         open.append(element('span', `method-label method-${draft.request.method}`, draft.request.method), element('span', 'tree-label', draft.name)); open.title = draft.name;
         const more = button('⋯', () => {}, 'icon-button'); more.setAttribute('aria-label', `${draft.name}の下書き操作`);
         bindContext(row, more, (anchor, event) => openItemMenu(anchor, [
+          {label: '送信', run: () => {selectRequest(draft.id); sendRequest();}},
           {label: '変更履歴', run: () => showRevisions(requestKey(workspace, draft))},
           {label: '複製', run: () => addTab({...clone(draft), id: uid(), name: copyName(draft.name, workspace.tabs.map(t => t.name)), dirty: true})},
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
@@ -416,7 +479,6 @@ function renderSidebar() {
           {label: '下書きを削除', danger: true, run: () => discardDraft(draft.id)}
         ], event)); row.append(open, more); root.append(row);
       }
-      root.append(element('div', 'section-caption', 'Collections'));
     }
     for (const c of workspace.collections) {
       const match = c.info.name.toLowerCase().includes(search);
@@ -430,6 +492,34 @@ function renderSidebar() {
     }
   }
   if (!root.children.length) root.append(element('div', 'sidebar-empty', search ? '一致する項目なし' : side === 'history' ? '送信履歴なし' : side === 'collections' ? 'コレクションなし' : '環境なし'));
+}
+function renderSidebar() {
+  const root = $('sidebarContent');
+  const previous = side;
+  const previousOpen = Object.fromEntries([...root.querySelectorAll('details.sidebar-group')].map(el => [el.dataset.group, el.open]));
+  const groups = [];
+  for (const [mode, label, count] of [
+    ['collections', 'コレクション', workspace.collections.length],
+    ['environments', '環境', workspace.environments.length],
+    ['history', '送信履歴', workspace.history.length]
+  ]) {
+    side = mode; renderSidebarSection();
+    const group = element('details', 'sidebar-group');
+    group.dataset.group = mode;
+    group.open = Object.hasOwn(previousOpen, mode) ? previousOpen[mode] : mode !== 'history';
+    const summary = element('summary');
+    summary.append(element('span', '', label), element('span', 'count', String(count)));
+    const contents = element('div', 'sidebar-group-content');
+    contents.append(...root.childNodes);
+    group.append(summary, contents); groups.push(group);
+  }
+  side = previous;
+  root.replaceChildren(...groups);
+  document.querySelector('.sidebar').setAttribute('aria-label', '保存済みデータ');
+  $('search').placeholder = 'すべて検索';
+  $('sidebarAdd').hidden = false;
+  $('sidebarAdd').setAttribute('aria-label', 'コレクションを作成');
+  $('clearHistory').hidden = workspace.history.length === 0;
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}
@@ -507,6 +597,7 @@ function editCollection(collection, folder = null) {
 }
 function editRequestItem(collection, item, anchor, event) {
   openItemMenu(anchor, [
+    {label: '送信', run: () => {openRequest(collection, item); sendRequest();}},
     {label: '変更履歴', run: () => showRevisions(`request:${collection._mpId}:${item._mpId}`)},
     {label: '名前を変更', run: () => {
       let value = item.name; const box = field('Name', input(value, 'Name', text => value = text));
@@ -553,24 +644,129 @@ function editEnvironment(env, globals = false) {
   renderEnvironments(); renderSidebar();
   showSettings(globals ? 'Global variables' : 'Environment variables', box, {kind: globals ? 'globals' : 'environment', id: globals ? '' : env.id});
 }
+function preferencesForArchive() {
+  let layout = null;
+  try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
+  return {layout, sections: expandedSections};
+}
+function commitImportedWorkspace(next, layout) {
+  const updates = [];
+  if (layout?.layout) updates.push(['minipost.layout.v1', JSON.stringify(layout.layout)]);
+  if (Array.isArray(layout?.sections)) updates.push([sectionKey, JSON.stringify(layout.sections)]);
+  // The complete workspace is written last; a quota/permission failure restores
+  // the previous layout and never changes the live in-memory workspace.
+  updates.push([KEY, JSON.stringify(next)]);
+  const applied = [];
+  try {
+    for (const [key, value] of updates) {
+      const previous = localStorage.getItem(key);
+      localStorage.setItem(key, value);
+      applied.push([key, previous]);
+    }
+  } catch (error) {
+    let rollbackFailed = false;
+    for (const [key, previous] of applied.reverse()) {
+      try {if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);}
+      catch {rollbackFailed = true;}
+    }
+    throw new Error(rollbackFailed
+      ? 'インポートできませんでした。一部の保存設定を戻せません。元のバックアップを保管してください。'
+      : 'インポートを保存できませんでした。既存のワークスペースは維持しています: ' + error.message);
+  }
+}
+function saveFullBackup() {
+  persist(true);
+  exportFile('MiniPost-full-' + new Date().toISOString().slice(0,10) + '.json', exportWorkspace(workspace, preferencesForArchive()));
+}
+function showArchiveImport(bundle, source = 'ファイル') {
+  const parsed = readWorkspaceBundle(bundle);
+  const contents = parsed.workspace;
+  const box = element('div');
+  const intro = element('p', 'input-condition', `取込元: ${source}
+コレクション ${contents.collections.length}件、環境 ${contents.environments.length}件、変数 ${contents.globals.length}件、送信履歴 ${contents.history.length}件。
+設定別の変更履歴・下書き・選択環境も含まれます。`);
+  intro.style.whiteSpace = 'pre-wrap';
+  const mode = select([['replace','現在のワークスペースを置換（完全復元）'],['merge','現在の内容に追加（IDを再発行）']], 'replace', () => {});
+  mode.id = 'importMode';
+  const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
+  box.append(intro, field('インポート方式', mode), warning);
+  showModal('MiniPost 全体バックアップを取り込む', box, () => {
+    persist(true);
+    if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
+    const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
+    if (!next.tabs.length) next.tabs.push(freshTab());
+    if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
+    commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);
+    workspace = next;
+    revisionStore = new RevisionStore(workspace);
+    responses.clear(); requests.forEach(x => x.abort()); requests.clear(); selectedFiles.clear();
+    closeModal();
+    // Recreate layout handlers only once with imported preferences.
+    window.location.reload();
+  }, 'インポートして反映');
+}
+async function saveToServer() {
+  persist(true);
+  const savedGeneration = localChangeGeneration;
+  const button = $('dataActions'); button.disabled = true;
+  try {
+    const content = exportWorkspace(workspace, preferencesForArchive());
+    const response = await fetch('/api/workspace', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(content)});
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const newerLocalChanges = localChangeGeneration !== savedGeneration;
+    $('serverSaveState').classList.remove('error');
+    $('serverSaveState').classList.toggle('saved', !newerLocalChanges);
+    $('serverSaveState').textContent = newerLocalChanges ? 'サーバーには未反映' : 'サーバーへ明示保存済み';
+    toast(newerLocalChanges ? '送信開始時の内容を保存しました。保存中の変更はサーバーに未反映です。' : 'サーバーに保存しました。');
+  } catch(error) {
+    $('serverSaveState').classList.add('error');
+    $('serverSaveState').textContent = 'サーバー保存失敗';
+    toast('サーバーへ保存できません: ' + error.message);
+  } finally {button.disabled = false;}
+}
+async function loadFromServer() {
+  const button = $('dataActions'); button.disabled = true;
+  try {
+    const response = await fetch('/api/workspace',{cache:'no-store'});
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+    showArchiveImport(body, 'サーバー保存');
+  } catch(error) {toast('サーバーから読み込めません: ' + error.message);}
+  finally {button.disabled = false;}
+}
 function importDialog(initialFiles = []) {
-  let files = [...initialFiles]; const box = element('div'), drop = element('div', 'import-drop'), fileList = element('div', 'file-list');
-  drop.append(element('strong', '', 'Postman JSONをドロップ'));
+  let files = [...initialFiles]; const box = element('div'), drop = element('div','import-drop'), fileList = element('div','file-list');
+  drop.append(element('strong','','MiniPost 全体バックアップ / Postman JSON'));
   const picker = element('input'); picker.type = 'file'; picker.accept = '.json,application/json'; picker.multiple = true; picker.hidden = true;
-  const folderPicker = element('input'); folderPicker.type = 'file'; folderPicker.multiple = true; folderPicker.setAttribute('webkitdirectory', ''); folderPicker.hidden = true;
-  const refreshFiles = () => fileList.textContent = files.map(f => f.webkitRelativePath || f.name).join('\n');
-  picker.onchange = () => {files = [...picker.files]; refreshFiles();}; folderPicker.onchange = () => {files = [...folderPicker.files].filter(f => f.name.toLowerCase().endsWith('.json')); refreshFiles();};
-  drop.append(button('ファイルを選択', () => picker.click()), button('フォルダーを選択', () => folderPicker.click()), picker, folderPicker, fileList);
-  drop.ondragover = event => {event.preventDefault(); drop.classList.add('dragover');}; drop.ondragleave = () => drop.classList.remove('dragover');
-  drop.ondrop = event => {event.preventDefault(); drop.classList.remove('dragover'); files = [...event.dataTransfer.files]; refreshFiles();};
-  const paste = element('textarea', 'import-paste'); paste.placeholder = 'または、PostmanのJSONを貼り付け'; paste.setAttribute('aria-label', 'Postman JSON'); paste.spellcheck = false;
-  box.append(drop, field('Raw JSON', paste)); refreshFiles();
-  showModal('Import Postman', box, async () => {
-    const inputs = await Promise.all(files.map(async file => ({name: file.name, content: await file.text()})));
-    if (paste.value.trim()) inputs.push({name: 'Pasted JSON', content: paste.value});
-    if (!inputs.length) throw new Error('JSONファイルを選択するか、JSONを貼り付けてください。');
-    const parsed = inputs.map(i => {try {return importPostman(i.content, i.name);} catch (error) {throw new Error(`${i.name}: ${error.message}`);}}); applyImports(parsed);
-  }, 'Import');
+  const folderPicker = element('input'); folderPicker.type = 'file'; folderPicker.multiple = true; folderPicker.setAttribute('webkitdirectory',''); folderPicker.hidden = true;
+  const refreshFiles = () => fileList.textContent = files.map(f=>f.webkitRelativePath || f.name).join('\n');
+  picker.onchange = () => {files = [...picker.files]; refreshFiles();};
+  folderPicker.onchange = () => {files = [...folderPicker.files].filter(f => f.name.toLowerCase().endsWith('.json')); refreshFiles();};
+  drop.append(button('JSONファイルを選択',()=>picker.click()),button('フォルダーを選択',()=>folderPicker.click()),picker,folderPicker,fileList);
+  drop.ondragover = e => {e.preventDefault();drop.classList.add('dragover');};
+  drop.ondragleave = () => drop.classList.remove('dragover');
+  drop.ondrop = e => {e.preventDefault();drop.classList.remove('dragover');files=[...e.dataTransfer.files];refreshFiles();};
+  const paste = element('textarea','import-paste');paste.placeholder='またはJSONを貼り付け';paste.spellcheck=false;paste.setAttribute('aria-label','インポートJSON');
+  box.append(drop,field('JSONを貼り付け',paste));refreshFiles();
+  showModal('インポート',box,async()=>{
+    const inputs = await Promise.all(files.map(async f => ({name:f.name,content:await f.text()})));
+    if(paste.value.trim())inputs.push({name:'貼り付けJSON',content:paste.value});
+    if(!inputs.length)throw new Error('JSONファイルまたはJSONテキストを指定してください。');
+    if(inputs.some(i=>i.content.length>10*1024*1024))throw new Error('1ファイル10 MiBまで対応します。');
+    // Validate every file before touching the current workspace.
+    const parsed=inputs.map(i=>{
+      try {
+        const data=JSON.parse(i.content);
+        return isWorkspaceBundle(data) ? {name:i.name,kind:'full',data} : {name:i.name,kind:'individual',data:importPostman(data,i.name)};
+      }catch(error){throw new Error(i.name+': '+error.message);}
+    });
+    const full=parsed.filter(x=>x.kind==='full');
+    if(full.length) {
+      if(parsed.length!==1)throw new Error('全体バックアップは単独で読み込んでください。個別ファイルは別途追加できます。');
+      showArchiveImport(full[0].data,full[0].name);
+    } else applyImports(parsed.map(x=>x.data));
+  },'読み込む');
 }
 function applyImports(parsed) {
   const collections = parsed.flatMap(p => p.collections), environments = parsed.flatMap(p => p.environments), globals = parsed.flatMap(p => p.globals), warnings = [...new Set(parsed.flatMap(p => p.warnings))];
@@ -622,8 +818,8 @@ function codeView(text, json = false, search = '') {
 function emptyResponse(title, message) {const box = element('div', 'response-empty'); box.append(element('strong', '', title)); if (message) box.append(element('p', '', message)); return box;}
 function renderResponse() {
   const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id);
-  document.querySelectorAll('[data-response]').forEach(b => {const selected = b.dataset.response === responseView; b.classList.toggle('active', selected); b.setAttribute('aria-selected', String(selected)); b.tabIndex = selected ? 0 : -1; b.id = `response-${b.dataset.response}`; b.setAttribute('aria-controls', 'responseContent');});
-  root.setAttribute('aria-labelledby', `response-${responseView}`);
+  document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
+  $('responseMode').value = responseView;
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
   if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
   if (!result) {$('responseStatus').textContent = '未送信'; return;}
@@ -635,7 +831,7 @@ function renderResponse() {
     let entries = result.headers || []; if (responseView === 'cookies') entries = entries.filter(h => h.key.toLowerCase() === 'set-cookie');
     entries = entries.filter(h => `${h.key} ${h.value}`.toLowerCase().includes(search.toLowerCase()));
     if (!entries.length) {root.append(emptyResponse(responseView === 'cookies' ? 'Set-Cookieはありません' : '該当するヘッダーはありません', '')); return;}
-    const table = element('table', 'kv-table kv-readonly'), head = element('tr'); head.append(element('th', '', 'KEY'), element('th', '', 'VALUE')); table.append(head);
+    const table = element('table', 'kv-table kv-readonly'), head = element('tr'); head.append(element('th', '', 'キー'), element('th', '', '値')); table.append(head);
     for (const h of entries) {const tr = element('tr'); tr.append(element('td', '', h.key), element('td', '', h.value)); table.append(tr);} root.append(table);
   } else if (responseView === 'preview') {
     if (result.body_encoding === 'base64') {root.append(emptyResponse('バイナリレスポンス', result.content_type)); return;}
@@ -661,7 +857,7 @@ async function sendRequest() {
     const cancelled = error.name === 'AbortError';
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
     if (!cancelled) {workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: 'ERR'}); persist();}
-  } finally {requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} if (side === 'history') renderSidebar();}
+  } finally {requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
 function showRevisions(key) {
   persist(true);
@@ -670,7 +866,7 @@ function showRevisions(key) {
   const box = element('div', 'revision-panel'); box.dataset.revisionKey = key;
   const heading = element('div', 'revision-toolbar');
   heading.append(element('strong', '', row.name || '名前なし'), button('履歴をエクスポート', () => exportFile(`${row.name || 'settings'}.revisions.json`, {key, revisions: workspace.revisions[key] || []})));
-  box.append(heading, element('p', 'input-condition', 'この設定だけの変更履歴です。認証情報を含む場合があります。復元してもリクエストは送信しません。'));
+  box.append(heading);
   const entries = workspace.revisions[key] || [];
   if (!entries.length) box.append(element('p', 'empty-state', '変更履歴はまだありません。'));
   for (const entry of [...entries].reverse()) {
@@ -689,19 +885,25 @@ $('duplicateRequest').onclick = () => addTab({...clone(active()), id: uid(), ite
 $('saveRequest').onclick = saveRequest;
 $('requestName').oninput = () => {active().name = $('requestName').value; touch();};
 $('method').onchange = () => {active().request.method = $('method').value; $('method').className = `method-${$('method').value}`; touch();};
-$('url').oninput = () => {setUrlText(active().request, $('url').value); touch(); if (pane === 'params') renderPane();};
+$('url').oninput = () => {setUrlText(active().request, $('url').value); touch(); renderPane();};
 $('environment').onchange = () => chooseEnvironment($('environment').value);
 $('search').oninput = renderSidebar;
 $('import').onclick = () => importDialog();
+$('dataActions').onclick = event => openItemMenu(event.currentTarget, [
+  {label:'全体エクスポート',run:saveFullBackup},
+  {label:'サーバーへ保存',run:saveToServer},
+  {label:'サーバーから読込',run:loadFromServer}
+], event);
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
-$('sidebarAdd').onclick = () => side === 'environments' ? editEnvironment() : newCollection();
+$('sidebarAdd').onclick = event => openItemMenu(event.currentTarget, [
+  {label:'コレクションを作成',run:newCollection},
+  {label:'環境を作成',run:()=>editEnvironment()}
+]);
 $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
 $('gatewayExample').onclick = async () => {
   try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
 };
-for (const b of document.querySelectorAll('[data-pane]')) b.onclick = () => {pane = b.dataset.pane; renderPane();};
-for (const b of document.querySelectorAll('[data-response]')) b.onclick = () => {responseView = b.dataset.response; renderResponse();};
-for (const b of document.querySelectorAll('[data-sidebar]')) b.onclick = () => {side = b.dataset.sidebar; $('search').value = ''; renderSidebar();};
+$('responseMode').onchange = () => {responseView = $('responseMode').value; renderResponse();};
 $('responseSearch').oninput = () => {clearTimeout(responseSearchTimer); responseSearchTimer = setTimeout(renderResponse, 180);};
 $('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id)); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
 $('downloadResponse').onclick = () => {
@@ -711,7 +913,7 @@ $('downloadResponse').onclick = () => {
   const suffix = /json/i.test(result.content_type) ? '.json' : /html/i.test(result.content_type) ? '.html' : result.body_encoding === 'base64' ? '.bin' : '.txt';
   download('response' + suffix, new Blob([data], {type: result.content_type || 'application/octet-stream'}));
 };
-function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'dark';}
+function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
@@ -721,6 +923,6 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
-bindTabStrip($('editorTabs'), '[data-pane]'); bindTabStrip($('responseTabs'), '[data-response]');
+// Accordion sections replace the tab-based editor and response strip.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

@@ -1,0 +1,23 @@
+{
+  "branch": "feat/minipost-single-workspace-20261014",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T01:58:26.856978541Z",
+  "environment": {
+    "expires_at": "0001-01-01T00:00:00Z",
+    "id": "lrce-d47cf6fe231ab27d77e1efb9",
+    "release_verified": true,
+    "retained": false,
+    "reused": false,
+    "revision": "",
+    "sandbox_id": "sb-550f335a8e3d",
+    "source_generation": 0
+  },
+  "reason": "Sandbox did not become ready",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-5873d4a399e307c7",
+  "source_sha": "1bbc5231bf063028666608a7550bb8efa6e734ca",
+  "started_at": "2026-10-15T01:58:00.967514081Z",
+  "status": "failed",
+  "version": 1
+}

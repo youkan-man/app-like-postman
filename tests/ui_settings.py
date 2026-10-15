@@ -59,13 +59,13 @@ def main():
 
             def import_raw(data):
                 page.locator('#import').click()
-                page.get_by_label('Postman JSON', exact=True).fill(json.dumps(data))
+                page.get_by_label('インポートJSON', exact=True).fill(json.dumps(data))
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了')
                 page.locator('#modalSubmit').click()
 
             def drawer_env(name):
-                page.locator('[data-sidebar=environments]').click()
+                page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
                 page.get_by_role('button', name='◫  ' + name, exact=True).click()
                 expect(page.locator('#modal').get_by_label('Environment name', exact=True)).to_have_value(name)
 
@@ -214,7 +214,7 @@ def main():
             passed('Globals autosave is independent and never mislabeled as the selected environment')
 
             page.locator('#closeModal').click()
-            page.locator('[data-sidebar=collections]').click()
+            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
             page.get_by_role('button', name='Control APIの設定', exact=True).click()
             page.get_by_role('menuitem', name='変数・認証を編集').click()
             modal.get_by_label('Value 1', exact=True).fill('scope-live')

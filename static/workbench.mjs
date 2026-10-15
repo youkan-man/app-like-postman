@@ -92,7 +92,7 @@ export function initWorkbench() {
     });
   }
   resize($('sidebarResize'), event => {
-    state.sidebar = clamp(event.clientX - document.querySelector('.rail').getBoundingClientRect().width, 200, 520); apply();
+    state.sidebar = clamp(event.clientX - (document.querySelector('.rail')?.getBoundingClientRect().width || 0), 200, 520); apply();
   });
   resize($('responseResize'), event => {
     const box = $('exchange').getBoundingClientRect();

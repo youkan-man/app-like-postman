@@ -1,4 +1,26 @@
 {
   "version": 1,
-  "disabled": true
+  "packages": {
+    "apt": [
+      "ca-certificates",
+      "nodejs",
+      "openssl",
+      "python3"
+    ]
+  },
+  "steps": [
+    {
+      "name": "node-regression",
+      "run": "mkdir -p .local_relay/output\nnode --test tests/*.test.mjs > .local_relay/output/node-regression.log 2>&1"
+    },
+    {
+      "name": "python-regression",
+      "run": "python3 -m unittest discover -s tests -p 'test_*.py' -v > .local_relay/output/python-regression.log 2>&1"
+    },
+    {
+      "name": "provenance",
+      "run": "python3 -c 'import json, datetime; from pathlib import Path; p=Path(\".local_relay/output/verification.json\"); p.write_text(json.dumps({\"tests\":[\"node-regression\",\"python-regression\"],\"environment\":\"local-relay-owned-branch-sandbox\",\"generated_at\":datetime.datetime.now(datetime.timezone.utc).isoformat()},indent=2))' "
+    }
+  ],
+  "environment_revision": "minipost-ui-recreate-20261015"
 }
