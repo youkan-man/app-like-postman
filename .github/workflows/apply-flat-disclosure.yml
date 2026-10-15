@@ -1,0 +1,208 @@
+name: Apply spacing-preserving disclosure
+on:
+  push:
+    branches: [fix/flat-disclosure-spacing-20261015]
+    paths: [.github/workflows/apply-flat-disclosure.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.repository == 'youkan-man/app-like-postman' && github.ref == 'refs/heads/fix/flat-disclosure-spacing-20261015'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fix/flat-disclosure-spacing-20261015
+          fetch-depth: 0
+      - name: Apply checked source and tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git hash-object static/app.js)" = '0f8ba8656c4aa5d2384452629d96852eb3066e30'
+          test "$(git hash-object static/corporate.css)" = '2247735df67346df2a58cdf403f5e0418bb62c6f'
+          test "$(git hash-object tests/ui_workbench.py)" = '25140d1351c88c4d7e0586bccf3e249ef7793f2c'
+          test "$(git hash-object tests/ui_selection.py)" = '5027ec014d4cb59d84e5875d686cf301c5ae6486'
+          test "$(git hash-object README.md)" = 'bdfd16f99ee34b2062057fa4f8c63eee0d499ae9'
+          python3 - <<'PY'
+          from pathlib import Path
+          def replace_once(s, old, new):
+              if s.count(old) != 1:
+                  raise RuntimeError('Patch context changed: ' + old[:100])
+              return s.replace(old, new, 1)
+          p=Path('static/app.js');s=p.read_text()
+          s=replace_once(s,"// Retain archive compatibility, but no saved collapse preference controls visibility.\nconst sectionKey = 'minipost.sections.v1';\nconst expandedSections = editorSections.map(([name]) => name);", """// Disclosure preferences are presentation state, not request changes or revisions.
+          const sectionKey = 'minipost.sections.v1';
+          let expandedSections = editorSections.map(([name]) => name);
+          try {
+            const saved = JSON.parse(localStorage.getItem(sectionKey));
+            if (Array.isArray(saved)) expandedSections = expandedSections.filter(name => saved.includes(name));
+          } catch {}
+          function setSectionExpanded(section, expanded) {
+            const fields = section.querySelector('.editor-section-body');
+            section.querySelector('.editor-section-toggle').setAttribute('aria-expanded', String(expanded));
+            fields.hidden = !expanded;
+            const names = new Set(expandedSections);
+            if (expanded) names.add(section.dataset.pane); else names.delete(section.dataset.pane);
+            expandedSections = editorSections.map(([name]) => name).filter(name => names.has(name));
+            try {localStorage.setItem(sectionKey, JSON.stringify(expandedSections));}
+            catch {toast('開閉状態を保存できません。画面上の開閉と入力内容は維持しています。');}
+          }""")
+          s=replace_once(s,"""    const heading = element('h2', 'editor-section-heading', title);
+              heading.id = `request-section-${name}`;
+              section.setAttribute('aria-labelledby', heading.id);
+              const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
+              if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; heading.append(count);}
+              const fields = element('div', 'editor-section-body');
+              renderPaneSection(fields, name);
+              section.append(heading, fields);""", """    const heading = element('h2', 'editor-section-heading');
+              heading.id = `request-section-${name}`;
+              section.setAttribute('aria-labelledby', heading.id);
+              const fields = element('div', 'editor-section-body'); fields.id = `request-fields-${name}`;
+              const toggle = button(title, () => setSectionExpanded(section, fields.hidden), 'editor-section-toggle');
+              toggle.setAttribute('aria-controls', fields.id);
+              toggle.setAttribute('aria-expanded', String(expandedSections.includes(name)));
+              fields.hidden = !expandedSections.includes(name);
+              const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
+              if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; toggle.append(count);}
+              heading.append(toggle);
+              heading.onclick = event => {if (!toggle.contains(event.target)) toggle.click();};
+              renderPaneSection(fields, name);
+              section.append(heading, fields);""")
+          s=s.replace('// Flat, always-visible sections replace cards and tab-based editors.', '// Flat sections retain their spacing; headings disclose fields without card wrappers.')
+          p.write_text(s)
+          p=Path('static/corporate.css');s=p.read_text()
+          needle='.editor-section-count { color:var(--muted); font-size:inherit; font-weight:400; }'
+          s=replace_once(s,needle,"""/* Keep the heading/field geometry unchanged; only add a native disclosure button. */
+          .editor-section-heading { cursor:pointer; }
+          .editor-section-toggle {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            flex:1 1 auto;
+            width:100%;
+            min-width:0;
+            min-height:0;
+            margin:0;
+            padding:0;
+            border:0;
+            border-radius:0;
+            background:transparent;
+            box-shadow:none;
+            font:inherit;
+            color:inherit;
+            text-align:left;
+          }
+          .editor-section-toggle::after {
+            content:'';
+            flex:0 0 6px;
+            width:6px;
+            height:6px;
+            margin:0 3px 0 auto;
+            border-right:1.5px solid currentColor;
+            border-bottom:1.5px solid currentColor;
+            transform:rotate(-45deg);
+          }
+          .editor-section-toggle[aria-expanded=true]::after { transform:rotate(45deg); }
+          .editor-section-toggle:hover { color:var(--accent); }
+          .editor-section-toggle:focus-visible { outline-offset:2px; }
+          """+needle)
+          p.write_text(s)
+          p=Path('tests/ui_workbench.py');s=p.read_text()
+          s=replace_once(s,"            # The entire request is readable without opening a card or switching a tab.","            # Only visibility changes: open fields retain the flat editor geometry.")
+          s=replace_once(s,"""                title = section.locator('h2')
+                          title.click()
+                          expect(section.locator('.editor-section-body')).to_be_visible()""", """                before = section.bounding_box()
+                          fields = section.locator('.editor-section-body')
+                          fields.evaluate('el => el.dataset.nodeProbe = "retained"')
+                          title = section.locator('h2')
+                          toggle = title.get_by_role('button')
+                          expect(toggle).to_have_attribute('aria-controls', f'request-fields-{name}')
+                          title.click()
+                          expect(toggle).to_have_attribute('aria-expanded', 'false')
+                          expect(fields).not_to_be_visible()
+                          toggle.focus()
+                          page.keyboard.press('Enter')
+                          expect(toggle).to_have_attribute('aria-expanded', 'true')
+                          expect(fields).to_be_visible()
+                          expect(fields).to_have_attribute('data-node-probe', 'retained')
+                          after = section.bounding_box()
+                          for axis in ['x', 'width', 'height']:
+                              assert abs(before[axis] - after[axis]) < .5, (name, axis, before, after)
+                          page.keyboard.press('Space')
+                          expect(fields).not_to_be_visible()
+                          page.keyboard.press('Space')
+                          expect(fields).to_be_visible()""")
+          s=replace_once(s,"            passed('flat request fields stay visible without collapsible cards or tabs')", """            passed('flat spacing is unchanged by pointer and keyboard disclosure; field nodes remain mounted')
+                      headers = page.locator('section.editor-section[data-pane=headers]')
+                      scripts = page.locator('section.editor-section[data-pane=scripts]')
+                      headers.get_by_role('button', name='HTTP ヘッダー').click()
+                      scripts.get_by_role('button', name='スクリプト（参照のみ）').click()
+                      page.locator('#url').fill(page.locator('#url').input_value())
+                      expect(headers.locator('.editor-section-body')).not_to_be_visible()
+                      expect(scripts.locator('.editor-section-body')).not_to_be_visible()
+                      expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
+                      before = page.evaluate('localStorage.getItem("minipost.workspace.v2")')
+                      page.locator('section.editor-section[data-pane=params] h2 button').click()
+                      assert page.evaluate('localStorage.getItem("minipost.workspace.v2")') == before
+                      page.locator('section.editor-section[data-pane=params] h2 button').click()
+                      page.reload(wait_until='domcontentloaded')
+                      expect(page.locator('#connectionStatus')).to_contain_text('connected')
+                      expect(headers.locator('.editor-section-body')).not_to_be_visible()
+                      expect(scripts.locator('.editor-section-body')).not_to_be_visible()
+                      capture('disclosure-desktop')
+                      headers.get_by_role('button', name='HTTP ヘッダー').click()
+                      scripts.get_by_role('button', name='スクリプト（参照のみ）').click()
+                      send()
+                      page.locator('#editorContent').evaluate('el => el.scrollTop = 0')
+                      passed('disclosure survives render and reload without changing request data or revisions')""")
+          s=replace_once(s,"""            capture('phone-touch')
+                      passed('touch emulation opens item actions and sends a real request')""", """            section = page.locator('section.editor-section[data-pane=body]')
+                      section.locator('h2 button').tap()
+                      expect(section.locator('.editor-section-body')).not_to_be_visible()
+                      capture('disclosure-phone')
+                      section.locator('h2 button').tap()
+                      expect(section.locator('.editor-section-body')).to_be_visible()
+                      capture('phone-touch')
+                      passed('touch emulation opens item actions, sends and discloses flat fields')""")
+          p.write_text(s)
+          p=Path('tests/ui_selection.py');s=p.read_text()
+          s=replace_once(s,"""            for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
+                          expect(page.locator(f'section.editor-section[data-pane={name}] .editor-section-body')).to_be_visible()
+                      expect(page.locator('#connectionStatus')).to_contain_text('connected')""", """            for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
+                          section = page.locator(f'section.editor-section[data-pane={name}]')
+                          expect(section.locator('.editor-section-body')).not_to_be_visible()
+                          expect(section.locator('h2 button')).to_have_attribute('aria-expanded', 'false')
+                          section.locator('h2 button').click()
+                          expect(section.locator('.editor-section-body')).to_be_visible()
+                      expect(page.locator('#connectionStatus')).to_contain_text('connected')
+                      passed('saved disclosure preferences are restored without adding card wrappers')""")
+          s=replace_once(s,"""            page.get_by_label('Raw body').fill('after-one')
+                      saved()
+                      first = state()""", """            page.get_by_label('Raw body').fill('after-one')
+                      body_toggle = page.locator('section.editor-section[data-pane=body] h2 button')
+                      body_toggle.click()
+                      expect(page.get_by_label('Raw body')).not_to_be_visible()
+                      saved()
+                      choose('Second request')
+                      choose(long)
+                      expect(body_toggle).to_have_attribute('aria-expanded', 'false')
+                      body_toggle.click()
+                      expect(page.get_by_label('Raw body')).to_have_value('after-one')
+                      first = state()""")
+          p.write_text(s)
+          p=Path('README.md');s=p.read_text()
+          s=replace_once(s,'クエリ・ヘッダー・認証・本文・通信設定・スクリプトは、折りたたみカードを使わず常に表示します。','クエリ・ヘッダー・認証・本文・通信設定・スクリプトは、フラットな余白と左揃えのまま見出しから開閉できます。開閉状態はブラウザに保存し、入力値は閉じても維持します。')
+          p.write_text(s)
+          PY
+          node --check static/app.js
+          python3 -m compileall -q tests
+          git diff --check
+          rm .github/workflows/apply-flat-disclosure.yml
+          git add README.md static/app.js static/corporate.css tests/ui_workbench.py tests/ui_selection.py .github/workflows/apply-flat-disclosure.yml
+          git config user.name 'MiniPost UI automation'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(ui): add disclosure while preserving flat editor spacing'
+          git fetch origin fix/flat-disclosure-spacing-20261015
+          git rebase origin/fix/flat-disclosure-spacing-20261015
+          git push origin HEAD:fix/flat-disclosure-spacing-20261015
