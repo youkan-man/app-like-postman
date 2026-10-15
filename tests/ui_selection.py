@@ -30,8 +30,13 @@ def main():
             page.reload(wait_until='domcontentloaded')
             expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
             for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
-                expect(page.locator(f'section.editor-section[data-pane={name}] .editor-section-body')).to_be_visible()
+                section = page.locator(f'section.editor-section[data-pane={name}]')
+                expect(section.locator('.editor-section-body')).not_to_be_visible()
+                expect(section.locator('h2 button')).to_have_attribute('aria-expanded', 'false')
+                section.locator('h2 button').click()
+                expect(section.locator('.editor-section-body')).to_be_visible()
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
+            passed('saved disclosure preferences are restored without adding card wrappers')
 
             def saved():
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
@@ -75,7 +80,15 @@ def main():
             passed('long labels keep row height and position on select, focus and context menu')
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             page.get_by_label('Raw body').fill('after-one')
+            body_toggle = page.locator('section.editor-section[data-pane=body] h2 button')
+            body_toggle.click()
+            expect(page.get_by_label('Raw body')).not_to_be_visible()
             saved()
+            choose('Second request')
+            choose(long)
+            expect(body_toggle).to_have_attribute('aria-expanded', 'false')
+            body_toggle.click()
+            expect(page.get_by_label('Raw body')).to_have_value('after-one')
             first = state()
             draft = next(t for t in first['tabs'] if t['id'] == first['activeId'])
             key = 'request:' + draft['collectionId'] + ':' + draft['itemId']
