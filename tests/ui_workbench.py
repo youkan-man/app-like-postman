@@ -75,11 +75,15 @@ def main():
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             assert page.locator('#newRequest, #sidebarMore, #editEnvironment').count() == 0
             expect(page.locator('#addTab')).to_be_visible()
+            expect(page.locator('html')).to_have_attribute('data-response-empty', 'true')
+            assert page.locator('.response-panel').bounding_box()['height'] < 90
             capture('empty-desktop')
-            passed('one new-request entry and no duplicate settings routes')
+            passed('unsent response collapses to status while retaining the editor')
             import_raw(sample)
             import_raw(environment)
             send()
+            expect(page.locator('html')).to_have_attribute('data-response-empty', 'false')
+            assert page.locator('.response-panel').bounding_box()['height'] > 100
             assert json.loads(page.locator('.response-code').inner_text())['path'] == '/echo?channel=1&include=measurements'
             passed('existing Collection and Environment import through real HTTP')
 
