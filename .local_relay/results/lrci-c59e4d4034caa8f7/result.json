@@ -1,0 +1,13 @@
+{
+  "branch": "feat/minipost-single-workspace-20261014",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T02:55:20.916147333Z",
+  "reason": "source changed before prepare",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-c59e4d4034caa8f7",
+  "source_sha": "fdb2be4c48b35fae6013f79074dc210ac0c2da36",
+  "started_at": "2026-10-15T02:55:19.620822205Z",
+  "status": "cancelled",
+  "version": 1
+}
