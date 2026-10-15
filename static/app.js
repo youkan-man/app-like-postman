@@ -167,7 +167,7 @@ function bindContext(target, anchor, menu) {
 }
 function kvEditor(list, changed, options = {}) {
   const wrap = element('div', 'kv-editor'), table = element('table', 'kv-table'), head = element('tr');
-  const columns = [['', 'check'], ['KEY', ''], ...(options.files ? [['TYPE', 'type']] : []), ['VALUE', ''], ['DESCRIPTION', ''], ['', 'action row-actions']];
+  const columns = [['', 'check'], ['キー', ''], ...(options.files ? [['種類', 'type']] : []), ['値', ''], ['説明', ''], ['', 'action row-actions']];
   for (const [name, cls] of columns) head.append(element('th', cls, name));
   const thead = element('thead'); thead.append(head); table.append(thead);
   const tbody = element('tbody'); table.append(tbody);
@@ -238,7 +238,7 @@ function authEditor(owner, inherited = false, changed = () => {}) {
     const type = owner.auth?.type || 'inherit';
     if (!options.some(([value]) => value === type)) options.push([type, `${type}（送信未対応）`]);
     const typeSelect = select(options, type, value => {owner.auth = value === 'inherit' ? null : {type: value, [value]: []}; changed(); paint();}); typeSelect.setAttribute('aria-label', '認証方式');
-    grid.append(element('label', '', 'Auth type'), typeSelect);
+    grid.append(element('label', '', '認証方式'), typeSelect);
     const specs = {bearer: [['token', 'Token']], basic: [['username', 'Username'], ['password', 'Password']], apikey: [['key', 'Key'], ['value', 'Value'], ['in', 'Add to']], oauth2: [['accessToken', 'Access token'], ['headerPrefix', 'Header prefix']]};
     if (specs[type]) {
       const attrs = owner.auth[type] = rows(owner.auth[type]);
@@ -831,7 +831,7 @@ function renderResponse() {
     let entries = result.headers || []; if (responseView === 'cookies') entries = entries.filter(h => h.key.toLowerCase() === 'set-cookie');
     entries = entries.filter(h => `${h.key} ${h.value}`.toLowerCase().includes(search.toLowerCase()));
     if (!entries.length) {root.append(emptyResponse(responseView === 'cookies' ? 'Set-Cookieはありません' : '該当するヘッダーはありません', '')); return;}
-    const table = element('table', 'kv-table kv-readonly'), head = element('tr'); head.append(element('th', '', 'KEY'), element('th', '', 'VALUE')); table.append(head);
+    const table = element('table', 'kv-table kv-readonly'), head = element('tr'); head.append(element('th', '', 'キー'), element('th', '', '値')); table.append(head);
     for (const h of entries) {const tr = element('tr'); tr.append(element('td', '', h.key), element('td', '', h.value)); table.append(tr);} root.append(table);
   } else if (responseView === 'preview') {
     if (result.body_encoding === 'base64') {root.append(emptyResponse('バイナリレスポンス', result.content_type)); return;}
