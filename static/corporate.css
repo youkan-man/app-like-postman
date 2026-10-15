@@ -301,8 +301,9 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent); }
 }
 .urlbar:focus-within { border-color:var(--accent); box-shadow:0 0 0 1px var(--corporate-ring); }
 .urlbar select {
-  flex:0 0 110px;
-  width:110px;
+  flex:0 0 7.7rem;
+  width:7.7rem;
+  min-width:7.7rem;
   min-height:42px;
   background:var(--raised);
   color:var(--green);
@@ -584,7 +585,7 @@ dialog::backdrop { background:rgba(16,27,44,.42); }
     margin:2px 9px 9px;
     min-height:43px;
   }
-  .urlbar select { flex:0 0 74px; width:74px; padding:6px 7px; font-size:12px; }
+  .urlbar select { flex:0 0 5.7rem; width:5.7rem; min-width:5.7rem; padding:6px 7px; font-size:.92rem; }
   .urlbar input { min-width:0; padding:6px 8px; font-size:12px; }
   .urlbar .button.primary { min-width:68px; padding:7px 9px; }
   .urlbar kbd { display:none; }
