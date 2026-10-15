@@ -21,5 +21,6 @@
       "name": "provenance",
       "run": "python3 -c 'import json, datetime; from pathlib import Path; p=Path(\".local_relay/output/verification.json\"); p.write_text(json.dumps({\"tests\":[\"node-regression\",\"python-regression\"],\"environment\":\"local-relay-owned-branch-sandbox\",\"generated_at\":datetime.datetime.now(datetime.timezone.utc).isoformat()},indent=2))' "
     }
-  ]
+  ],
+  "environment_revision": "minipost-ui-recreate-20261015"
 }
