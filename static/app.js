@@ -477,7 +477,6 @@ function renderSidebarSection() {
           {label: '下書きを削除', danger: true, run: () => discardDraft(draft.id)}
         ], event)); row.append(open, more); root.append(row);
       }
-      root.append(element('div', 'section-caption', 'Collections'));
     }
     for (const c of workspace.collections) {
       const match = c.info.name.toLowerCase().includes(search);
