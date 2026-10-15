@@ -141,6 +141,39 @@ def main():
                 assert restored['collections'][0]['item'][0]['request']
                 passed('manually restoring a server backup retains environment and request data')
 
+                # Simulate quota exhaustion *after* imported layout preferences
+                # were written: no partial replacement may survive.
+                previous = page.evaluate("""() => ({
+                    workspace: localStorage.getItem('minipost.workspace.v2'),
+                    layout: localStorage.getItem('minipost.layout.v1'),
+                    sections: localStorage.getItem('minipost.sections.v1')
+                })""")
+                damaged = json.loads(json.dumps(whole))
+                damaged['workspace']['collections'][0]['info']['name'] = 'Backup rejected'
+                damaged['layout'] = {'layout': {'sidebar': 499}, 'sections': ['body']}
+                page.evaluate("""() => {
+                  window.__originalSetItem = Storage.prototype.setItem;
+                  Storage.prototype.setItem = function(key, value) {
+                    if (key === 'minipost.workspace.v2' && value.includes('Backup rejected'))
+                      throw new DOMException('Simulated quota reached', 'QuotaExceededError');
+                    return window.__originalSetItem.call(this, key, value);
+                  };
+                }""")
+                page.locator('#import').click()
+                page.get_by_label('インポートJSON').fill(json.dumps(damaged))
+                page.locator('#modalSubmit').click()
+                expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
+                page.locator('#modalSubmit').click()
+                expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
+                page.evaluate('Storage.prototype.setItem = window.__originalSetItem')
+                assert page.evaluate("""() => ({
+                    workspace: localStorage.getItem('minipost.workspace.v2'),
+                    layout: localStorage.getItem('minipost.layout.v1'),
+                    sections: localStorage.getItem('minipost.sections.v1')
+                })""") == previous
+                page.locator('#closeModal').click()
+                passed('failed full import rolls back workspace, layout and section preferences')
+
                 page.screenshot(path=str(out / 'whole-backup-desktop.png'), full_page=True)
                 page.set_viewport_size({'width': 390, 'height': 844})
                 page.screenshot(path=str(out / 'whole-backup-phone.png'), full_page=True)
