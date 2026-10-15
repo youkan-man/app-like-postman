@@ -27,6 +27,7 @@ let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
 let pane = 'params', side = 'collections', responseView = 'pretty', selectedCollectionId = '', modalAction = null;
 let saveTimer, toastTimer, responseSearchTimer;
+let localChangeGeneration = 0;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
 let saveStatus = 'ローカルに保存済み';
 const active = () => workspace.tabs.find(t => t.id === workspace.activeId) || workspace.tabs[0];
@@ -43,6 +44,7 @@ function setSaveStatus(message, failed = false) {
   if (status) {status.textContent = message; status.classList.toggle('save-error', failed);}
 }
 function persist(now = false) {
+  localChangeGeneration += 1;
   const sync = $('serverSaveState');
   if (sync?.classList.contains('saved')) {
     sync.classList.remove('saved');
@@ -684,16 +686,18 @@ function showArchiveImport(bundle, source = 'ファイル') {
 }
 async function saveToServer() {
   persist(true);
+  const savedGeneration = localChangeGeneration;
   const button = $('dataActions'); button.disabled = true;
   try {
     const content = exportWorkspace(workspace, preferencesForArchive());
     const response = await fetch('/api/workspace', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(content)});
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
+    const newerLocalChanges = localChangeGeneration !== savedGeneration;
     $('serverSaveState').classList.remove('error');
-    $('serverSaveState').classList.add('saved');
-    $('serverSaveState').textContent = 'サーバーへ明示保存済み';
-    toast('サーバーの永続領域に保存しました。自動送信はしません。');
+    $('serverSaveState').classList.toggle('saved', !newerLocalChanges);
+    $('serverSaveState').textContent = newerLocalChanges ? 'サーバーには未反映' : 'サーバーへ明示保存済み';
+    toast(newerLocalChanges ? '送信開始時の内容を保存しました。保存中の変更はサーバーに未反映です。' : 'サーバーに保存しました。');
   } catch(error) {
     $('serverSaveState').classList.add('error');
     $('serverSaveState').textContent = 'サーバー保存失敗';
