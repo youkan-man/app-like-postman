@@ -165,7 +165,7 @@ def main():
                 expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
-                page.evaluate('Storage.prototype.setItem = window.__originalSetItem')
+                page.evaluate('() => {Storage.prototype.setItem = window.__originalSetItem;}')
                 assert page.evaluate("""() => ({
                     workspace: localStorage.getItem('minipost.workspace.v2'),
                     layout: localStorage.getItem('minipost.layout.v1'),
