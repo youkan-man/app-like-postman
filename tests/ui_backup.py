@@ -101,6 +101,28 @@ def main():
                 assert on_server['workspace']['environments'][0]['values'][0]['value'] == 'test-local-only'
                 passed('explicit menu action commits an atomic server backup')
 
+                # Hold the next explicit write while a local edit happens.
+                # A successful response to that older snapshot must not show a current "saved" state.
+                page.evaluate("""() => {
+                  const originalFetch = window.fetch.bind(window);
+                  window.__pauseServerSave = true;
+                  window.fetch = (resource, options) => {
+                    if (resource === '/api/workspace' && options?.method === 'POST' && window.__pauseServerSave) {
+                      window.__pauseServerSave = false;
+                      return new Promise(resolve => {window.__releaseServerSave = () => resolve(originalFetch(resource, options));});
+                    }
+                    return originalFetch(resource, options);
+                  };
+                }""")
+                page.locator('#dataActions').click()
+                page.get_by_role('menuitem', name='サーバーへ保存').click()
+                page.wait_for_function('typeof window.__releaseServerSave === "function"')
+                page.locator('#url').fill(echo_url + '/echo?changed=while-saving')
+                page.evaluate('window.__releaseServerSave()')
+                expect(page.locator('#serverSaveState')).to_have_text('サーバーには未反映')
+                assert server_workspace()[1]['workspace'] == on_server['workspace']
+                passed('editing during a server write keeps the saved status marked as stale')
+
                 # Further changes must not modify the saved server snapshot.
                 page.locator('#url').fill(echo_url + '/echo?changed=local')
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
