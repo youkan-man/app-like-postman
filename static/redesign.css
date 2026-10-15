@@ -202,7 +202,7 @@ dialog { border-radius:12px; }
 /* Before the first response, the editor owns the workspace; show only response status.
    This applies to both stacked and side-by-side layouts without hiding request options. */
 :root[data-response-empty=true] .exchange {
-  grid-template-rows:minmax(0,1fr) 0 auto;
+  grid-template-rows:minmax(0,1fr) auto;
 }
 :root[data-response-empty=true] .response-resize,
 :root[data-response-empty=true] .response-toolbar,
@@ -214,10 +214,11 @@ dialog { border-radius:12px; }
 }
 :root[data-response-empty=true] .response-panel {
   min-height:0;
+  grid-row:2;
 }
 :root[data-layout=side][data-response-empty=true] .exchange {
   grid-template-columns:minmax(0,1fr);
-  grid-template-rows:minmax(0,1fr) 0 auto;
+  grid-template-rows:minmax(0,1fr) auto;
 }
 :root[data-layout=side][data-response-empty=true] .request-editor {
   grid-column:1;
@@ -225,5 +226,5 @@ dialog { border-radius:12px; }
 }
 :root[data-layout=side][data-response-empty=true] .response-panel {
   grid-column:1;
-  grid-row:3;
+  grid-row:2;
 }
