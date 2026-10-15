@@ -34,7 +34,7 @@ function validRevisions(map) {
   if (!record(map)) return false;
   for (const [key, entries] of Object.entries(map)) {
     if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft):[^:]+(?::[^:]+)?$/.test(key)) return false;
-    if (!Array.isArray(entries) || !entries.every(entry => record(entry) && record(entry.value))) return false;
+    if (!Array.isArray(entries) || !entries.every(entry => record(entry) && (record(entry.value) || (Object.hasOwn(entry, 'before') && Object.hasOwn(entry, 'after'))))) return false;
   }
   return true;
 }
