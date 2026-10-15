@@ -293,20 +293,40 @@ const editorSections = [
   ['settings','通信設定'],
   ['scripts','スクリプト（参照のみ）']
 ];
-// Retain archive compatibility, but no saved collapse preference controls visibility.
+// Disclosure preferences are presentation state, not request changes or revisions.
 const sectionKey = 'minipost.sections.v1';
-const expandedSections = editorSections.map(([name]) => name);
+let expandedSections = editorSections.map(([name]) => name);
+try {
+  const saved = JSON.parse(localStorage.getItem(sectionKey));
+  if (Array.isArray(saved)) expandedSections = expandedSections.filter(name => saved.includes(name));
+} catch {}
+function setSectionExpanded(section, expanded) {
+  const fields = section.querySelector('.editor-section-body');
+  section.querySelector('.editor-section-toggle').setAttribute('aria-expanded', String(expanded));
+  fields.hidden = !expanded;
+  const names = new Set(expandedSections);
+  if (expanded) names.add(section.dataset.pane); else names.delete(section.dataset.pane);
+  expandedSections = editorSections.map(([name]) => name).filter(name => names.has(name));
+  try {localStorage.setItem(sectionKey, JSON.stringify(expandedSections));}
+  catch {toast('開閉状態を保存できません。画面上の開閉と入力内容は維持しています。');}
+}
 function renderPane() {
   const root = $('editorContent'), scrollTop = root.scrollTop;
   const content = document.createDocumentFragment();
   for (const [name, title] of editorSections) {
     const section = element('section', 'editor-section'); section.dataset.pane = name;
-    const heading = element('h2', 'editor-section-heading', title);
+    const heading = element('h2', 'editor-section-heading');
     heading.id = `request-section-${name}`;
     section.setAttribute('aria-labelledby', heading.id);
+    const fields = element('div', 'editor-section-body'); fields.id = `request-fields-${name}`;
+    const toggle = button(title, () => setSectionExpanded(section, fields.hidden), 'editor-section-toggle');
+    toggle.setAttribute('aria-controls', fields.id);
+    toggle.setAttribute('aria-expanded', String(expandedSections.includes(name)));
+    fields.hidden = !expandedSections.includes(name);
     const indicator = {params:'paramsCount',headers:'headersCount',body:'bodyDot',scripts:'scriptDot'}[name];
-    if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; heading.append(count);}
-    const fields = element('div', 'editor-section-body');
+    if (indicator) {const count = element('span', 'editor-section-count'); count.id = indicator; toggle.append(count);}
+    heading.append(toggle);
+    heading.onclick = event => {if (!toggle.contains(event.target)) toggle.click();};
     renderPaneSection(fields, name);
     section.append(heading, fields);
     content.append(section);
@@ -919,6 +939,6 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
-// Flat, always-visible sections replace cards and tab-based editors.
+// Flat sections retain their spacing; headings disclose fields without card wrappers.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

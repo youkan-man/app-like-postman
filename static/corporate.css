@@ -366,6 +366,39 @@ input:focus,select:focus,textarea:focus { border-color:var(--accent); }
   font-weight:650;
   color:var(--text);
 }
+/* Keep the heading/field geometry unchanged; only add a native disclosure button. */
+.editor-section-heading { cursor:pointer; }
+.editor-section-toggle {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:1 1 auto;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  font:inherit;
+  color:inherit;
+  text-align:left;
+}
+.editor-section-toggle::after {
+  content:'';
+  flex:0 0 6px;
+  width:6px;
+  height:6px;
+  margin:0 3px 0 auto;
+  border-right:1.5px solid currentColor;
+  border-bottom:1.5px solid currentColor;
+  transform:rotate(-45deg);
+}
+.editor-section-toggle[aria-expanded=true]::after { transform:rotate(45deg); }
+.editor-section-toggle:hover { color:var(--accent); }
+.editor-section-toggle:focus-visible { outline-offset:2px; }
 .editor-section-count { color:var(--muted); font-size:inherit; font-weight:400; }
 .editor-section-body { padding:0; min-width:0; border:0; background:transparent; }
 .editor-section-body .scripts-block { padding:0; border:0; background:transparent; }
