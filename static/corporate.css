@@ -546,7 +546,7 @@ dialog::backdrop { background:rgba(16,27,44,.42); }
   .statusbar { padding:5px 9px; }
 }
 @media (max-width:650px) {
-  :root { --topbar-height:94px; }
+  :root[data-theme] { --topbar-height:94px; }
   .topbar {
     height:var(--topbar-height);
     padding:6px 9px;

@@ -234,6 +234,12 @@ def main():
                 page.set_viewport_size({'width': width, 'height': height})
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
                 expect(page.locator('#send')).to_be_visible()
+                if width <= 650:
+                    header = page.locator('.topbar').bounding_box()
+                    for control in ['#toggleSidebar', '#addTab', '#import', '#dataActions', '#environment', '#theme']:
+                        rect = page.locator(control).bounding_box()
+                        assert rect and rect['y'] >= 0, (control, rect)
+                        assert rect['y'] + rect['height'] <= header['y'] + header['height'] + 1, (control, rect, header)
                 if width <= 820:
                     expect(page.locator('#navigation')).not_to_be_visible()
                     page.locator('#toggleSidebar').click()
