@@ -1,0 +1,13 @@
+{
+  "branch": "feat/minipost-single-workspace-20261014",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-15T02:30:06.867637348Z",
+  "reason": "branch Sandbox disappeared before contract expiry; set environment_revision to replace it",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-fd1873a9acd63001",
+  "source_sha": "02b67b536df7561fcb44d5b70c00630de8f2e510",
+  "started_at": "2026-10-15T02:30:04.932514464Z",
+  "status": "failed",
+  "version": 1
+}
