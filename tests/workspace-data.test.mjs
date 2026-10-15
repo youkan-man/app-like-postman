@@ -71,3 +71,27 @@ test('local request keys keep stable identity for stored entries',()=>{
   ws.tabs.push({...ws.tabs[0],id:'t2',itemId:null});
   assert.equal(requestKey(ws,ws.tabs[1]),'draft:t2');
 });
+
+test('a broken nested full backup is rejected before current data can be replaced',()=>{
+  const invalid = [
+    ws => {ws.collections[0].item=null;},
+    ws => {ws.collections[0].item[0].item=[{_mpId:'r',name:'Broken'}];},
+    ws => {ws.tabs[0].request=null;},
+    ws => {ws.environments[0].values={key:'not-an-array'};},
+    ws => {ws.history[0].tab=null;},
+    ws => {ws.revisions=JSON.parse('{"__proto__":[{"value":{}}]}');},
+    ws => {ws.revisions={'request:c1:i1':{not:'revisions'}};}
+  ];
+  for(const corrupt of invalid) {
+    const before=sample(), ws=structuredClone(before);
+    corrupt(ws);
+    assert.throws(()=>readWorkspaceBundle(exportWorkspace(ws)));
+    assert.equal(before.collections[0].info.name,'API');
+  }
+});
+test('older before/after change histories remain importable',()=>{
+  const ws=sample();
+  ws.settingHistory={globals:[{at:'2026-10-14T00:00:00Z',before:[],after:[{key:'x',value:'a'}],fields:['0']}]};
+  const result=readWorkspaceBundle(exportWorkspace(ws));
+  assert.deepEqual(result.workspace.settingHistory,ws.settingHistory);
+});
