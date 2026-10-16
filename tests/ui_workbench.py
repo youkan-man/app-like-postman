@@ -82,9 +82,12 @@ def main():
             expect(page.locator('html')).to_have_attribute('data-theme', 'light')
             assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == '#f4f6f9'
             expect(page.locator('#sidebarTabs [data-sidebar=collections]')).to_have_attribute('aria-selected', 'true')
+            expect(page.locator('#editorTabs [role=tab]')).to_have_count(7)
+            expect(page.locator('#responseTabs [role=tab]')).to_have_count(5)
+            expect(page.locator('#editor-tab-all')).to_have_attribute('aria-selected', 'true')
             assert page.locator('#requestTabs, .request-tab').count() == 0
             capture('empty-desktop')
-            passed('formal light corporate default, localized navigation and no tab strips')
+            passed('formal corporate defaults with scoped setting/response tabs and no accumulating request tabs')
             import_raw(sample)
             import_raw(environment)
             send()
@@ -92,6 +95,21 @@ def main():
             assert page.locator('.response-panel').bounding_box()['height'] > 100
             assert json.loads(page.locator('.response-code').inner_text())['path'] == '/echo?channel=1&include=measurements'
             passed('existing Collection and Environment import through real HTTP')
+
+            # Only the inner setting pages switch; all-settings mode preserves
+            # the established accordion layout and spacing.
+            workspace_before_page_switch = page.evaluate('localStorage.getItem("minipost.workspace.v2")')
+            page.locator('#editor-tab-headers').click()
+            expect(page.locator('#editor-tab-headers')).to_have_attribute('aria-selected', 'true')
+            expect(page.locator('section.editor-section[data-pane=headers]')).to_be_visible()
+            expect(page.locator('section.editor-section[data-pane=params]')).not_to_be_visible()
+            page.locator('#editor-tab-headers').focus()
+            page.keyboard.press('ArrowRight')
+            expect(page.locator('#editor-tab-authorization')).to_have_attribute('aria-selected', 'true')
+            page.keyboard.press('Home')
+            expect(page.locator('#editor-tab-all')).to_have_attribute('aria-selected', 'true')
+            assert page.evaluate('localStorage.getItem("minipost.workspace.v2")') == workspace_before_page_switch
+            passed('internal settings page navigation retains request data and avoids revisions')
 
             # Only visibility changes: open fields retain the flat editor geometry.
             expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
@@ -223,13 +241,15 @@ def main():
             page.locator('#layoutToggle').click()
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             send()
-            page.locator('#responseTabs [aria-selected=true]').focus()
-            page.locator('#responseTabs [data-response=raw]').click()
-            expect(page.locator('#responseTabs [data-response=raw]')).to_have_attribute('aria-selected','true')
-            page.locator('#responseTabs [data-response=pretty]').click()
-            expect(page.locator('#responseTabs [data-response=pretty]')).to_have_attribute('aria-selected','true')
+            page.locator('#response-tab-pretty').focus()
+            page.keyboard.press('ArrowRight')
+            expect(page.locator('#response-tab-raw')).to_have_attribute('aria-selected', 'true')
+            page.locator('#response-tab-headers').click()
+            expect(page.locator('.kv-readonly')).to_contain_text('application/json')
+            page.locator('#response-tab-pretty').click()
+            expect(page.locator('#response-tab-pretty')).to_have_attribute('aria-selected', 'true')
             expect(page.locator('#responseTabs [role=tab]')).to_have_count(5)
-            passed('response display paging without an opened-request tab strip')
+            passed('response format tabs switch with pointer and keyboard')
 
             before = page.locator('.sidebar').bounding_box()['width']
             page.locator('#sidebarResize').focus()

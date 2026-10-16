@@ -26,6 +26,7 @@ for (const draft of workspace.tabs) draft.settings = requestSettings(draft.setti
 let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
 const navigationKey = 'minipost.navigation.v1';
+const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
   const allowed = {
     editor: ['all','params','headers','authorization','body','settings','scripts'],
@@ -35,12 +36,12 @@ function normalizeNavigation(value) {
   return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
 }
 let navigation = normalizeNavigation(null);
-try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)));} catch {}
-let pane = navigation.editor, side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
+try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)) ?? {editor:localStorage.getItem(editorPageKey)});} catch {}
+let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
 const sidebarSearch = {collections:'', environments:'', history:''};
 const sidebarScroll = {collections:0, environments:0, history:0};
 function saveNavigation() {
-  try {localStorage.setItem(navigationKey, JSON.stringify({editor:pane, sidebar:side, response:responseView}));}
+  try {localStorage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
   catch {toast('表示状態を保存できません。入力内容は維持しています。');}
 }
 function selectPageTab(id, attribute, value, panelId) {
@@ -326,10 +327,33 @@ try {
   const saved = JSON.parse(localStorage.getItem(sectionKey));
   if (Array.isArray(saved)) expandedSections = expandedSections.filter(name => saved.includes(name));
 } catch {}
+let editorPage = navigation.editor, pageExpanded = true;
+function applyEditorPage() {
+  for (const tab of $('editorTabs').querySelectorAll('[data-editor]')) {
+    const selected = tab.dataset.editor === editorPage;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  $('editorContent').setAttribute('aria-labelledby', 'editor-tab-' + editorPage);
+  for (const section of $('editorContent').querySelectorAll('.editor-section')) {
+    const single = editorPage !== 'all';
+    section.hidden = single && section.dataset.pane !== editorPage;
+    const expanded = single ? pageExpanded : expandedSections.includes(section.dataset.pane);
+    section.querySelector('.editor-section-body').hidden = !expanded;
+    section.querySelector('.editor-section-toggle').setAttribute('aria-expanded', String(expanded));
+  }
+}
+function selectEditorPage(next) {
+  if (next !== 'all' && !editorSections.some(([name]) => name === next)) return;
+  editorPage = next; pageExpanded = true;
+  try {localStorage.setItem(editorPageKey, editorPage);} catch {}
+  applyEditorPage(); $('editorContent').scrollTop = 0; saveNavigation();
+}
 function setSectionExpanded(section, expanded) {
   const fields = section.querySelector('.editor-section-body');
   section.querySelector('.editor-section-toggle').setAttribute('aria-expanded', String(expanded));
   fields.hidden = !expanded;
+  if (editorPage !== 'all') pageExpanded = expanded;
   const names = new Set(expandedSections);
   if (expanded) names.add(section.dataset.pane); else names.delete(section.dataset.pane);
   expandedSections = editorSections.map(([name]) => name).filter(name => names.has(name));
@@ -358,23 +382,9 @@ function renderPane() {
     content.append(section);
   }
   root.replaceChildren(content);
+  applyEditorPage();
   root.scrollTop = scrollTop;
-  applyEditorPage();
   updateCounts();
-}
-function applyEditorPage() {
-  for (const section of $('editorContent').querySelectorAll('.editor-section')) {
-    section.hidden = pane !== 'all' && section.dataset.pane !== pane;
-  }
-  selectPageTab('editorTabs', 'data-editor-page', pane, 'editorContent');
-}
-function chooseEditorPage(name) {
-  pane = name;
-  applyEditorPage();
-  const section = $('editorContent').querySelector(`[data-pane="${pane}"]`);
-  if (section?.querySelector('.editor-section-body').hidden) setSectionExpanded(section, true);
-  $('editorContent').scrollTop = 0;
-  saveNavigation();
 }
 async function chooseFiles(key, multiple, done) {
   const chooser = element('input'); chooser.type = 'file'; chooser.multiple = multiple;
@@ -694,7 +704,7 @@ function editEnvironment(env, globals = false) {
 function preferencesForArchive() {
   let layout = null;
   try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
-  return {layout, sections: expandedSections, navigation: {editor:pane, sidebar:side, response:responseView}};
+  return {layout, sections: expandedSections, navigation: {editor:editorPage, sidebar:side, response:responseView}};
 }
 function commitImportedWorkspace(next, layout) {
   const updates = [];
@@ -867,7 +877,12 @@ function emptyResponse(title, message) {const box = element('div', 'response-emp
 function renderResponse() {
   const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id);
   document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
-  selectPageTab('responseTabs', 'data-response', responseView, 'responseContent');
+  for (const tab of $('responseTabs').querySelectorAll('[data-response]')) {
+    const selected = tab.dataset.response === responseView;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  root.setAttribute('aria-labelledby', 'response-tab-' + responseView);
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
   if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
   if (!result) {$('responseStatus').textContent = '未送信'; return;}
@@ -951,13 +966,14 @@ $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除�
 $('gatewayExample').onclick = async () => {
   try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
 };
-for (const tab of $('editorTabs').querySelectorAll('[data-editor-page]')) tab.onclick = () => chooseEditorPage(tab.dataset.editorPage);
+for (const tab of $('editorTabs').querySelectorAll('[data-editor]'))
+  tab.onclick = () => selectEditorPage(tab.dataset.editor);
+for (const tab of $('responseTabs').querySelectorAll('[data-response]'))
+  tab.onclick = () => {responseView = tab.dataset.response; renderResponse(); saveNavigation();};
 for (const tab of $('sidebarTabs').querySelectorAll('[data-sidebar]')) tab.onclick = () => chooseSidebar(tab.dataset.sidebar);
-for (const tab of $('responseTabs').querySelectorAll('[data-response]')) tab.onclick = () => {
-  responseView = tab.dataset.response;
-  renderResponse();
-  saveNavigation();
-};
+bindTabStrip($('editorTabs'), '[role="tab"]');
+bindTabStrip($('responseTabs'), '[role="tab"]');
+bindTabStrip($('sidebarTabs'), '[role="tab"]');
 $('responseSearch').oninput = () => {clearTimeout(responseSearchTimer); responseSearchTimer = setTimeout(renderResponse, 180);};
 $('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id)); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
 $('downloadResponse').onclick = () => {
@@ -977,9 +993,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
-bindTabStrip($('editorTabs'), '[data-editor-page]');
-bindTabStrip($('sidebarTabs'), '[data-sidebar]');
-bindTabStrip($('responseTabs'), '[data-response]');
-// Flat sections retain their spacing; headings disclose fields without card wrappers.
+// Internal editor/response pages are tabbed; only request selection itself stays tab-free.
+// All-settings view retains flat spacing and heading disclosure.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

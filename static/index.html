@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/selection.css">
   <link rel="stylesheet" href="/redesign.css">
   <link rel="stylesheet" href="/corporate.css">
+  <link rel="stylesheet" href="/content-tabs.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -30,7 +31,7 @@
   <div class="workspace">
     <div id="navigation" class="navigation">
       <aside class="sidebar" aria-label="保存済みデータ">
-        <nav id="sidebarTabs" class="page-tabs" role="tablist" aria-label="ワークスペースの表示"><button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent">コレクション</button><button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent">環境</button><button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent">送信履歴</button></nav>
+        <nav id="sidebarTabs" class="content-tabs sidebar-navigation" role="tablist" aria-label="ワークスペースの表示"><button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent">コレクション</button><button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent">環境</button><button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent">送信履歴</button></nav>
         <div class="sidebar-tools">
           <input id="search" type="search" placeholder="すべて検索" aria-label="保存済みデータを検索">
           <button id="sidebarAdd" class="icon-button" title="コレクションを追加" aria-label="コレクションを追加">＋</button>
@@ -48,14 +49,31 @@
           <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
           <div id="requestWarning" class="warning" role="status" hidden></div>
-          <nav id="editorTabs" class="page-tabs" role="tablist" aria-label="リクエスト設定のカテゴリ"><button type="button" id="editorTabs-all" role="tab" data-editor-page="all" aria-controls="editorContent">すべて</button><button type="button" id="editorTabs-params" role="tab" data-editor-page="params" aria-controls="editorContent">クエリ</button><button type="button" id="editorTabs-headers" role="tab" data-editor-page="headers" aria-controls="editorContent">ヘッダー</button><button type="button" id="editorTabs-authorization" role="tab" data-editor-page="authorization" aria-controls="editorContent">認証</button><button type="button" id="editorTabs-body" role="tab" data-editor-page="body" aria-controls="editorContent">本文</button><button type="button" id="editorTabs-settings" role="tab" data-editor-page="settings" aria-controls="editorContent">通信設定</button><button type="button" id="editorTabs-scripts" role="tab" data-editor-page="scripts" aria-controls="editorContent">スクリプト</button></nav>
-          <div id="editorContent" class="editor-content" aria-label="リクエスト設定"></div>
+          <nav id="editorTabs" class="content-tabs editor-navigation" role="tablist" aria-label="リクエスト設定のページ">
+            <button type="button" role="tab" id="editor-tab-all" data-editor="all" aria-controls="editorContent" aria-selected="true" tabindex="0">すべて</button>
+            <button type="button" role="tab" id="editor-tab-params" data-editor="params" aria-controls="editorContent" aria-selected="false" tabindex="-1">クエリ</button>
+            <button type="button" role="tab" id="editor-tab-headers" data-editor="headers" aria-controls="editorContent" aria-selected="false" tabindex="-1">ヘッダー</button>
+            <button type="button" role="tab" id="editor-tab-authorization" data-editor="authorization" aria-controls="editorContent" aria-selected="false" tabindex="-1">認証</button>
+            <button type="button" role="tab" id="editor-tab-body" data-editor="body" aria-controls="editorContent" aria-selected="false" tabindex="-1">本文</button>
+            <button type="button" role="tab" id="editor-tab-settings" data-editor="settings" aria-controls="editorContent" aria-selected="false" tabindex="-1">通信設定</button>
+            <button type="button" role="tab" id="editor-tab-scripts" data-editor="scripts" aria-controls="editorContent" aria-selected="false" tabindex="-1">スクリプト</button>
+          </nav>
+          <div id="editorContent" class="editor-content" role="tabpanel" aria-labelledby="editor-tab-all" tabindex="0"></div>
         </section>
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
         <section class="response-panel" aria-label="レスポンス">
           <div class="response-heading"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
-          <div class="response-toolbar"><nav id="responseTabs" class="page-tabs" role="tablist" aria-label="レスポンスの表示"><button type="button" id="responseTabs-pretty" role="tab" data-response="pretty" aria-controls="responseContent">整形</button><button type="button" id="responseTabs-raw" role="tab" data-response="raw" aria-controls="responseContent">生データ</button><button type="button" id="responseTabs-headers" role="tab" data-response="headers" aria-controls="responseContent">ヘッダー</button><button type="button" id="responseTabs-cookies" role="tab" data-response="cookies" aria-controls="responseContent">Cookie</button><button type="button" id="responseTabs-preview" role="tab" data-response="preview" aria-controls="responseContent">プレビュー</button></nav><input id="responseSearch" type="search" placeholder="レスポンス内を検索" aria-label="レスポンス内検索"></div>
-          <div id="responseContent" class="response-content" aria-label="受信データ"></div>
+          <div class="response-toolbar">
+            <nav id="responseTabs" class="content-tabs response-navigation" role="tablist" aria-label="レスポンス表示形式">
+              <button type="button" role="tab" id="response-tab-pretty" data-response="pretty" aria-controls="responseContent" aria-selected="true" tabindex="0">整形</button>
+              <button type="button" role="tab" id="response-tab-raw" data-response="raw" aria-controls="responseContent" aria-selected="false" tabindex="-1">生データ</button>
+              <button type="button" role="tab" id="response-tab-headers" data-response="headers" aria-controls="responseContent" aria-selected="false" tabindex="-1">ヘッダー</button>
+              <button type="button" role="tab" id="response-tab-cookies" data-response="cookies" aria-controls="responseContent" aria-selected="false" tabindex="-1">Cookie</button>
+              <button type="button" role="tab" id="response-tab-preview" data-response="preview" aria-controls="responseContent" aria-selected="false" tabindex="-1">HTMLプレビュー</button>
+            </nav>
+            <input id="responseSearch" type="search" placeholder="レスポンス内を検索" aria-label="レスポンス内検索">
+          </div>
+          <div id="responseContent" class="response-content" role="tabpanel" aria-labelledby="response-tab-pretty" tabindex="0" aria-label="受信データ"></div>
         </section>
       </div>
       <footer class="statusbar"><span id="connectionStatus">接続中…</span><span id="requestInfo"></span><span class="top-spacer"></span><span id="saveState" role="status">ローカルに自動保存</span><span id="serverSaveState">サーバー未保存</span><span id="tlsStatus">TLS OFF</span></footer>

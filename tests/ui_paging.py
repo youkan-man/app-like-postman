@@ -38,7 +38,14 @@ def main():
                 return page.evaluate('localStorage.getItem("minipost.workspace.v2")')
 
             def editor(name):
-                page.locator(f'#editorTabs [data-editor-page={name}]').click()
+                page.locator(f'#editorTabs [data-editor={name}]').click()
+
+            # Preserve the page preference introduced by the already merged PR10.
+            page.evaluate("localStorage.setItem('minipost.editor.page.v1','headers'); localStorage.removeItem('minipost.navigation.v1')")
+            page.reload()
+            expect(page.locator('#editorTabs [data-editor=headers]')).to_have_attribute('aria-selected','true')
+            editor('all')
+            passed('existing editor-page preference migrates without losing the selected page')
 
             collection = {'info':{'name':'Paging API','schema':'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'}, 'item':[
                 {'name':f'Request {i:02d}', 'request':{'method':'POST','url':echo_url+'/echo','body':{'mode':'raw','raw':'original','options':{'raw':{'language':'text'}}}}}
@@ -77,13 +84,13 @@ def main():
             expect(body.locator('.editor-section-body')).to_have_css('padding-left','0px')
             passed('category switches and disclosure preserve the same input, flat spacing and revision state')
 
-            page.locator('#editorTabs [data-editor-page=all]').focus()
+            page.locator('#editorTabs [data-editor=all]').focus()
             page.keyboard.press('ArrowRight')
-            expect(page.locator('#editorTabs [data-editor-page=params]')).to_be_focused()
+            expect(page.locator('#editorTabs [data-editor=params]')).to_be_focused()
             page.keyboard.press('End')
-            expect(page.locator('#editorTabs [data-editor-page=scripts]')).to_have_attribute('aria-selected','true')
+            expect(page.locator('#editorTabs [data-editor=scripts]')).to_have_attribute('aria-selected','true')
             page.keyboard.press('Home')
-            expect(page.locator('#editorTabs [data-editor-page=all]')).to_have_attribute('aria-selected','true')
+            expect(page.locator('#editorTabs [data-editor=all]')).to_have_attribute('aria-selected','true')
             assert stored()==before
             passed('keyboard paging does not change request values or append revisions')
 
@@ -109,13 +116,13 @@ def main():
             page.locator('#responseTabs [data-response=raw]').click()
             expect(page.locator('.response-code')).to_contain_text('kept across categories')
             page.locator('#responseTabs [data-response=pretty]').click()
-            expect(page.locator('#responseContent')).to_have_attribute('aria-labelledby','responseTabs-pretty')
+            expect(page.locator('#responseContent')).to_have_attribute('aria-labelledby','response-tab-pretty')
             assert stored()==response_before
             passed('response paging keeps actual response data and never resends a request')
 
             editor('body')
             page.reload()
-            expect(page.locator('#editorTabs [data-editor-page=body]')).to_have_attribute('aria-selected','true')
+            expect(page.locator('#editorTabs [data-editor=body]')).to_have_attribute('aria-selected','true')
             expect(page.get_by_label('Raw body')).to_have_value('kept across categories')
             editor('all')
             page.screenshot(path=str(out/'paging-desktop-all.png'),full_page=True)
@@ -130,11 +137,13 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 for root in ('editorTabs','responseTabs'):
                     for tab in page.locator(f'#{root} button').all():
+                        tab.scroll_into_view_if_needed()
                         b=tab.bounding_box()
                         assert b and b['x']>=0 and b['x']+b['width']<=width+1, (root,b)
                 editor('headers')
                 editor('body')
                 expect(page.get_by_label('Raw body')).to_have_value('kept across categories')
+                page.locator('#responseTabs [aria-selected=true]').scroll_into_view_if_needed()
                 page.screenshot(path=str(out/f'paging-{width}.png'),full_page=True)
             passed('tablet and phone retain usable category controls without horizontal page overflow')
             assert not errors,errors
