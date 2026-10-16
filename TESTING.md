@@ -22,3 +22,7 @@ Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポ�
 `node --test tests/*.test.mjs` は一次変数、JSON Pointer、スクリプト適用順、リレーションの反復・条件・中断・参照検証・バックアップを含みます。`python tests/ui_automation.py` は新規作成、階層挿入、環境のページ編集、本文ハイライト、スクリプト、受信後抽出、リレーションを実ブラウザとEcho HTTPで確認し、デスクトップ／モバイル画像を残します。既存の全ブラウザスイートも実行します。
 
 `MINIPOST_INLINE_TEST=1` は明示的なDOM用テストダブルです。HTML・モジュールをabout:blankへ渡し、ストレージとHTTPを注入するため、ブラウザネットワークのE2E保証には使用しません。GitHub Actionsの検証ではこのモードを使用せず、実HTTPで実行します。アプリ本体の動作やブラウザポリシーは変更しません。
+
+## ブラウザ保存・復元
+
+`node --test tests/storage.test.mjs` は保存層の分離試験です。`python tests/ui_storage.py` は通常HTTPオリジン上のChromiumで、旧localStorage移行、6 MiBデータ、localStorage書込の全面失敗、明示サーバー保存／復元、再読込、トランザクション中断を検証します。後者はモックIndexedDBやinlineモードを使いません。CIのbrowserジョブで実行し、`storage/` に結果と画面を保存します。

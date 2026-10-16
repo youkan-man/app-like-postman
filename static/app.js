@@ -6,23 +6,24 @@ import {RevisionStore, requestKey, requestSettings, settingsIndex} from './revis
 import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snapshotSettings, applySettings} from './editops.mjs';
 import {createCodeEditor} from './code-editor.mjs';
 import {initStudio} from './studio.mjs';
+import {WorkspaceStorage} from './storage.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio;
-const KEY = 'minipost.workspace.v2';
+const storage = new WorkspaceStorage();
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
 const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
 let workspace;
 let recoveryMessage = '';
+$('saveState').textContent = 'ローカルデータを読込中…';
 try {
-  const saved = localStorage.getItem(KEY);
-  workspace = saved ? JSON.parse(saved) : initial();
-  if (workspace.version !== 2 || !Array.isArray(workspace.tabs) || !Array.isArray(workspace.collections) || !Array.isArray(workspace.environments) || !Array.isArray(workspace.globals) || !Array.isArray(workspace.history)) throw new Error('保存データの形式が不正です。');
+  workspace = await storage.load(saved => {
+    readWorkspaceBundle({kind: 'minipost.workspace', version: 1, workspace: saved});
+  }) || initial();
   if (!workspace.tabs.length) workspace.tabs.push(freshTab());
   if (!workspace.tabs.some(t => t.id === workspace.activeId)) workspace.activeId = workspace.tabs[0].id;
 } catch (error) {
-  try {const raw = localStorage.getItem(KEY); if (raw) localStorage.setItem(KEY + '.recovery', raw);} catch {}
-  workspace = initial(); recoveryMessage = `保存データを読み込めませんでした。元データは可能な場合に .recovery キーへ保持しています。${error.message}`;
+  workspace = initial(); recoveryMessage = `保存データを読み込めませんでした。元データは上書きせず保持しています。${error.message}`;
 }
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 workspace.relations ||= []; workspace.relationRuns ||= [];
@@ -39,12 +40,12 @@ function normalizeNavigation(value) {
   return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
 }
 let navigation = normalizeNavigation(null);
-try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)) ?? {editor:localStorage.getItem(editorPageKey)});} catch {}
+try {navigation = normalizeNavigation(JSON.parse(storage.getItem(navigationKey)) ?? {editor:storage.getItem(editorPageKey)});} catch {}
 let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
 const sidebarSearch = {collections:'', environments:'', history:'', relations:''};
 const sidebarScroll = {collections:0, environments:0, history:0, relations:0};
 function saveNavigation() {
-  try {localStorage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
+  try {storage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
   catch {toast('表示状態を保存できません。入力内容は維持しています。');}
 }
 function selectPageTab(id, attribute, value, panelId) {
@@ -57,7 +58,7 @@ function selectPageTab(id, attribute, value, panelId) {
   $(panelId).setAttribute('role', 'tabpanel');
 }
 let saveTimer, toastTimer, responseSearchTimer;
-let localChangeGeneration = 0;
+let localChangeGeneration = 0, saveSequence = 0, importInProgress = false;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
 let saveStatus = 'ローカルに保存済み';
 const active = () => workspace.tabs.find(t => t.id === workspace.activeId) || workspace.tabs[0];
@@ -74,7 +75,9 @@ function setSaveStatus(message, failed = false) {
   if (status) {status.textContent = message; status.classList.toggle('save-error', failed);}
 }
 function persist(now = false) {
+  if (importInProgress) return Promise.resolve(false);
   localChangeGeneration += 1;
+  const sequence = ++saveSequence;
   const sync = $('serverSaveState');
   if (sync?.classList.contains('saved')) {
     sync.classList.remove('saved');
@@ -82,10 +85,22 @@ function persist(now = false) {
   }
   clearTimeout(saveTimer); setSaveStatus('保存中…');
   const save = () => {
-    try {revisionStore.capture(); localStorage.setItem(KEY, JSON.stringify(workspace)); setSaveStatus('ローカルに保存済み');}
-    catch {setSaveStatus('保存できません。エクスポートしてください。', true); toast('ブラウザに保存できません。編集中の値は画面に残しています。エクスポートして退避してください。');}
+    let operation;
+    try {revisionStore.capture(); operation = storage.save(workspace);}
+    catch (error) {operation = Promise.reject(error);}
+    return operation.then(() => {
+      if (sequence === saveSequence && !importInProgress) setSaveStatus('ローカルに保存済み');
+      return true;
+    }, error => {
+      if (sequence === saveSequence && !importInProgress) {
+        setSaveStatus('保存できません。エクスポートしてください。', true);
+        toast('ブラウザに保存できません。編集中の値は維持しています。全体エクスポートまたはサーバーへ保存してください。 ' + error.message);
+      }
+      return false;
+    });
   };
-  if (now) save(); else saveTimer = setTimeout(save, 220);
+  if (now) return save();
+  saveTimer = setTimeout(save, 220);
 }
 // Saved requests are updated in the browser collection automatically. Server writes remain opt-in.
 function touch() {
@@ -123,6 +138,7 @@ $('closeModal').onclick = $('cancelModal').onclick = closeModal;
 $('modal').addEventListener('cancel', () => {if (settingsDrawer) persist(true); closeItemMenu(false); modalAction = null;});
 $('modal').addEventListener('close', () => {if (!$('modal').open) {if (settingsDrawer) persist(true); closeItemMenu(false); settingsDrawer = null; modalAction = null;}});
 window.addEventListener('pagehide', () => persist(true));
+document.addEventListener('visibilitychange', () => {if (document.visibilityState === 'hidden') persist(true);});
 
 function chooseEnvironment(id, open = false) {
   persist(true);
@@ -319,7 +335,7 @@ const editorSections = [
 const sectionKey = 'minipost.sections.v1';
 let expandedSections = editorSections.map(([name]) => name);
 try {
-  const saved = JSON.parse(localStorage.getItem(sectionKey));
+  const saved = JSON.parse(storage.getItem(sectionKey));
   if (Array.isArray(saved)) expandedSections = expandedSections.filter(name => saved.includes(name));
 } catch {}
 let editorPage = navigation.editor, pageExpanded = true;
@@ -342,7 +358,7 @@ function applyEditorPage() {
 function selectEditorPage(next) {
   if (next !== 'all' && !editorSections.some(([name]) => name === next)) return;
   editorPage = next; pageExpanded = true;
-  try {localStorage.setItem(editorPageKey, editorPage);} catch {}
+  try {storage.setItem(editorPageKey, editorPage);} catch {}
   applyEditorPage(); $('editorContent').scrollTop = 0; saveNavigation();
 }
 function setSectionExpanded(section, expanded) {
@@ -353,7 +369,7 @@ function setSectionExpanded(section, expanded) {
   const names = new Set(expandedSections);
   if (expanded) names.add(section.dataset.pane); else names.delete(section.dataset.pane);
   expandedSections = editorSections.map(([name]) => name).filter(name => names.has(name));
-  try {localStorage.setItem(sectionKey, JSON.stringify(expandedSections));}
+  try {storage.setItem(sectionKey, JSON.stringify(expandedSections));}
   catch {toast('開閉状態を保存できません。画面上の開閉と入力内容は維持しています。');}
 }
 function renderPane() {
@@ -690,34 +706,12 @@ function exportEnvironment(env, globals = false) {
 function editEnvironment(env, globals = false) {studio.editEnvironment(env, globals);}
 function preferencesForArchive() {
   let layout = null;
-  try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
+  try {layout = JSON.parse(storage.getItem('minipost.layout.v1'));} catch {}
   return {layout, sections: expandedSections, navigation: {editor:editorPage, sidebar:side, response:responseView}};
 }
-function commitImportedWorkspace(next, layout) {
-  const updates = [];
-  if (layout?.layout) updates.push(['minipost.layout.v1', JSON.stringify(layout.layout)]);
-  if (Array.isArray(layout?.sections)) updates.push([sectionKey, JSON.stringify(layout.sections)]);
-  if (layout?.navigation) updates.push([navigationKey, JSON.stringify(normalizeNavigation(layout.navigation))]);
-  // The complete workspace is written last; a quota/permission failure restores
-  // the previous layout and never changes the live in-memory workspace.
-  updates.push([KEY, JSON.stringify(next)]);
-  const applied = [];
-  try {
-    for (const [key, value] of updates) {
-      const previous = localStorage.getItem(key);
-      localStorage.setItem(key, value);
-      applied.push([key, previous]);
-    }
-  } catch (error) {
-    let rollbackFailed = false;
-    for (const [key, previous] of applied.reverse()) {
-      try {if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);}
-      catch {rollbackFailed = true;}
-    }
-    throw new Error(rollbackFailed
-      ? 'インポートできませんでした。一部の保存設定を戻せません。元のバックアップを保管してください。'
-      : 'インポートを保存できませんでした。既存のワークスペースは維持しています: ' + error.message);
-  }
+async function commitImportedWorkspace(next, layout) {
+  try {await storage.save(next, {layout, replace: true});}
+  catch (error) {throw new Error('インポートを保存できませんでした。既存のワークスペースは維持しています: ' + error.message);}
 }
 function saveFullBackup() {
   persist(true);
@@ -735,23 +729,27 @@ function showArchiveImport(bundle, source = 'ファイル') {
   mode.id = 'importMode';
   const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
   box.append(intro, field('インポート方式', mode), warning);
-  showModal('MiniPost 全体バックアップを取り込む', box, () => {
-    persist(true);
-    if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
+  showModal('MiniPost 全体バックアップを取り込む', box, async () => {
     if (studio?.isRunning()) throw new Error('実行中のリレーションを停止してから取り込んでください。');
+    if (mode.value === 'merge') revisionStore.capture();
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.length) next.tabs.push(freshTab());
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
-    commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);
+    // Restore must not depend on saving the old (possibly quota-exhausted) data.
+    // Suppress delayed saves and response callbacks until the atomic replacement ends.
+    clearTimeout(saveTimer); ++saveSequence; importInProgress = true;
+    try {await commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);}
+    catch (error) {importInProgress = false; throw error;}
     workspace = next;
     studio?.reset();
     revisionStore = new RevisionStore(workspace);
     responses.clear(); requests.forEach(x => x.abort()); requests.clear(); selectedFiles.clear();
     closeModal();
-    // Recreate layout handlers only once with imported preferences.
+    // Recreate layout handlers only once, after the IndexedDB transaction commits.
     window.location.reload();
   }, 'インポートして反映');
 }
+
 async function saveToServer() {
   persist(true);
   const savedGeneration = localChangeGeneration;
@@ -773,14 +771,23 @@ async function saveToServer() {
   } finally {button.disabled = false;}
 }
 async function loadFromServer() {
-  const button = $('dataActions'); button.disabled = true;
+  const button = $('dataActions'), status = $('serverSaveState');
+  const previous = {text: status.textContent, className: status.className, generation: localChangeGeneration};
+  button.disabled = true; button.setAttribute('aria-busy', 'true');
+  status.textContent = 'サーバーから読込中…'; status.className = '';
   try {
-    const response = await fetch('/api/workspace',{cache:'no-store'});
-    const body = await response.json();
+    const response = await fetch('/api/workspace', {cache: 'no-store'});
+    let body;
+    try {body = await response.json();}
+    catch {throw new Error(`サーバーの応答がJSONではありません（HTTP ${response.status}）。`);}
     if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
     showArchiveImport(body, 'サーバー保存');
-  } catch(error) {toast('サーバーから読み込めません: ' + error.message);}
-  finally {button.disabled = false;}
+    status.textContent = previous.text; status.className = previous.className;
+    if (previous.generation !== localChangeGeneration && status.classList.contains('saved')) {status.classList.remove('saved'); status.textContent = 'サーバーには未反映';}
+  } catch(error) {
+    status.textContent = 'サーバー読込失敗'; status.className = 'error';
+    toast('サーバーから読み込めません: ' + error.message);
+  } finally {button.disabled = false; button.removeAttribute('aria-busy');}
 }
 function importDialog(initialFiles = []) {
   let files = [...initialFiles]; const box = element('div'), drop = element('div','import-drop'), fileList = element('div','file-list');
@@ -976,7 +983,7 @@ document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
-workbench = initWorkbench(); bindItemMenu(); bindSurface();
+workbench = initWorkbench(storage); bindItemMenu(); bindSurface();
 studio = initStudio({
   $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,
   workspace:()=>workspace,active,side:()=>side,setSide:value=>{side=value;saveNavigation();},
@@ -998,5 +1005,9 @@ studio = initStudio({
 });
 // Internal editor/response pages are tabbed; only request selection itself stays tab-free.
 // All-settings view retains flat spacing and heading disclosure.
-setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
+setTheme(); renderAll();
+setSaveStatus(recoveryMessage ? '保存データの復元が必要です。' : 'ローカルに保存済み', !!recoveryMessage);
+$('saveState').title = storage.backend === 'indexedDB' ? 'このブラウザのIndexedDBへ保存します。サーバーへの自動送信は行いません。' : '従来のブラウザ保存を使用しています。';
+storage.onPreferenceError = () => toast('表示設定を保存できません。入力内容は維持しています。');
+if (recoveryMessage || storage.warning) toast(recoveryMessage || storage.warning);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

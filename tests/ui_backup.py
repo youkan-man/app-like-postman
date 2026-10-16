@@ -155,12 +155,15 @@ def main():
                 damaged['workspace']['collections'][0]['info']['name'] = 'Backup rejected'
                 damaged['layout'] = {'layout': {'sidebar': 499}, 'sections': ['body']}
                 page.evaluate("""() => {
-                  window.__storageTarget = localStorage.__data ? localStorage : Storage.prototype;
-                  window.__originalSetItem = window.__storageTarget.setItem;
-                  window.__storageTarget.setItem = function(key, value) {
-                    if (key === 'minipost.workspace.v2' && value.includes('Backup rejected'))
+                  const native = !localStorage.__data;
+                  window.__storageTarget = native ? IDBObjectStore.prototype : localStorage;
+                  window.__storageMethod = native ? 'put' : 'setItem';
+                  window.__originalSetItem = window.__storageTarget[window.__storageMethod];
+                  window.__storageTarget[window.__storageMethod] = function(a, b) {
+                    // Abort after the workspace put but before preferences commit.
+                    if ((native && b === 'preferences') || (!native && a === 'minipost.workspace.fallback.v1'))
                       throw new DOMException('Simulated quota reached', 'QuotaExceededError');
-                    return window.__originalSetItem.call(this, key, value);
+                    return window.__originalSetItem.call(this, a, b);
                   };
                 }""")
                 page.locator('#import').click()
@@ -169,7 +172,7 @@ def main():
                 expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
-                page.evaluate('() => {window.__storageTarget.setItem = window.__originalSetItem;}')
+                page.evaluate('() => {window.__storageTarget[window.__storageMethod] = window.__originalSetItem;}')
                 assert page.evaluate("""() => ({
                     workspace: localStorage.getItem('minipost.workspace.v2'),
                     layout: localStorage.getItem('minipost.layout.v1'),

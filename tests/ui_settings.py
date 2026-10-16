@@ -266,11 +266,21 @@ def main():
             drawer_env('Staging renamed copy')
             modal = page.locator('#workspacePage')
             # A storage failure is displayed, not falsely acknowledged as persisted.
-            page.evaluate("() => { const target=localStorage.__data ? localStorage : Storage.prototype; window.__storageTarget=target; window.__originalSetItem=target.setItem; target.setItem=function(k,v){if(k==='minipost.workspace.v2')throw new DOMException('full','QuotaExceededError');return window.__originalSetItem.call(this,k,v);};}")
+            page.evaluate("""() => {
+              const native = !localStorage.__data;
+              window.__storageTarget = native ? IDBObjectStore.prototype : localStorage;
+              window.__storageMethod = native ? 'put' : 'setItem';
+              window.__originalSetItem = window.__storageTarget[window.__storageMethod];
+              window.__storageTarget[window.__storageMethod] = function(a, b) {
+                if ((native && b === 'workspace') || (!native && a === 'minipost.workspace.fallback.v1'))
+                  throw new DOMException('full', 'QuotaExceededError');
+                return window.__originalSetItem.call(this, a, b);
+              };
+            }""")
             modal.get_by_label('Value 2', exact=True).fill('survives-save-error')
             expect(page.locator('#saveState')).to_contain_text('保存できません')
             expect(modal.get_by_label('Value 2', exact=True)).to_have_value('survives-save-error')
-            page.evaluate('() => { window.__storageTarget.setItem = window.__originalSetItem; }')
+            page.evaluate('() => { window.__storageTarget[window.__storageMethod] = window.__originalSetItem; }')
             modal.get_by_label('Value 2', exact=True).fill('recovered')
             saved()
             passed('storage errors keep the editor values and show a failed-save state, then recover')

@@ -3,9 +3,9 @@ const $ = id => document.getElementById(id);
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 const KEY = 'minipost.layout.v1';
 
-export function initWorkbench() {
+export function initWorkbench(storage = localStorage) {
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  try { saved = JSON.parse(storage.getItem(KEY)) || {}; } catch {}
   const state = {
     sidebar: Number.isFinite(saved.sidebar) ? clamp(saved.sidebar, 200, 520) : 260,
     open: saved.open !== false,
@@ -18,7 +18,7 @@ export function initWorkbench() {
   const wide = matchMedia('(min-width: 1180px)');
   let mobileOpen = false;
   const root = document.documentElement;
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+  const save = () => { try { storage.setItem(KEY, JSON.stringify(state)); } catch {} };
   const effectiveSplit = () => wide.matches ? state.split : 'stack';
   const visible = () => narrow.matches ? mobileOpen : state.open;
 
