@@ -65,7 +65,7 @@ def main():
                 page.locator('#modalSubmit').click()
 
             def drawer_env(name):
-                page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+                page.locator('#sidebarTabs [data-sidebar=environments]').click()
                 page.get_by_role('button', name='◫  ' + name, exact=True).click()
                 expect(page.locator('#modal').get_by_label('Environment name', exact=True)).to_have_value(name)
 
@@ -214,7 +214,7 @@ def main():
             passed('Globals autosave is independent and never mislabeled as the selected environment')
 
             page.locator('#closeModal').click()
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             page.get_by_role('button', name='Control APIの設定', exact=True).click()
             page.get_by_role('menuitem', name='変数・認証を編集').click()
             modal.get_by_label('Value 1', exact=True).fill('scope-live')

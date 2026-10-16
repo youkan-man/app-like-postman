@@ -81,8 +81,8 @@ def main():
             assert 35 <= page.locator('.response-panel').bounding_box()['height'] < 90
             expect(page.locator('html')).to_have_attribute('data-theme', 'light')
             assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == '#f4f6f9'
-            expect(page.locator('.sidebar-group').first.locator('summary')).to_contain_text('コレクション')
-            assert page.locator('#editorTabs, #responseTabs, #requestTabs, .request-tab').count() == 0
+            expect(page.locator('#sidebarTabs [data-sidebar=collections]')).to_have_attribute('aria-selected', 'true')
+            assert page.locator('#requestTabs, .request-tab').count() == 0
             capture('empty-desktop')
             passed('formal light corporate default, localized navigation and no tab strips')
             import_raw(sample)
@@ -122,7 +122,7 @@ def main():
                 expect(fields).not_to_be_visible()
                 page.keyboard.press('Space')
                 expect(fields).to_be_visible()
-            expect(page.locator('#editorTabs, [role=tab]')).to_have_count(0)
+            expect(page.locator('#editorTabs [role=tab]')).to_have_count(7)
             page.locator('#editorContent').evaluate('el => el.scrollTop = 0')
             passed('flat spacing is unchanged by pointer and keyboard disclosure; field nodes remain mounted')
             headers = page.locator('section.editor-section[data-pane=headers]')
@@ -167,7 +167,7 @@ def main():
             capture('item-menu')
             page.keyboard.press('Escape')
 
-            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             expect(page.locator('#modal')).to_have_attribute('data-kind', 'drawer')
             assert not page.locator('#modal').evaluate('el => el.matches(":modal")')
@@ -185,7 +185,7 @@ def main():
             send()
             assert dict(json.loads(page.locator('.response-code').inner_text())['headers'])['Authorization'] == 'Bearer ui-updated-token'
             passed('nonmodal variable drawer autosave and close with real auth round trip')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
 
             open_request('Update channel')
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
@@ -223,13 +223,13 @@ def main():
             page.locator('#layoutToggle').click()
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             send()
-            page.locator('#responseMode').focus()
-            page.locator('#responseMode').select_option('raw')
-            expect(page.locator('#responseMode')).to_have_value('raw')
-            page.locator('#responseMode').select_option('pretty')
-            expect(page.locator('#responseMode')).to_have_value('pretty')
-            expect(page.locator('#responseTabs, [data-response]')).to_have_count(0)
-            passed('response format changes without tabs')
+            page.locator('#responseTabs [aria-selected=true]').focus()
+            page.locator('#responseTabs [data-response=raw]').click()
+            expect(page.locator('#responseTabs [data-response=raw]')).to_have_attribute('aria-selected','true')
+            page.locator('#responseTabs [data-response=pretty]').click()
+            expect(page.locator('#responseTabs [data-response=pretty]')).to_have_attribute('aria-selected','true')
+            expect(page.locator('#responseTabs [role=tab]')).to_have_count(5)
+            passed('response display paging without an opened-request tab strip')
 
             before = page.locator('.sidebar').bounding_box()['width']
             page.locator('#sidebarResize').focus()
@@ -300,7 +300,7 @@ def main():
 
             page.set_viewport_size({'width': 1440, 'height': 920})
             page.locator('#search').fill('')
-            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             page.locator('#modal').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
@@ -311,7 +311,7 @@ def main():
             page.locator('#cancelModal').click()
             page.set_viewport_size({'width': 1440, 'height': 920})
             passed('variable drawer changes to modal without losing in-progress fields')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             open_request('Read channels')
             page.evaluate('document.documentElement.style.fontSize="26px"')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')

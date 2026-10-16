@@ -1,5 +1,5 @@
 import {SCHEMA, clone, uid, rows, enabled, urlParts, displayUrl, setUrlText, setQuery, newRequest, normalizeRequest, walkItems, findItem, importPostman, exportCollection, contextFor, compileRequest} from './core.mjs';
-import {initWorkbench, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
+import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
 import {exportWorkspace, isWorkspaceBundle, readWorkspaceBundle, mergeWorkspace} from './workspace-data.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {RevisionStore, requestKey, requestSettings, settingsIndex} from './revisions.mjs';
@@ -25,7 +25,33 @@ try {
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
-let pane = 'params', side = 'collections', responseView = 'pretty', selectedCollectionId = '', modalAction = null;
+const navigationKey = 'minipost.navigation.v1';
+function normalizeNavigation(value) {
+  const allowed = {
+    editor: ['all','params','headers','authorization','body','settings','scripts'],
+    sidebar: ['collections','environments','history'],
+    response: ['pretty','raw','headers','cookies','preview']
+  };
+  return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
+}
+let navigation = normalizeNavigation(null);
+try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)));} catch {}
+let pane = navigation.editor, side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
+const sidebarSearch = {collections:'', environments:'', history:''};
+const sidebarScroll = {collections:0, environments:0, history:0};
+function saveNavigation() {
+  try {localStorage.setItem(navigationKey, JSON.stringify({editor:pane, sidebar:side, response:responseView}));}
+  catch {toast('表示状態を保存できません。入力内容は維持しています。');}
+}
+function selectPageTab(id, attribute, value, panelId) {
+  for (const tab of $(id).querySelectorAll('button[role=tab]')) {
+    const selected = tab.getAttribute(attribute) === value;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected) {$(panelId).setAttribute('aria-labelledby', tab.id);}
+  }
+  $(panelId).setAttribute('role', 'tabpanel');
+}
 let saveTimer, toastTimer, responseSearchTimer;
 let localChangeGeneration = 0;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
@@ -333,7 +359,22 @@ function renderPane() {
   }
   root.replaceChildren(content);
   root.scrollTop = scrollTop;
+  applyEditorPage();
   updateCounts();
+}
+function applyEditorPage() {
+  for (const section of $('editorContent').querySelectorAll('.editor-section')) {
+    section.hidden = pane !== 'all' && section.dataset.pane !== pane;
+  }
+  selectPageTab('editorTabs', 'data-editor-page', pane, 'editorContent');
+}
+function chooseEditorPage(name) {
+  pane = name;
+  applyEditorPage();
+  const section = $('editorContent').querySelector(`[data-pane="${pane}"]`);
+  if (section?.querySelector('.editor-section-body').hidden) setSectionExpanded(section, true);
+  $('editorContent').scrollTop = 0;
+  saveNavigation();
 }
 async function chooseFiles(key, multiple, done) {
   const chooser = element('input'); chooser.type = 'file'; chooser.multiple = multiple;
@@ -510,32 +551,22 @@ function renderSidebarSection() {
   if (!root.children.length) root.append(element('div', 'sidebar-empty', search ? '一致する項目なし' : side === 'history' ? '送信履歴なし' : side === 'collections' ? 'コレクションなし' : '環境なし'));
 }
 function renderSidebar() {
-  const root = $('sidebarContent');
-  const previous = side;
-  const previousOpen = Object.fromEntries([...root.querySelectorAll('details.sidebar-group')].map(el => [el.dataset.group, el.open]));
-  const groups = [];
-  for (const [mode, label, count] of [
-    ['collections', 'コレクション', workspace.collections.length],
-    ['environments', '環境', workspace.environments.length],
-    ['history', '送信履歴', workspace.history.length]
-  ]) {
-    side = mode; renderSidebarSection();
-    const group = element('details', 'sidebar-group');
-    group.dataset.group = mode;
-    group.open = Object.hasOwn(previousOpen, mode) ? previousOpen[mode] : mode !== 'history';
-    const summary = element('summary');
-    summary.append(element('span', '', label), element('span', 'count', String(count)));
-    const contents = element('div', 'sidebar-group-content');
-    contents.append(...root.childNodes);
-    group.append(summary, contents); groups.push(group);
+  const root = $('sidebarContent'), previous = root.dataset.side;
+  if (previous && previous !== side) {
+    sidebarSearch[previous] = $('search').value;
+    sidebarScroll[previous] = root.scrollTop;
+    $('search').value = sidebarSearch[side];
   }
-  side = previous;
-  root.replaceChildren(...groups);
-  document.querySelector('.sidebar').setAttribute('aria-label', '保存済みデータ');
-  $('search').placeholder = 'すべて検索';
-  $('sidebarAdd').hidden = false;
-  $('sidebarAdd').setAttribute('aria-label', 'コレクションを作成');
-  $('clearHistory').hidden = workspace.history.length === 0;
+  const scrollTop = previous === side ? root.scrollTop : sidebarScroll[side];
+  renderSidebarSection();
+  root.dataset.side = side;
+  root.scrollTop = scrollTop;
+  selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
+}
+function chooseSidebar(name) {
+  side = name;
+  renderSidebar();
+  saveNavigation();
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}
@@ -663,12 +694,13 @@ function editEnvironment(env, globals = false) {
 function preferencesForArchive() {
   let layout = null;
   try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
-  return {layout, sections: expandedSections};
+  return {layout, sections: expandedSections, navigation: {editor:pane, sidebar:side, response:responseView}};
 }
 function commitImportedWorkspace(next, layout) {
   const updates = [];
   if (layout?.layout) updates.push(['minipost.layout.v1', JSON.stringify(layout.layout)]);
   if (Array.isArray(layout?.sections)) updates.push([sectionKey, JSON.stringify(layout.sections)]);
+  if (layout?.navigation) updates.push([navigationKey, JSON.stringify(normalizeNavigation(layout.navigation))]);
   // The complete workspace is written last; a quota/permission failure restores
   // the previous layout and never changes the live in-memory workspace.
   updates.push([KEY, JSON.stringify(next)]);
@@ -835,7 +867,7 @@ function emptyResponse(title, message) {const box = element('div', 'response-emp
 function renderResponse() {
   const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id);
   document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
-  $('responseMode').value = responseView;
+  selectPageTab('responseTabs', 'data-response', responseView, 'responseContent');
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
   if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
   if (!result) {$('responseStatus').textContent = '未送信'; return;}
@@ -919,7 +951,13 @@ $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除�
 $('gatewayExample').onclick = async () => {
   try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
 };
-$('responseMode').onchange = () => {responseView = $('responseMode').value; renderResponse();};
+for (const tab of $('editorTabs').querySelectorAll('[data-editor-page]')) tab.onclick = () => chooseEditorPage(tab.dataset.editorPage);
+for (const tab of $('sidebarTabs').querySelectorAll('[data-sidebar]')) tab.onclick = () => chooseSidebar(tab.dataset.sidebar);
+for (const tab of $('responseTabs').querySelectorAll('[data-response]')) tab.onclick = () => {
+  responseView = tab.dataset.response;
+  renderResponse();
+  saveNavigation();
+};
 $('responseSearch').oninput = () => {clearTimeout(responseSearchTimer); responseSearchTimer = setTimeout(renderResponse, 180);};
 $('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id)); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
 $('downloadResponse').onclick = () => {
@@ -939,6 +977,9 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
+bindTabStrip($('editorTabs'), '[data-editor-page]');
+bindTabStrip($('sidebarTabs'), '[data-sidebar]');
+bindTabStrip($('responseTabs'), '[data-response]');
 // Flat sections retain their spacing; headings disclose fields without card wrappers.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

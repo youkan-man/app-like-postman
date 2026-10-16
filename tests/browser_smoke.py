@@ -111,17 +111,17 @@ def main():
             passed('multipart text variables and actual file bytes')
 
             page.locator('input[name=bodyMode][value=raw]').check(); page.keyboard.press('Control+s')
-            open_request('Cookie response'); send(); page.locator('#responseMode').select_option('cookies')
+            open_request('Cookie response'); send(); page.locator('#responseTabs [data-response=cookies]').click()
             expect(page.locator('.kv-readonly')).to_contain_text('a=1'); expect(page.locator('.kv-readonly')).to_contain_text('b=2')
             passed('separate duplicate Set-Cookie response rows')
 
-            open_request('HTML preview'); send(); page.locator('#responseMode').select_option('preview')
+            open_request('HTML preview'); send(); page.locator('#responseTabs [data-response=preview]').click()
             expect(page.locator('iframe.preview-frame')).to_be_visible(); assert not page.evaluate('Boolean(window.__PWNED)')
             assert page.locator('iframe.preview-frame').get_attribute('sandbox') == ''
             assert 'default-src' in page.locator('iframe.preview-frame').get_attribute('srcdoc')
             passed('HTML preview sandbox and network-restricting CSP')
 
-            page.locator('#responseMode').select_option('pretty'); open_request('Slow request'); page.locator('#send').click()
+            page.locator('#responseTabs [data-response=pretty]').click(); open_request('Slow request'); page.locator('#send').click()
             open_request('Query and bearer'); send(); assert body_json()['path'] == '/echo?edited=yes'
             page.wait_for_timeout(600); open_request('Slow request'); expect(page.locator('#responseStatus')).to_contain_text('200')
             assert body_json()['path'].startswith('/delay')
@@ -131,11 +131,11 @@ def main():
             expect(page.locator('#responseStatus')).to_have_text('CANCELLED'); expect(page.locator('.response-code')).to_contain_text('取り消せません')
             passed('cancel receive and explicit target-side cancellation limitation')
 
-            page.locator('details.sidebar-group[data-group=history]').evaluate('el => el.open = true'); expect(page.locator('.history-entry').first).to_be_visible()
+            page.locator('#sidebarTabs [data-sidebar=history]').click(); expect(page.locator('.history-entry').first).to_be_visible()
             assert page.locator('.history-entry').count() >= 7
             page.locator('.history-entry').first.click(); expect(page.locator('#requestName')).not_to_have_value('Untitled request')
             passed('history persistence and reopen')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
 
             before = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).collections.length')
             page.locator('#import').click(); page.get_by_label('インポートJSON').fill('{"bad":"data"}'); page.locator('#modalSubmit').click()
