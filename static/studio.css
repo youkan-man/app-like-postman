@@ -9,10 +9,11 @@
 .workspace-page {flex:1 1 auto;min-width:0;min-height:0;overflow:auto;background:var(--surface);padding:14px 16px;}
 .workspace-page-heading {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;min-width:0;}
 .workspace-page-heading h1 {font-size:16px;line-height:1.4;margin:0 8px 0 0;font-weight:650;}
-.workspace-page-heading > input {flex:1;min-width:140px;max-width:560px;padding:7px 9px;}
+.workspace-page-heading > input {flex:1 1 180px;min-width:0;padding:7px 9px;}
 .workspace-page-heading .button {min-height:32px;}
 .workspace-page-body {min-width:0;}
 .workspace-note {font-size:12px;line-height:1.5;color:var(--muted);margin:7px 0 12px;}
+.response-source,.extraction-limit {font-size:13px;line-height:1.5;margin:0 0 8px;overflow-wrap:anywhere;}
 .workspace-empty {max-width:600px;margin:48px auto;text-align:center;padding:16px;}
 .workspace-empty h1,.workspace-empty h2 {font-size:18px;}
 :root:not([data-workspace-view=request]) #layoutToggle {visibility:hidden;}
@@ -53,12 +54,19 @@
 #modal:has(.response-extraction),#modal:has(.extraction-dialog) {width:min(840px,calc(100vw - 24px));}
 .response-extraction > input[type=search] {width:100%;padding:7px 9px;margin-bottom:8px;}
 .metadata-tree {height:min(40vh,360px);overflow:auto;border:1px solid var(--line);}
-.metadata-row {display:grid;grid-template-columns:minmax(130px,1.2fr) 60px minmax(80px,1.4fr);width:100%;gap:8px;border:0;border-bottom:1px solid var(--subtle);border-radius:0;padding:6px 8px;background:var(--surface);text-align:left;font-size:12px;}
+.metadata-row {display:grid;grid-template-columns:minmax(0,1.2fr) max-content minmax(0,1.4fr);width:100%;gap:8px;border:0;border-bottom:1px solid var(--subtle);border-radius:0;padding:6px 8px;background:var(--surface);text-align:left;font-size:12px;}
 .metadata-row:hover,.metadata-row.selected {background:var(--accent-bg);}
-.metadata-path {overflow-wrap:anywhere;}.metadata-type {color:var(--muted);font-size:11px;}.metadata-value {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.metadata-row.selected {box-shadow:inset 3px 0 var(--accent);}
+.metadata-row:focus-visible {outline:2px solid var(--accent);outline-offset:-2px;}
+.metadata-empty {margin:0;padding:10px;font-size:13px;}
+.extraction-path {display:flex;align-items:end;gap:6px;}
+.extraction-path .form-field {flex:1;min-width:0;}
+.extraction-path .icon-button {flex-shrink:0;margin-bottom:12px;}
+.metadata-path {min-width:0;overflow-wrap:anywhere;}.metadata-type {color:var(--muted);font-size:.92em;}.metadata-value {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .extraction-list {max-height:45vh;overflow:auto;}
-.extraction-candidate {display:grid;grid-template-columns:20px minmax(100px,1fr) minmax(120px,2fr);align-items:center;gap:8px;padding:6px 0;}
-.extraction-candidate input[type=text] {padding:6px;}
+.extraction-candidate {display:grid;grid-template-columns:20px minmax(0,1fr) minmax(0,2fr);align-items:center;gap:8px;padding:6px 0;}
+.extraction-candidate label {min-width:0;overflow-wrap:anywhere;}
+.extraction-candidate input[type=text] {min-width:0;width:100%;padding:6px;}
 .relation-settings {display:flex;flex-wrap:wrap;align-items:end;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px;}
 .relation-settings .form-field {margin:0;min-width:110px;max-width:210px;}
 .relation-settings .form-field label {font-size:11px;}
@@ -93,7 +101,6 @@
  .workspace-page {padding:10px 9px;}
  .step-branch {grid-template-columns:1fr 1fr;}
  .step-timing {margin-left:0;}
- .workspace-page-heading > input {max-width:none;}
 }
 @media(max-width:650px) {
  .workspace-page-heading {gap:6px;margin-bottom:8px;}
@@ -103,7 +110,7 @@
  .source-editor {min-height:260px;height:320px;}
  .source-editor .source-input,.source-editor .source-highlight {padding:8px;font-size:12px;}
  .script-tools .form-field {max-width:160px;}
- .metadata-row {grid-template-columns:minmax(100px,1fr) 45px minmax(70px,1fr);gap:4px;padding:6px 5px;font-size:11px;}
+ .metadata-row {grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr);gap:6px;padding:6px 5px;font-size:12px;}
  .extraction-rule {grid-template-columns:18px 1fr 1fr;}
  .extraction-rule select {grid-column:2;}
  .step-timing {gap:6px;}

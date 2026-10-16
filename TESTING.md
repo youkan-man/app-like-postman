@@ -26,3 +26,5 @@ Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポ�
 ## ブラウザ保存・復元
 
 `node --test tests/storage.test.mjs` は保存層の分離試験です。`python tests/ui_storage.py` は通常HTTPオリジン上のChromiumで、旧localStorage移行、6 MiBデータ、localStorage書込の全面失敗、明示サーバー保存／復元、再読込、トランザクション中断を検証します。後者はモックIndexedDBやinlineモードを使いません。CIのbrowserジョブで実行し、`storage/` に結果と画面を保存します。
+
+`python tests/ui_extraction.py` は抽出先に応じた入力欄、キャンセル時の非更新、レスポンス要素のフォーカス・スクロール保持、キーボード／コンテキストメニュー、320–1440px幅と文字拡大時の表示を検証します。通常は実HTTP、明示したinlineモードはDOM試験として結果JSONに区別して記録します。

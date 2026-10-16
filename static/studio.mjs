@@ -65,7 +65,6 @@ export function initStudio(api) {
     else if(isPrimary)heading.append(btn('すべて消去',()=>{if(confirm('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView('environments');}},'button'));
     page.append(heading);
     if(!env&&!isPrimary&&!isGlobals){const empty=el('div','workspace-empty');empty.append(el('h2','','環境を選択してください'),btn('環境を作成',()=>createEnvironment(),'button primary'));page.append(empty);return;}
-    page.append(el('p','workspace-note',isPrimary?'{{名前}} で参照。同名の環境変数より優先し、このブラウザタブのセッション中に保持します。':isGlobals?'環境・コレクションに設定のない変数の共通値です。':'入力した変更は自動保存され、上部で選択中の環境と一致します。'));
     const body=el('div','workspace-page-body variables-page');body.append(kvEditor(scopeRows(),scopeChanged,{secret:!isPrimary}));page.append(body);
     const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'変数を追加',run:()=>addVariable(envSelection)}]),'icon-button');more.setAttribute('aria-label','変数ページの操作');heading.append(more);
     body.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('input,textarea,select,tr'))return;event.preventDefault();openItemMenu(body,[{label:'変数を追加',run:()=>addVariable(envSelection)}],event);};
@@ -136,11 +135,22 @@ export function initStudio(api) {
     const names=extractVariableNames(tab.request),ctx=contextFor(w(),tab);if(!names.length){toast('このリクエストには {{変数名}} がありません。');return;}
     let envId=w().environmentId||'__new__',newName='抽出した環境',overwrite=false;
     const box=el('div','extraction-dialog'),list=el('div','extraction-list');
-    const target=select([['__new__','新しい環境'],...w().environments.map(e=>[e.id,e.name])],envId,value=>{envId=value;paint();});target.setAttribute('aria-label','抽出先環境');
-    box.append(field('抽出先',target),field('新しい環境名',input(newName,'新しい環境名',value=>newName=value)));
-    const candidate=names.map(key=>({key,value:ctx.vars[key]||'',checked:true}));
-    function paint(){list.replaceChildren();for(const row of candidate){const line=el('label','extraction-candidate'),check=el('input');check.type='checkbox';check.checked=row.checked;check.onchange=()=>row.checked=check.checked;check.setAttribute('aria-label',`${row.key}を抽出`);line.append(check,el('code','',row.key),input(row.value,`${row.key}の値`,value=>row.value=value));list.append(line);}}
-    const line=el('label','settings-line'),check=el('input');check.type='checkbox';check.onchange=()=>overwrite=check.checked;line.append(check,'既存の同名変数を上書き');box.append(line,list);paint();
+    const nameField=field('新しい環境名',input(newName,'新しい環境名',value=>newName=value));
+    const overwriteField=el('label','settings-line'),overwriteCheck=el('input');
+    overwriteCheck.type='checkbox';overwriteCheck.onchange=()=>overwrite=overwriteCheck.checked;
+    overwriteField.append(overwriteCheck,'既存の同名変数を上書き');
+    function updateTarget(){nameField.hidden=envId!=='__new__';overwriteField.hidden=envId==='__new__';}
+    const target=select([['__new__','新しい環境'],...w().environments.map(e=>[e.id,e.name])],envId,value=>{envId=value;updateTarget();});target.setAttribute('aria-label','抽出先環境');
+    box.append(field('抽出先',target),nameField,overwriteField,list);
+    const candidate=names.map(key=>({key,value:ctx.vars[key]??'',checked:true}));
+    // Target changes do not replace candidate controls or discard edits/selection.
+    for(const row of candidate){
+      const line=el('div','extraction-candidate'),check=el('input'),label=el('label');
+      check.id=uid();check.type='checkbox';check.checked=row.checked;check.onchange=()=>row.checked=check.checked;
+      check.setAttribute('aria-label',`${row.key}を抽出`);label.htmlFor=check.id;label.append(el('code','',row.key));
+      line.append(check,label,input(row.value,`${row.key}の値`,value=>row.value=value));list.append(line);
+    }
+    updateTarget();
     showModal('リクエストから環境変数を抽出',box,()=>{
       if(envId==='__new__'&&!newName.trim())throw new Error('環境名を入力してください。');
       const selected=candidate.filter(r=>r.checked);if(!selected.length)throw new Error('抽出する変数を選択してください。');
@@ -165,17 +175,56 @@ export function initStudio(api) {
   function draftActions(tab){return [{label:'環境変数を抽出',run:()=>extractEnvironment(tab)},{label:'スクリプトを編集',run:()=>{api.selectRequest(tab.id);api.selectEditorPage('scripts');}},{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab),run:()=>responseExtraction(tab)},{label:'リレーションに追加',run:()=>addRequestToRelation({draftId:tab.id})}];}
   function responseExtraction(tab,choosePath=null){
     const result=responseFor(tab),metadata=responseMetadata(result);if(!metadata){toast('レスポンスを受信してから抽出してください。');return;}
-    const {elements,truncated}=metadataElements(metadata);let query='',path='/status',name='',saveRule=false,nameEdited=false;
+    const {elements,truncated}=metadataElements(metadata);let path='/status',name='status',saveRule=false,nameEdited=false;
     const box=el('div','response-extraction'),list=el('div','metadata-tree');
-    const search=input('','レスポンス要素を検索',v=>{query=v.toLowerCase();paint();});search.type='search';
-    const pathInput=input(path,'抽出パス',v=>path=v),nameInput=input(name,'一次変数名',v=>{name=v;nameEdited=true;});
-    function pick(row){path=row.path;pathInput.value=path;if(!nameEdited){name=row.path.split('/').at(-1).replace(/~1/g,'/').replace(/~0/g,'~');nameInput.value=name;}paint();}
-    function paint(){list.replaceChildren();for(const row of elements.filter(r=>!query||(`${r.path} ${variableText(r.value)}`).toLowerCase().includes(query))){const button=btn('',()=>pick(row),'metadata-row');button.classList.toggle('selected',row.path===path);button.append(el('code','metadata-path',row.path),el('span','metadata-type',row.type),el('span','metadata-value',variableText(row.value)));button.title=variableText(row.value);button.oncontextmenu=event=>{event.preventDefault();openItemMenu(button,[{label:'この要素を選択',run:()=>pick(row)},{label:'値をコピー',run:()=>api.copyText(variableText(row.value))},{label:'パスをコピー',run:()=>api.copyText(row.path)}],event);};list.append(button);}}
-    box.append(el('p','workspace-note',`${tab.name} · ${result.status} · ${result.received_at ? new Date(result.received_at).toLocaleString() : '受信済み'}`),search,list);
-    if(truncated)box.append(el('p','workspace-note','表示は先頭5,000要素です。深い要素は抽出パスを直接指定できます。'));
-    box.append(field('抽出元（JSON Pointer）',pathInput));
+    list.setAttribute('role','group');list.setAttribute('aria-label','レスポンス要素');
+    const empty=el('p','metadata-empty','一致する要素がありません');empty.setAttribute('role','status');empty.hidden=true;
+    const entries=[];
+    const search=input('','レスポンス要素を検索',filterRows);search.type='search';
+    const pathInput=input(path,'抽出パス',value=>{path=value;updateSelection();}),nameInput=input(name,'一次変数名',value=>{name=value;nameEdited=true;});
+    const actions=btn('⋯',()=>{},'icon-button');actions.setAttribute('aria-label','選択要素の操作');actions.setAttribute('aria-haspopup','menu');
+    actions.onclick=()=>{const entry=entries.find(item=>item.row.path===path);if(entry)openElementMenu(entry,actions);};
+    function updateSelection(){
+      const current=entries.find(item=>!item.button.hidden&&item.row.path===path)||entries.find(item=>!item.button.hidden);
+      for(const entry of entries){const selected=entry.row.path===path;entry.button.classList.toggle('selected',selected);entry.button.setAttribute('aria-pressed',String(selected));entry.button.tabIndex=entry===current?0:-1;}
+      actions.disabled=!entries.some(item=>item.row.path===path);
+    }
+    function pick(row){
+      path=row.path;pathInput.value=path;
+      if(!nameEdited){name=row.path.split('/').at(-1).replace(/~1/g,'/').replace(/~0/g,'~');nameInput.value=name;}
+      updateSelection();
+    }
+    function openElementMenu(entry,anchor,event){openItemMenu(anchor,[
+      {label:'この要素を選択',run:()=>pick(entry.row)},
+      {label:'値をコピー',run:()=>api.copyText(entry.value)},
+      {label:'パスをコピー',run:()=>api.copyText(entry.row.path)}
+    ],event);}
+    function filterRows(value){
+      const query=value.toLowerCase();let count=0;
+      for(const entry of entries){entry.button.hidden=Boolean(query&&!entry.searchText.includes(query));if(!entry.button.hidden)count++;}
+      empty.hidden=count!==0;updateSelection();
+    }
+    // Keep the actual buttons alive: selection must preserve focus and scroll.
+    for(const row of elements){
+      const value=variableText(row.value),button=btn('',()=>pick(row),'metadata-row');
+      const entry={row,value,button,searchText:`${row.path} ${value}`.toLowerCase()};entries.push(entry);
+      button.dataset.path=row.path;button.append(el('code','metadata-path',row.path),el('span','metadata-type',row.type),el('span','metadata-value',value));button.title=value;
+      button.oncontextmenu=event=>{event.preventDefault();event.stopPropagation();openElementMenu(entry,button,event);};
+      button.onkeydown=event=>{
+        if(event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10')){event.preventDefault();event.stopPropagation();openElementMenu(entry,button);return;}
+        if(!['ArrowUp','ArrowDown','Home','End'].includes(event.key))return;
+        event.preventDefault();const visible=entries.filter(item=>!item.button.hidden),index=visible.indexOf(entry);
+        const next=event.key==='Home'?0:event.key==='End'?visible.length-1:Math.max(0,Math.min(visible.length-1,index+(event.key==='ArrowUp'?-1:1)));
+        if(visible[next]){pick(visible[next].row);visible[next].button.focus();}
+      };
+      list.append(button);
+    }
+    list.append(empty);
+    box.append(el('p','response-source',`${tab.name} · ${result.status} · ${result.received_at ? new Date(result.received_at).toLocaleString() : '受信済み'}`),search,list);
+    if(truncated)box.append(el('p','extraction-limit','先頭5,000要素を表示中。表示外の要素は抽出パスで指定できます。'));
+    const pathRow=el('div','extraction-path');pathRow.append(field('抽出元（JSON Pointer）',pathInput),actions);box.append(pathRow);
     if(!choosePath){box.append(field('一次変数名',nameInput));const label=el('label','settings-line'),check=el('input');check.type='checkbox';check.onchange=()=>saveRule=check.checked;label.append(check,'次回以降の受信時にも自動で抽出');box.append(label);}
-    paint();
+    updateSelection();
     showModal(choosePath?'レスポンス要素を選択':'レスポンスから一次変数を抽出',box,()=>{
       if(choosePath){choosePath(path);closeModal();return;}
       const rule={id:uid(),name:name.trim(),path,enabled:true,missing:'keep'};primary.apply(extractionWrites([{...rule,missing:'error'}],metadata));
