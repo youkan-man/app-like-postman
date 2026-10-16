@@ -98,8 +98,8 @@ def main():
         request = send(); assert json.loads(request['body'])['message'] == 'edited workspace'
         passed('JSON edit, template resolution and persisted-state restoration')
         page.locator('#responseSearch').fill('workspace'); expect(page.locator('mark').first).to_be_visible(); page.locator('#responseSearch').fill('')
-        page.locator('#responseMode').select_option('headers'); expect(page.locator('.kv-readonly')).to_contain_text('application/json')
-        page.locator('#responseMode').select_option('pretty'); passed('response syntax, search and header view')
+        page.locator('#response-tab-headers').click(); expect(page.locator('.kv-readonly')).to_contain_text('application/json')
+        page.locator('#response-tab-pretty').click(); passed('response syntax, search and header view')
         page.locator('input[name=bodyMode][value=file]').check()
         with page.expect_file_chooser() as chooser: page.get_by_role('button', name='ファイルを選択', exact=True).click()
         chooser.value.set_files({'name':'payload.bin','mimeType':'application/octet-stream','buffer':b'\x00\x01\xff'})

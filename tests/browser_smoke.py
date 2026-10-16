@@ -111,17 +111,17 @@ def main():
             passed('multipart text variables and actual file bytes')
 
             page.locator('input[name=bodyMode][value=raw]').check(); page.keyboard.press('Control+s')
-            open_request('Cookie response'); send(); page.locator('#responseMode').select_option('cookies')
+            open_request('Cookie response'); send(); page.locator('#response-tab-cookies').click()
             expect(page.locator('.kv-readonly')).to_contain_text('a=1'); expect(page.locator('.kv-readonly')).to_contain_text('b=2')
             passed('separate duplicate Set-Cookie response rows')
 
-            open_request('HTML preview'); send(); page.locator('#responseMode').select_option('preview')
+            open_request('HTML preview'); send(); page.locator('#response-tab-preview').click()
             expect(page.locator('iframe.preview-frame')).to_be_visible(); assert not page.evaluate('Boolean(window.__PWNED)')
             assert page.locator('iframe.preview-frame').get_attribute('sandbox') == ''
             assert 'default-src' in page.locator('iframe.preview-frame').get_attribute('srcdoc')
             passed('HTML preview sandbox and network-restricting CSP')
 
-            page.locator('#responseMode').select_option('pretty'); open_request('Slow request'); page.locator('#send').click()
+            page.locator('#response-tab-pretty').click(); open_request('Slow request'); page.locator('#send').click()
             open_request('Query and bearer'); send(); assert body_json()['path'] == '/echo?edited=yes'
             page.wait_for_timeout(600); open_request('Slow request'); expect(page.locator('#responseStatus')).to_contain_text('200')
             assert body_json()['path'].startswith('/delay')
