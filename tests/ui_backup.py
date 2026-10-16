@@ -134,10 +134,13 @@ def main():
                 page.get_by_role('menuitem', name='サーバーから読込').click()
                 expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
                 expect(page.locator('#importMode')).to_have_value('replace')
-                page.locator('#modalSubmit').click()
                 if fixture.inline:
+                    page.locator('#modalSubmit').click()
                     page.wait_for_function('window.__testReloadRequested === true')
                     fixture.reload(page)
+                else:
+                    with page.expect_navigation(wait_until='domcontentloaded'):
+                        page.locator('#modalSubmit').click()
                 expect(page.locator('#connectionStatus')).to_contain_text('connected')
                 restored = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2"))')
                 assert restored['environments'][0]['values'][0]['value'] == 'test-local-only'

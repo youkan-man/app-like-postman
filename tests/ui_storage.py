@@ -114,7 +114,7 @@ def main():
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
                 assert page.evaluate(READ) == before
-                page.evaluate('IDBObjectStore.prototype.put = window.__put')
+                page.evaluate('() => {IDBObjectStore.prototype.put = window.__put;}')
                 page.screenshot(path=str(out / 'restore-failure-preserved.png'), full_page=True)
                 page.locator('#closeModal').click()
                 expect(page.locator('#url')).to_have_value('https://example.test/keep-on-failure')

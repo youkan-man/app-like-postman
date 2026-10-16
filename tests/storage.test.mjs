@@ -154,3 +154,71 @@ test('fallback preference writes cannot overwrite a newer same-turn workspace sa
   await store.save(workspace('new'));
   assert.equal((await create(ls, null)).value.text, 'new');
 });
+
+test('same-turn preferences after fallback save cannot resurrect the previous workspace', async () => {
+  const ls = local(); const {store} = await create(ls, null);
+  await store.save(workspace('old'));
+  const pending = store.save(workspace('new'));
+  store.setItem('minipost.sections.v1', '["body"]');
+  await pending;
+  const restored = await create(ls, null);
+  assert.equal(restored.value.text, 'new');
+  assert.equal(restored.store.getItem('minipost.sections.v1'), '["body"]');
+});
+test('temporary IndexedDB unavailability never replaces a previous large database with an empty workspace', async () => {
+  const ls = local(), {factory} = database(); const {store} = await create(ls, factory);
+  await store.save(workspace('x'.repeat(600000)));
+  assert.equal(ls.getItem(WORKSPACE_KEY), null);
+  const offline = new WorkspaceStorage({getLocal: () => ls, getDatabase: () => null});
+  await assert.rejects(offline.load(validate), /以前のIndexedDB/);
+  await assert.rejects(offline.save(workspace('fresh')), /元の保存データ/);
+  assert.equal(ls.getItem(FALLBACK_KEY), null);
+  assert.equal((await create(ls, factory)).value.text.length, 600000);
+});
+test('explicit backup replacement still recovers when a previously used database is unavailable', async () => {
+  const ls = local(), {factory} = database(); const {store} = await create(ls, factory);
+  await store.save(workspace('old'));
+  const offline = new WorkspaceStorage({getLocal: () => ls, getDatabase: () => null});
+  await assert.rejects(offline.load(validate));
+  await offline.save(workspace('explicit'), {replace: true, layout: {sections: ['body']}});
+  const restored = await create(ls, null);
+  assert.equal(restored.value.text, 'explicit');
+  assert.equal(restored.store.getItem('minipost.sections.v1'), '["body"]');
+});
+
+
+test('fallback recovery stays newer when the wall clock is unchanged or moves backwards', async () => {
+  const realNow = Date.now;
+  try {
+    Date.now = () => 1000000;
+    const ls = local(), {factory} = database(); const {store} = await create(ls, factory);
+    await store.save(workspace('old'));
+    Date.now = () => 999000;
+    const offline = new WorkspaceStorage({getLocal: () => ls, getDatabase: () => null});
+    await assert.rejects(offline.load(validate));
+    await offline.save(workspace('explicit'), {replace: true, layout: {sections: ['body']}});
+    const restored = await create(ls, factory);
+    assert.equal(restored.value.text, 'explicit');
+    assert.equal(restored.store.getItem('minipost.sections.v1'), '["body"]');
+    assert.equal(ls.getItem(FALLBACK_KEY), null);
+  } finally {Date.now = realNow;}
+});
+test('a preference cache survives an interrupted IndexedDB write without altering workspace revisions', async () => {
+  const ls = local(), {factory, db} = database(); const {store} = await create(ls, factory);
+  await store.save(workspace('unchanged'), {layout: {sections: ['headers']}});
+  const before = db.data.get('workspace');
+  db.failNextWrite = true;
+  store.setItem('minipost.sections.v1', '["body"]'); await db.chain;
+  const restored = await create(ls, factory);
+  assert.equal(restored.store.getItem('minipost.sections.v1'), '["body"]');
+  assert.deepEqual(db.data.get('workspace'), before);
+});
+test('a committed imported layout wins over an older synchronous preferences cache', async () => {
+  const ls = local(), {factory, db} = database(); const {store} = await create(ls, factory);
+  await store.save(workspace('old'));
+  store.setItem('minipost.sections.v1', '["headers"]'); await db.chain;
+  const stale = ls.getItem('minipost.preferences.v1');
+  await store.save(workspace('imported'), {replace: true, layout: {sections: ['body']}});
+  ls.data.set('minipost.preferences.v1', stale);
+  assert.equal((await create(ls, factory)).store.getItem('minipost.sections.v1'), '["body"]');
+});
