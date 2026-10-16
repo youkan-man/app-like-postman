@@ -131,7 +131,7 @@ def main():
             page.locator('#closeModal').click()
             env = {'name':'Dev','_postman_variable_scope':'environment','values':[{'key':'x','value':'1','enabled':True}]}
             load(env)
-            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
             page.get_by_role('button',name='◫  Dev',exact=True).click()
             modal = page.locator('#modal')
             env_id = modal.get_attribute('data-settings-id')
@@ -150,7 +150,7 @@ def main():
             # Reload does not persist another edit. Read the existing record only.
             restored = page.evaluate('(k)=>JSON.parse(localStorage.getItem(k))', KEY)
             assert restored['revisions'][key][-1]['reason'] == '復元'
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             choose(long)
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             expect(page.get_by_label('Raw body')).to_have_value('after-one')

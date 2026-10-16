@@ -81,7 +81,7 @@ def main():
             assert 35 <= page.locator('.response-panel').bounding_box()['height'] < 90
             expect(page.locator('html')).to_have_attribute('data-theme', 'light')
             assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()") == '#f4f6f9'
-            expect(page.locator('.sidebar-group').first.locator('summary')).to_contain_text('コレクション')
+            expect(page.locator('#sidebarTabs [data-sidebar=collections]')).to_have_attribute('aria-selected', 'true')
             expect(page.locator('#editorTabs [role=tab]')).to_have_count(7)
             expect(page.locator('#responseTabs [role=tab]')).to_have_count(5)
             expect(page.locator('#editor-tab-all')).to_have_attribute('aria-selected', 'true')
@@ -185,7 +185,7 @@ def main():
             capture('item-menu')
             page.keyboard.press('Escape')
 
-            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             expect(page.locator('#modal')).to_have_attribute('data-kind', 'drawer')
             assert not page.locator('#modal').evaluate('el => el.matches(":modal")')
@@ -203,7 +203,7 @@ def main():
             send()
             assert dict(json.loads(page.locator('.response-code').inner_text())['headers'])['Authorization'] == 'Bearer ui-updated-token'
             passed('nonmodal variable drawer autosave and close with real auth round trip')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
 
             open_request('Update channel')
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
@@ -320,7 +320,7 @@ def main():
 
             page.set_viewport_size({'width': 1440, 'height': 920})
             page.locator('#search').fill('')
-            page.locator('details.sidebar-group[data-group=environments]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
             page.get_by_role('button', name='◫  Local development', exact=True).click()
             page.locator('#modal').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
@@ -331,7 +331,7 @@ def main():
             page.locator('#cancelModal').click()
             page.set_viewport_size({'width': 1440, 'height': 920})
             passed('variable drawer changes to modal without losing in-progress fields')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             open_request('Read channels')
             page.evaluate('document.documentElement.style.fontSize="26px"')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')

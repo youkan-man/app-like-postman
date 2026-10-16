@@ -58,3 +58,7 @@
   .response-navigation { flex:1 0 100%; }
   .response-toolbar #responseSearch { flex:1 1 100%; width:100%; max-width:none; min-height:27px; margin:0; }
 }
+
+/* Sidebar pages share the existing finite content navigation, not request tabs. */
+.sidebar-navigation { flex-wrap:wrap; padding:0 6px; border-bottom:1px solid var(--line); background:var(--surface); }
+.sidebar-navigation [role="tab"] {flex:1 1 auto; padding:6px 5px;}

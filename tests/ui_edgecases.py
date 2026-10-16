@@ -61,12 +61,12 @@ def main():
             assert dict(received['headers'])['Authorization'] == 'Bearer edited-inherited-token'
             passed('v2.0 collection auth edits in drawer and remains inherited')
 
-            page.locator('details.sidebar-group[data-group=history]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=history]').click()
             today = page.evaluate('new Date().toLocaleDateString()')
             expect(page.locator('.history-entry').first).to_contain_text(today)
             page.screenshot(path=str(out / 'history.png'), full_page=True)
             passed('history retains the date as well as time and request URL')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             page.evaluate('document.documentElement.style.fontSize="26px"')
             for row in page.locator('.tree-row').all():
                 method = row.locator('.method-label')

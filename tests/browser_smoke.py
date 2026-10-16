@@ -131,11 +131,11 @@ def main():
             expect(page.locator('#responseStatus')).to_have_text('CANCELLED'); expect(page.locator('.response-code')).to_contain_text('取り消せません')
             passed('cancel receive and explicit target-side cancellation limitation')
 
-            page.locator('details.sidebar-group[data-group=history]').evaluate('el => el.open = true'); expect(page.locator('.history-entry').first).to_be_visible()
+            page.locator('#sidebarTabs [data-sidebar=history]').click(); expect(page.locator('.history-entry').first).to_be_visible()
             assert page.locator('.history-entry').count() >= 7
             page.locator('.history-entry').first.click(); expect(page.locator('#requestName')).not_to_have_value('Untitled request')
             passed('history persistence and reopen')
-            page.locator('details.sidebar-group[data-group=collections]').evaluate('el => el.open = true')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
 
             before = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).collections.length')
             page.locator('#import').click(); page.get_by_label('インポートJSON').fill('{"bad":"data"}'); page.locator('#modalSubmit').click()

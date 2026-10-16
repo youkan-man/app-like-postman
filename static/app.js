@@ -25,7 +25,34 @@ try {
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
-let pane = 'params', side = 'collections', responseView = 'pretty', selectedCollectionId = '', modalAction = null;
+const navigationKey = 'minipost.navigation.v1';
+const editorPageKey = 'minipost.editor.page.v1';
+function normalizeNavigation(value) {
+  const allowed = {
+    editor: ['all','params','headers','authorization','body','settings','scripts'],
+    sidebar: ['collections','environments','history'],
+    response: ['pretty','raw','headers','cookies','preview']
+  };
+  return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
+}
+let navigation = normalizeNavigation(null);
+try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)) ?? {editor:localStorage.getItem(editorPageKey)});} catch {}
+let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
+const sidebarSearch = {collections:'', environments:'', history:''};
+const sidebarScroll = {collections:0, environments:0, history:0};
+function saveNavigation() {
+  try {localStorage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
+  catch {toast('表示状態を保存できません。入力内容は維持しています。');}
+}
+function selectPageTab(id, attribute, value, panelId) {
+  for (const tab of $(id).querySelectorAll('button[role=tab]')) {
+    const selected = tab.getAttribute(attribute) === value;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected) {$(panelId).setAttribute('aria-labelledby', tab.id);}
+  }
+  $(panelId).setAttribute('role', 'tabpanel');
+}
 let saveTimer, toastTimer, responseSearchTimer;
 let localChangeGeneration = 0;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
@@ -300,12 +327,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(sectionKey));
   if (Array.isArray(saved)) expandedSections = expandedSections.filter(name => saved.includes(name));
 } catch {}
-const editorPageKey = 'minipost.editor.page.v1';
-let editorPage = 'all', pageExpanded = true;
-try {
-  const stored = localStorage.getItem(editorPageKey);
-  if (stored === 'all' || editorSections.some(([name]) => name === stored)) editorPage = stored;
-} catch {}
+let editorPage = navigation.editor, pageExpanded = true;
 function applyEditorPage() {
   for (const tab of $('editorTabs').querySelectorAll('[data-editor]')) {
     const selected = tab.dataset.editor === editorPage;
@@ -325,7 +347,7 @@ function selectEditorPage(next) {
   if (next !== 'all' && !editorSections.some(([name]) => name === next)) return;
   editorPage = next; pageExpanded = true;
   try {localStorage.setItem(editorPageKey, editorPage);} catch {}
-  applyEditorPage(); $('editorContent').scrollTop = 0;
+  applyEditorPage(); $('editorContent').scrollTop = 0; saveNavigation();
 }
 function setSectionExpanded(section, expanded) {
   const fields = section.querySelector('.editor-section-body');
@@ -539,32 +561,22 @@ function renderSidebarSection() {
   if (!root.children.length) root.append(element('div', 'sidebar-empty', search ? '一致する項目なし' : side === 'history' ? '送信履歴なし' : side === 'collections' ? 'コレクションなし' : '環境なし'));
 }
 function renderSidebar() {
-  const root = $('sidebarContent');
-  const previous = side;
-  const previousOpen = Object.fromEntries([...root.querySelectorAll('details.sidebar-group')].map(el => [el.dataset.group, el.open]));
-  const groups = [];
-  for (const [mode, label, count] of [
-    ['collections', 'コレクション', workspace.collections.length],
-    ['environments', '環境', workspace.environments.length],
-    ['history', '送信履歴', workspace.history.length]
-  ]) {
-    side = mode; renderSidebarSection();
-    const group = element('details', 'sidebar-group');
-    group.dataset.group = mode;
-    group.open = Object.hasOwn(previousOpen, mode) ? previousOpen[mode] : mode !== 'history';
-    const summary = element('summary');
-    summary.append(element('span', '', label), element('span', 'count', String(count)));
-    const contents = element('div', 'sidebar-group-content');
-    contents.append(...root.childNodes);
-    group.append(summary, contents); groups.push(group);
+  const root = $('sidebarContent'), previous = root.dataset.side;
+  if (previous && previous !== side) {
+    sidebarSearch[previous] = $('search').value;
+    sidebarScroll[previous] = root.scrollTop;
+    $('search').value = sidebarSearch[side];
   }
-  side = previous;
-  root.replaceChildren(...groups);
-  document.querySelector('.sidebar').setAttribute('aria-label', '保存済みデータ');
-  $('search').placeholder = 'すべて検索';
-  $('sidebarAdd').hidden = false;
-  $('sidebarAdd').setAttribute('aria-label', 'コレクションを作成');
-  $('clearHistory').hidden = workspace.history.length === 0;
+  const scrollTop = previous === side ? root.scrollTop : sidebarScroll[side];
+  renderSidebarSection();
+  root.dataset.side = side;
+  root.scrollTop = scrollTop;
+  selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
+}
+function chooseSidebar(name) {
+  side = name;
+  renderSidebar();
+  saveNavigation();
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}
@@ -692,12 +704,13 @@ function editEnvironment(env, globals = false) {
 function preferencesForArchive() {
   let layout = null;
   try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
-  return {layout, sections: expandedSections};
+  return {layout, sections: expandedSections, navigation: {editor:editorPage, sidebar:side, response:responseView}};
 }
 function commitImportedWorkspace(next, layout) {
   const updates = [];
   if (layout?.layout) updates.push(['minipost.layout.v1', JSON.stringify(layout.layout)]);
   if (Array.isArray(layout?.sections)) updates.push([sectionKey, JSON.stringify(layout.sections)]);
+  if (layout?.navigation) updates.push([navigationKey, JSON.stringify(normalizeNavigation(layout.navigation))]);
   // The complete workspace is written last; a quota/permission failure restores
   // the previous layout and never changes the live in-memory workspace.
   updates.push([KEY, JSON.stringify(next)]);
@@ -956,9 +969,11 @@ $('gatewayExample').onclick = async () => {
 for (const tab of $('editorTabs').querySelectorAll('[data-editor]'))
   tab.onclick = () => selectEditorPage(tab.dataset.editor);
 for (const tab of $('responseTabs').querySelectorAll('[data-response]'))
-  tab.onclick = () => {responseView = tab.dataset.response; renderResponse();};
+  tab.onclick = () => {responseView = tab.dataset.response; renderResponse(); saveNavigation();};
+for (const tab of $('sidebarTabs').querySelectorAll('[data-sidebar]')) tab.onclick = () => chooseSidebar(tab.dataset.sidebar);
 bindTabStrip($('editorTabs'), '[role="tab"]');
 bindTabStrip($('responseTabs'), '[role="tab"]');
+bindTabStrip($('sidebarTabs'), '[role="tab"]');
 $('responseSearch').oninput = () => {clearTimeout(responseSearchTimer); responseSearchTimer = setTimeout(renderResponse, 180);};
 $('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id)); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
 $('downloadResponse').onclick = () => {
