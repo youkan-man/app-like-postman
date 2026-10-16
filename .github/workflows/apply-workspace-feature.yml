@@ -41,4 +41,21 @@ jobs:
           git config user.name 'MiniPost source transfer'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'feat: contextual workspace creation, variables, scripts and request relations'
-          git push origin HEAD:refs/heads/feat/workspace-relations-20261016
+          base="$GITHUB_SHA"
+          for attempt in 1 2 3; do
+            git fetch origin refs/heads/feat/workspace-relations-20261016
+            remote=$(git rev-parse FETCH_HEAD)
+            git merge-base --is-ancestor "$base" "$remote"
+            git diff --name-only "$base" "$remote" > /tmp/concurrent-paths
+            python3 - <<'PY'
+          from pathlib import Path
+          paths=Path('/tmp/concurrent-paths').read_text().splitlines()
+          assert all(p.startswith('.local_relay/results/') for p in paths), 'Concurrent non-result changes: stop and reconcile manually'
+          PY
+            if [ "$base" != "$remote" ]; then
+              git rebase --onto "$remote" "$base"
+              base="$remote"
+            fi
+            if git push origin HEAD:refs/heads/feat/workspace-relations-20261016; then exit 0; fi
+          done
+          exit 1
