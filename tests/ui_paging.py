@@ -84,6 +84,20 @@ def main():
             expect(body.locator('.editor-section-body')).to_have_css('padding-left','0px')
             passed('category switches and disclosure preserve the same input, flat spacing and revision state')
 
+            # Moving to a single category must not silently expand a section
+            # previously collapsed in the all-settings view.
+            headers_section = page.locator('section.editor-section[data-pane=headers]')
+            headers_section.locator('.editor-section-toggle').click()
+            expect(headers_section.locator('.editor-section-body')).not_to_be_visible()
+            sections_before = page.evaluate("localStorage.getItem('minipost.sections.v1')")
+            editor('headers')
+            expect(headers_section.locator('.editor-section-body')).to_be_visible()
+            editor('all')
+            expect(headers_section.locator('.editor-section-body')).not_to_be_visible()
+            assert page.evaluate("localStorage.getItem('minipost.sections.v1')") == sections_before
+            headers_section.locator('.editor-section-toggle').click()
+            passed('switching individual categories preserves the all-settings collapse preference')
+
             page.locator('#editorTabs [data-editor=all]').focus()
             page.keyboard.press('ArrowRight')
             expect(page.locator('#editorTabs [data-editor=params]')).to_be_focused()
