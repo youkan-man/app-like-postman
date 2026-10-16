@@ -13,7 +13,10 @@ from test_proxy import proxy, start_server
 
 
 def main():
-    app, app_url = start_server(proxy.Handler)
+    app_url = os.environ.get('MINIPOST_REMOTE_URL')
+    app = None
+    if not app_url:
+        app, app_url = start_server(proxy.Handler)
     fixture = BrowserApp(app_url)
     folder = 'Operations'
     collection = {
@@ -195,8 +198,9 @@ def main():
             print(f'UI FOCUS: {len(checks)} checks, {len(screenshots)} screenshots', flush=True)
             browser.close()
     finally:
-        app.shutdown()
-        app.server_close()
+        if app is not None:
+            app.shutdown()
+            app.server_close()
 
 
 if __name__ == '__main__':

@@ -5,7 +5,8 @@ not native browser HTTP/IndexedDB evidence. Neither mode changes browser policy.
 """
 import json
 import os
-from http.server import BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from pathlib import Path
 import tempfile
 from playwright.sync_api import expect, sync_playwright
@@ -30,8 +31,19 @@ class MetadataHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    echo, echo_url = start_server(MetadataHandler)
-    app, app_url = start_server(proxy.Handler)
+    app_url = os.environ.get('MINIPOST_REMOTE_URL')
+    if app_url:
+        peer = os.environ.get('LOCAL_RELAY_VM_BROWSER_IP')
+        if not peer:
+            raise RuntimeError('Cross-VM browser peer address missing')
+        echo_port = int(os.environ.get('LOCAL_RELAY_VM_BROWSER_PORT') or '18081')
+        echo = ThreadingHTTPServer(('0.0.0.0', echo_port), MetadataHandler)
+        Thread(target=echo.serve_forever, daemon=True).start()
+        echo_url = f'http://{peer}:{echo_port}'
+        app = None
+    else:
+        echo, echo_url = start_server(MetadataHandler)
+        app, app_url = start_server(proxy.Handler)
     fixture = BrowserApp(app_url)
     out = Path(os.environ.get('ARTIFACT_DIR', tempfile.mkdtemp(prefix='minipost-extraction-'))) / 'extraction'
     out.mkdir(parents=True, exist_ok=True)
@@ -239,7 +251,9 @@ def main():
     finally:
         result['passed'] = len(checks)
         (out / 'results.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
-        app.shutdown(); app.server_close(); echo.shutdown(); echo.server_close()
+        if app is not None:
+            app.shutdown(); app.server_close()
+        echo.shutdown(); echo.server_close()
 
 
 if __name__ == '__main__':
