@@ -95,6 +95,9 @@ jobs:
       - name: Local-first backup and explicit server storage
         if: ${{ !cancelled() }}
         run: python tests/ui_backup.py 2>&1 | tee artifacts/browser/ui-backup.log
+      - name: Native IndexedDB quota recovery and server restore
+        if: ${{ !cancelled() }}
+        run: python tests/ui_storage.py 2>&1 | tee artifacts/browser/ui-storage.log
       - name: Category paging and single-request acceptance
         if: ${{ !cancelled() }}
         run: python tests/ui_paging.py 2>&1 | tee artifacts/browser/ui-paging.log
