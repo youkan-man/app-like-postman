@@ -95,6 +95,9 @@ jobs:
       - name: Local-first backup and explicit server storage
         if: ${{ !cancelled() }}
         run: python tests/ui_backup.py 2>&1 | tee artifacts/browser/ui-backup.log
+      - name: Category paging and single-request acceptance
+        if: ${{ !cancelled() }}
+        run: python tests/ui_paging.py 2>&1 | tee artifacts/browser/ui-paging.log
       - name: Upload screenshots and browser results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
