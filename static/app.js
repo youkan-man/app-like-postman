@@ -225,7 +225,7 @@ function kvEditor(list, changed, options = {}) {
       checkCell.append(check); tr.append(checkCell);
       const keyCell = element('td', 'kv-key'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
       if (options.files) {
-        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint();})); tr.append(typeCell);
+        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint(); tbody.children[index]?.querySelector('select')?.focus({preventScroll:true});})); tr.append(typeCell);
       }
       const valueCell = element('td', 'kv-value');
       if (options.files && row.type === 'file') {
@@ -249,6 +249,11 @@ function kvEditor(list, changed, options = {}) {
           }
         }
         changed(); paint();
+        // The menu trigger was replaced along with the row. Place keyboard focus
+        // on the inserted/remainder row rather than dropping it onto <body>.
+        const focusAt = Math.min(at, list.length - 1);
+        if (focusAt >= 0) tbody.children[focusAt]?.querySelector('input[aria-label^="Key "]')?.focus({preventScroll:true});
+        else wrap.querySelector('.table-add')?.focus({preventScroll:true});
       }
       const more = button('⋯', () => {}, 'icon-button row-menu'); more.setAttribute('aria-label', `行 ${index + 1} の操作`);
       bindContext(tr, more, (anchor, event) => openItemMenu(anchor, [
@@ -258,7 +263,7 @@ function kvEditor(list, changed, options = {}) {
         {label: '行をコピー', run: () => {rowClipboard = clone(row); toast('行をコピーしました。');}},
         {label: '行を複製', run: () => editRows(index + 1, 0, [clone(row)])},
         {label: 'コピーした行を下に貼り付け', disabled: !rowClipboard, run: () => editRows(index + 1, 0, [clone(rowClipboard)])},
-        {label: enabled(row) ? '無効にする' : '有効にする', run: () => {row.disabled = enabled(row); delete row.enabled; changed(); paint();}},
+        {label: enabled(row) ? '無効にする' : '有効にする', run: () => {row.disabled = enabled(row); delete row.enabled; changed(); paint(); tbody.children[index]?.querySelector('.kv-enabled input')?.focus({preventScroll:true});}},
         {label: '削除', danger: true, run: () => editRows(index, 1)}
       ], event));
       const remove = button('×', () => editRows(index, 1), 'icon-button'); remove.title = '行を削除'; remove.setAttribute('aria-label', `行 ${index + 1} を削除`);
@@ -282,7 +287,7 @@ function authEditor(owner, inherited = false, changed = () => {}) {
     const options = [['inherit', 'Inherit auth from parent'], ['noauth', 'No Auth'], ['bearer', 'Bearer Token'], ['basic', 'Basic Auth'], ['apikey', 'API Key'], ['oauth2', 'OAuth 2.0 · access token']];
     const type = owner.auth?.type || 'inherit';
     if (!options.some(([value]) => value === type)) options.push([type, `${type}（送信未対応）`]);
-    const typeSelect = select(options, type, value => {owner.auth = value === 'inherit' ? null : {type: value, [value]: []}; changed(); paint();}); typeSelect.setAttribute('aria-label', '認証方式');
+    const typeSelect = select(options, type, value => {owner.auth = value === 'inherit' ? null : {type: value, [value]: []}; changed(); paint(); box.querySelector('select[aria-label="認証方式"]')?.focus({preventScroll:true});}); typeSelect.setAttribute('aria-label', '認証方式');
     grid.append(element('label', '', '認証方式'), typeSelect);
     const specs = {bearer: [['token', 'Token']], basic: [['username', 'Username'], ['password', 'Password']], apikey: [['key', 'Key'], ['value', 'Value'], ['in', 'Add to']], oauth2: [['accessToken', 'Access token'], ['headerPrefix', 'Header prefix']]};
     if (specs[type]) {
@@ -420,7 +425,7 @@ function renderBody(root, tab) {
   const modes = [['none', 'none'], ['formdata', 'form-data'], ['urlencoded', 'x-www-form-urlencoded'], ['raw', 'raw'], ['file', 'binary'], ['graphql', 'GraphQL']];
   for (const [value, label] of modes) {
     const wrap = element('label'), radio = element('input'); radio.type = 'radio'; radio.name = 'bodyMode'; radio.value = value; radio.checked = (body.mode || 'none') === value;
-    radio.onchange = () => {body.mode = value; touch(); renderPane();}; wrap.append(radio, label); toolbar.append(wrap);
+    radio.onchange = () => {body.mode = value; touch(); renderPane(); $('editorContent').querySelector(`input[name="bodyMode"][value="${value}"]`)?.focus({preventScroll:true});}; wrap.append(radio, label); toolbar.append(wrap);
   }
   root.append(toolbar);
   if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; touch(); renderPane();}, 'text-button'));
@@ -536,8 +541,8 @@ function renderSidebarSection() {
     function paintItem(collection, item, level, force = false) {
       if (search && !force && !matches(item)) return;
       const isFolder = Array.isArray(item.item), expanded = search || !(workspace.collapsed || []).includes(item._mpId);
-      const row = element('div', `tree-row${active().itemId === item._mpId ? ' selected' : ''}`); row.style.paddingLeft = `${level * 13 + 4}px`;
-      const open = button('', () => {selectedCollectionId = collection._mpId; studio?.captureContext({collectionId:collection._mpId,parentId:isFolder?item._mpId:findItem(collection,item._mpId)?.parents.at(-1)?._mpId}); if (isFolder) {toggleCollapse(item._mpId); renderSidebar();} else openRequest(collection, item);}, 'tree-open');
+      const row = element('div', `tree-row${active().itemId === item._mpId ? ' selected' : ''}`); row.dataset.collectionId = collection._mpId; row.dataset.itemId = item._mpId; row.style.paddingLeft = `${level * 13 + 4}px`;
+      const open = button('', () => {selectedCollectionId = collection._mpId; studio?.captureContext({collectionId:collection._mpId,parentId:isFolder?item._mpId:findItem(collection,item._mpId)?.parents.at(-1)?._mpId}); if (isFolder) {toggleCollapse(item._mpId); renderSidebar(); focusTreeItem(collection._mpId, item._mpId);} else openRequest(collection, item);}, 'tree-open');
       if (isFolder) open.append(element('span', 'tree-arrow', expanded ? '▾' : '▸'), element('span', 'tree-folder', '▱'));
       else open.append(element('span', `method-label method-${item.request.method}`, item.request.method));
       if (isFolder) open.setAttribute('aria-expanded', String(Boolean(expanded)));
@@ -567,9 +572,9 @@ function renderSidebarSection() {
     for (const c of workspace.collections) {
       const match = c.info.name.toLowerCase().includes(search);
       if (search && !match && !c.item.some(matches)) continue;
-      const row = element('div', 'tree-row'); row.style.marginTop = '4px';
+      const row = element('div', 'tree-row'); row.dataset.collectionId = c._mpId; row.style.marginTop = '4px';
       const expanded = search || !(workspace.collapsed || []).includes(c._mpId);
-      const open = button('', () => {selectedCollectionId = c._mpId; studio?.captureContext({collectionId:c._mpId}); toggleCollapse(c._mpId); renderSidebar();}, 'tree-open');
+      const open = button('', () => {selectedCollectionId = c._mpId; studio?.captureContext({collectionId:c._mpId}); toggleCollapse(c._mpId); renderSidebar(); focusTreeItem(c._mpId);}, 'tree-open');
       open.append(element('span', 'tree-arrow', expanded ? '▾' : '▸'), element('span', 'tree-folder', '▤'), element('strong', 'tree-label', c.info.name)); open.setAttribute('aria-expanded', String(Boolean(expanded)));
       const more = button('⋯', () => {}, 'icon-button'); bindContext(row, more, (anchor, event) => collectionMenu(c, null, anchor, event)); more.title = `${c.info.name}の設定`; more.setAttribute('aria-label', `${c.info.name}の設定`); row.append(open, more); root.append(row);
       if (expanded) c.item.forEach(item => paintItem(c, item, 1, match));
@@ -596,6 +601,11 @@ function chooseSidebar(name) {
   renderSidebar();
   studio?.syncView(side);
   saveNavigation();
+}
+function focusTreeItem(collectionId, itemId) {
+  const line = [...$('sidebarContent').querySelectorAll('.tree-row')].find(row =>
+    row.dataset.collectionId === collectionId && (itemId ? row.dataset.itemId === itemId : !row.dataset.itemId));
+  line?.querySelector('.tree-open')?.focus({preventScroll:true});
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}

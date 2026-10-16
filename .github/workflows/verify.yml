@@ -107,6 +107,9 @@ jobs:
       - name: Extraction focus, context menus and responsive forms
         if: ${{ !cancelled() }}
         run: python tests/ui_extraction.py 2>&1 | tee artifacts/browser/ui-extraction.log
+      - name: Keyboard focus and context-action regression
+        if: ${{ !cancelled() }}
+        run: python tests/ui_focus.py 2>&1 | tee artifacts/browser/ui-focus.log
       - name: Upload screenshots and browser results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
