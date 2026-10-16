@@ -1,0 +1,23 @@
+{
+  "branch": "fix/restore-content-tabs-20261015",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-16T01:23:15.108091306Z",
+  "environment": {
+    "expires_at": "2026-10-16T04:19:34.653382Z",
+    "id": "lrce-e4666cdf482d7a5e1ed562e4",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "minipost-ui-recreate-20261015",
+    "sandbox_id": "sb-d871cffb00d3",
+    "source_generation": 1
+  },
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-1c756efbc082dfd5",
+  "source_sha": "f9e39ea5db5abe01e19931854e436b973ae48ee7",
+  "started_at": "2026-10-16T01:22:56.50905924Z",
+  "status": "cancelled",
+  "version": 1
+}
