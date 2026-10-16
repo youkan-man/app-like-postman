@@ -27,6 +27,7 @@ export function requestKey(workspace, draft) {
 export function settingsIndex(workspace) {
   const result = new Map();
   const put = (key, kind, name, value, owner) => result.set(key, {key, kind, name, value, owner});
+  for (const relation of workspace.relations || []) {const {id,...value}=relation;put(`relation:${id}`, 'relation', relation.name, clone(value), relation);}
   put('globals', 'globals', 'Globals', {values: rows(workspace.globals)}, workspace);
   for (const env of workspace.environments) put(`environment:${env.id}`, 'environment', env.name, {name: env.name, values: rows(env.values)}, env);
   for (const collection of workspace.collections) {
@@ -71,6 +72,7 @@ export class RevisionStore {
     this.capture();
     const value = clone(entry.value), owner = row.owner;
     if (row.kind === 'globals') this.workspace.globals = value.values;
+    else if (row.kind === 'relation') {const id=owner.id;for(const key of Object.keys(owner))if(key!=='id')delete owner[key];Object.assign(owner,value,{id});}
     else if (row.kind === 'environment') {owner.name = value.name; owner.values = value.values;}
     else if (row.kind === 'request') {
       const [kind, collectionId, itemId] = key.split(':');

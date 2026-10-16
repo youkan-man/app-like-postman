@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import tempfile
 from playwright.sync_api import sync_playwright, expect
+from browser_app import BrowserApp
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -18,12 +19,7 @@ def main():
     checks = []
     def passed(name):
         checks.append(name); print('PASS ' + name, flush=True)
-    html = (ROOT / 'static/index.html').read_text()
-    html = re.sub(r'<script[^>]*src="/app.js"[^>]*></script>', '', html)
-    html = html.replace('<link rel="stylesheet" href="/style.css">', '<style>' + (ROOT / 'static/style.css').read_text() + '</style>')
-    core = re.sub(r'^export ', '', (ROOT / 'static/core.mjs').read_text(), flags=re.M)
-    app = re.sub(r'^import .*?;\n', '', (ROOT / 'static/app.js').read_text(), count=1)
-    gateway = json.loads((ROOT / 'examples/com-gateway.postman_collection.json').read_text())
+    gateway = json.loads((ROOT / 'tests/fixtures/com-gateway.postman_collection.json').read_text())
     sample = {
         'info': {'name': 'DOM verification', 'schema': gateway['info']['schema']},
         'variable': [{'key': 'baseUrl', 'value': 'http://example.test'}, {'key': 'token', 'value': 'collection-token'}],
@@ -45,18 +41,11 @@ def main():
             page = browser.new_page(viewport={'width': 1440, 'height': 920})
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.set_default_timeout(7000)
-            page.set_content(html)
             prelude = '''
-            window.__storage=STORAGE;
-            Object.defineProperty(window, 'localStorage', {configurable: true, value: {
-              getItem(key) {return Object.hasOwn(window.__storage,key)?window.__storage[key]:null;},
-              setItem(key,value) {window.__storage[key]=String(value);},
-              removeItem(key) {delete window.__storage[key];}
-            }});
-            window.__sent=[]; window.__gateway=GATEWAY;
+            window.__storage=localStorage.__data;
+            window.__sent=[];
             window.fetch = async (url, options={}) => {
               if (url === '/api/health') return new Response(JSON.stringify({ok:true}),{status:200});
-              if (url === '/api/examples/gateway') return new Response(JSON.stringify(window.__gateway),{status:200});
               if (url !== '/api/request') throw new Error('Offline DOM test forbids network');
               const payload=JSON.parse(options.body);window.__sent.push(payload);
               if(payload.url.includes('/slow')) await new Promise((resolve,reject)=>{const id=setTimeout(resolve,500);options.signal.addEventListener('abort',()=>{clearTimeout(id);reject(new DOMException('aborted','AbortError'));},{once:true});});
@@ -64,9 +53,10 @@ def main():
               let binary='';for(const b of new TextEncoder().encode(text))binary+=String.fromCharCode(b);
               return new Response(JSON.stringify({ok:true,status:200,status_text:'OK',body:text,body_encoding:'text',body_base64:btoa(binary),headers:[{key:'Content-Type',value:'application/json'}],content_type:'application/json',size:new TextEncoder().encode(text).length,elapsed_ms:17,redirects:[]}),{status:200});
             };
-            '''.replace('STORAGE', json.dumps(storage)).replace('GATEWAY', json.dumps(gateway))
-            page.add_script_tag(content=prelude)
-            page.add_script_tag(content='(() => {\n' + core + '\n' + app + '\n})();')
+            '''
+            fixture=BrowserApp(None,mock_bootstrap=prelude)
+            fixture.local=storage
+            fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
         def import_raw(data):
             page.locator('#import').click(); page.get_by_label('インポートJSON').fill(json.dumps(data)); page.locator('#modalSubmit').click()
@@ -74,6 +64,7 @@ def main():
         def open_request(name):
             page.locator('.tree-open').filter(has=page.locator('.tree-label', has_text=name)).first.click()
             expect(page.locator('#requestName')).to_have_value(name)
+            page.locator('#editorTabs [data-editor=all]').click()
         def send():
             page.locator('#send').click(); expect(page.locator('#responseStatus')).to_contain_text('200')
             return page.evaluate('window.__sent.at(-1)')
@@ -105,6 +96,7 @@ def main():
         chooser.value.set_files({'name':'payload.bin','mimeType':'application/octet-stream','buffer':b'\x00\x01\xff'})
         request = send(); assert request['body_base64'] == 'AAH/'
         passed('binary file selection and lossless proxy-payload construction')
+        page.locator('#editorTabs [data-editor=body]').click()
         page.locator('input[name=bodyMode][value=formdata]').check()
         page.get_by_role('button', name='＋ 行を追加').click(); page.get_by_label('Key 1', exact=True).fill('metadata'); page.get_by_label('Value 1', exact=True).fill('hello {{label}}')
         page.get_by_role('button', name='＋ 行を追加').click(); page.get_by_label('Key 2', exact=True).fill('upload'); page.locator('.kv-table tbody tr').nth(1).locator('select').select_option('file')
@@ -128,15 +120,17 @@ def main():
         passed('invalid import is atomic and non-destructive')
         malicious = json.loads(json.dumps(sample)); malicious['info']['name']='<img src=x onerror="window.__XSS=1">'; malicious['event']=[{'listen':'prerequest','script':{'exec':['window.__SCRIPT_RAN=true;']}}]
         import_raw(malicious); expect(page.locator('#requestWarning')).to_be_visible(); assert not page.evaluate('Boolean(window.__XSS || window.__SCRIPT_RAN)')
-        expect(page.locator('section.editor-section[data-pane=scripts] .editor-section-body')).to_be_visible(); expect(page.locator('.scripts-block')).to_contain_text('__SCRIPT_RAN')
+        page.locator('#editorTabs [data-editor=scripts]').click()
+        page.locator('.imported-scripts').evaluate('el=>el.open=true')
+        expect(page.locator('.scripts-block')).to_contain_text('__SCRIPT_RAN')
         passed('untrusted imported labels are text; scripts retained but not executed')
         page.wait_for_timeout(300); storage=page.evaluate('window.__storage')
         state=json.loads(storage['minipost.workspace.v2']); state['collections']=[c for c in state['collections'] if not c['info']['name'].startswith('<img')]
         ids={c['_mpId'] for c in state['collections']}; state['tabs']=[t for t in state['tabs'] if t.get('collectionId') in ids]; state['activeId']=state['tabs'][0]['id']
         storage['minipost.workspace.v2']=json.dumps(state); load()
-        page.locator('#gatewayExample').click(); expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
+        expect(page.locator('#gatewayExample')).to_have_count(0)
         open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); send()
-        passed('built-in COM Gateway collection loads without changing its configuration')
+        passed('removed production sample does not inject collections')
         page.locator('#requestInfo').evaluate("e => e.textContent='画面確認 · 通信モック（実Gatewayには未接続）'")
         page.locator('#connectionStatus').evaluate("e => e.textContent='Offline DOM test · simulated transport'")
         page.wait_for_timeout(300)

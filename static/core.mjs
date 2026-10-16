@@ -167,7 +167,7 @@ export function exportCollection(collection) {
   });
   return result;
 }
-export function contextFor(workspace, tab) {
+export function contextFor(workspace, tab, primaryVariables = []) {
   const collection = workspace.collections.find(c => c._mpId === tab.collectionId);
   const located = findItem(collection, tab.itemId);
   const parents = located?.parents || [];
@@ -176,7 +176,7 @@ export function contextFor(workspace, tab) {
   function apply(list) {for (const v of rows(list)) if (enabled(v) && v.key) vars[v.key] = text(v.value);}
   apply(workspace.globals); apply(collection?.variable);
   for (const parent of parents) apply(parent.variable);
-  apply(environment?.values); apply(urlParts(tab.request.url).variable);
+  apply(environment?.values); apply(urlParts(tab.request.url).variable); apply(primaryVariables);
   let auth = collection?.auth || null;
   for (const parent of parents) if (parent.auth) auth = parent.auth;
   if (tab.request.auth) auth = tab.request.auth;
@@ -203,8 +203,8 @@ export function toBase64(value) {
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
 }
-export function compileRequest(workspace, tab, files = {}) {
-  const context = contextFor(workspace, tab);
+export function compileRequest(workspace, tab, files = {}, primaryVariables = []) {
+  const context = contextFor(workspace, tab, primaryVariables);
   const resolve = resolver(context.vars);
   const r = tab.request;
   const u = urlParts(r.url);

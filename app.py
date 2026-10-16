@@ -20,7 +20,6 @@ from urllib.parse import urljoin, urlsplit
 from network import runtime_info, connection_details, connection_diagnostic, format_network_error
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-EXAMPLE_DIR = Path(__file__).resolve().parent / "examples"
 # No automatic server-side persistence: only an explicit POST from the UI writes here.
 WORKSPACE_FILE = Path(os.getenv("MINIPOST_WORKSPACE_FILE") or
                       ("/data/workspace.json" if os.getenv("MINIPOST_CONTAINER") else ".minipost/workspace.json")).resolve()
@@ -241,8 +240,6 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/health":
             self.send_json(200, {"ok": True, "runtime": runtime_info()})
-        elif self.path == "/api/examples/gateway":
-            self.send_json(200, json.loads((EXAMPLE_DIR / "com-gateway.postman_collection.json").read_text()))
         elif self.path == "/api/workspace":
             try:
                 saved = read_workspace()

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 from playwright.sync_api import sync_playwright, expect
+from browser_app import BrowserApp
 from test_proxy import proxy, start_server
 
 
@@ -23,7 +24,7 @@ def main():
             browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True, args=['--no-sandbox'])
             page = browser.new_page(viewport={'width':1440, 'height':920}, accept_downloads=True)
             page.on('pageerror', lambda e: errors.append(str(e)))
-            page.goto(app_url)
+            fixture = BrowserApp(app_url); fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
 
             def import_one(value):
@@ -42,7 +43,7 @@ def main():
 
             # Preserve the page preference introduced by the already merged PR10.
             page.evaluate("localStorage.setItem('minipost.editor.page.v1','headers'); localStorage.removeItem('minipost.navigation.v1')")
-            page.reload()
+            fixture.reload(page)
             expect(page.locator('#editorTabs [data-editor=headers]')).to_have_attribute('aria-selected','true')
             editor('all')
             passed('existing editor-page preference migrates without losing the selected page')
@@ -135,7 +136,7 @@ def main():
             passed('response paging keeps actual response data and never resends a request')
 
             editor('body')
-            page.reload()
+            fixture.reload(page)
             expect(page.locator('#editorTabs [data-editor=body]')).to_have_attribute('aria-selected','true')
             expect(page.get_by_label('Raw body')).to_have_value('kept across categories')
             editor('all')

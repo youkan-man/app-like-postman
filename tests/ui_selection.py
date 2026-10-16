@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 from playwright.sync_api import sync_playwright, expect
+from browser_app import BrowserApp
 from test_proxy import proxy, start_server
 
 KEY = 'minipost.workspace.v2'
@@ -25,10 +26,10 @@ def main():
             browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True)
             page = browser.new_page(viewport={'width':1440, 'height':920})
             page.on('pageerror', lambda e: errors.append(str(e)))
-            page.goto(app_url, wait_until='domcontentloaded')
+            fixture = BrowserApp(app_url); fixture.open(page)
             page.evaluate("localStorage.setItem('minipost.sections.v1', '[]')")
-            page.reload(wait_until='domcontentloaded')
-            expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
+            fixture.reload(page)
+            expect(page.locator('#editorContent > details, #editorContent > summary')).to_have_count(0)
             for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
                 section = page.locator(f'section.editor-section[data-pane={name}]')
                 expect(section.locator('.editor-section-body')).not_to_be_visible()
@@ -132,12 +133,13 @@ def main():
             env = {'name':'Dev','_postman_variable_scope':'environment','values':[{'key':'x','value':'1','enabled':True}]}
             load(env)
             page.locator('#sidebarTabs [data-sidebar=environments]').click()
-            page.get_by_role('button',name='◫  Dev',exact=True).click()
-            modal = page.locator('#modal')
+            page.get_by_role('button',name='Dev',exact=True).click()
+            modal = page.locator('#workspacePage')
             env_id = modal.get_attribute('data-settings-id')
             before = state()['revisions'].get('environment:'+env_id,[])
-            page.locator('#closeModal').click()
-            page.get_by_role('button',name='◫  Dev',exact=True).click()
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
+            page.get_by_role('button',name='Dev',exact=True).click()
             assert state()['revisions'].get('environment:'+env_id,[]) == before
             modal.get_by_label('Value 1',exact=True).fill('2')
             saved()
@@ -146,7 +148,7 @@ def main():
             assert state()['revisions'][key][-1]['value']['request']['body']['raw'] == 'after-one'
             passed('environment revisions are independent; merely reopening does not create an edit')
             page.locator('#closeModal').click()
-            page.reload(wait_until='domcontentloaded')
+            fixture.reload(page)
             # Reload does not persist another edit. Read the existing record only.
             restored = page.evaluate('(k)=>JSON.parse(localStorage.getItem(k))', KEY)
             assert restored['revisions'][key][-1]['reason'] == '復元'
@@ -156,7 +158,7 @@ def main():
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             page.screenshot(path=str(out/'single-selection.png'), full_page=True)
             passed('drafts and revisions survive reload')
-            page.locator('#addTab').click()
+            page.locator('#sidebarContent').click(button='right',position={'x':200,'y':page.locator('#sidebarContent').bounding_box()['height']-4}); page.get_by_role('menuitem',name='リクエストを作成',exact=True).click()
             page.locator('#requestName').fill('Unsaved work')
             page.locator('#url').fill(echo_url+'/echo?draft=1')
             saved()

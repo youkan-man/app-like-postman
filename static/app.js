@@ -4,9 +4,11 @@ import {exportWorkspace, isWorkspaceBundle, readWorkspaceBundle, mergeWorkspace}
 import {sendThroughProxy} from './transport.mjs';
 import {RevisionStore, requestKey, requestSettings, settingsIndex} from './revisions.mjs';
 import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snapshotSettings, applySettings} from './editops.mjs';
+import {createCodeEditor} from './code-editor.mjs';
+import {initStudio} from './studio.mjs';
 
 const $ = id => document.getElementById(id);
-let workbench;
+let workbench, studio;
 const KEY = 'minipost.workspace.v2';
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
 const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
@@ -23,6 +25,7 @@ try {
   workspace = initial(); recoveryMessage = `保存データを読み込めませんでした。元データは可能な場合に .recovery キーへ保持しています。${error.message}`;
 }
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
+workspace.relations ||= []; workspace.relationRuns ||= [];
 let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new Map();
 const navigationKey = 'minipost.navigation.v1';
@@ -30,7 +33,7 @@ const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
   const allowed = {
     editor: ['all','params','headers','authorization','body','settings','scripts'],
-    sidebar: ['collections','environments','history'],
+    sidebar: ['collections','environments','history','relations'],
     response: ['pretty','raw','headers','cookies','preview']
   };
   return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
@@ -38,8 +41,8 @@ function normalizeNavigation(value) {
 let navigation = normalizeNavigation(null);
 try {navigation = normalizeNavigation(JSON.parse(localStorage.getItem(navigationKey)) ?? {editor:localStorage.getItem(editorPageKey)});} catch {}
 let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
-const sidebarSearch = {collections:'', environments:'', history:''};
-const sidebarScroll = {collections:0, environments:0, history:0};
+const sidebarSearch = {collections:'', environments:'', history:'', relations:''};
+const sidebarScroll = {collections:0, environments:0, history:0, relations:0};
 function saveNavigation() {
   try {localStorage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
   catch {toast('表示状態を保存できません。入力内容は維持しています。');}
@@ -126,6 +129,7 @@ function chooseEnvironment(id, open = false) {
   const environment = workspace.environments.find(e => e.id === id);
   workspace.environmentId = environment?.id || '';
   persist(); renderEnvironments(); renderSidebar(); updateCounts();
+  studio?.environmentChosen(workspace.environmentId);
   if (open || (settingsDrawer?.kind === 'environment' && $('modal').open)) {
     const focused = document.activeElement;
     if (environment) editEnvironment(environment); else emptyEnvironmentDrawer();
@@ -156,13 +160,9 @@ function refreshSettingsDrawer() {
     if (collection && (descriptor.kind !== 'folder' || folder)) editCollection(collection, folder); else closeModal();
   }
 }
-function emptyEnvironmentDrawer() {
-  const box = element('div');
-  box.append(element('p', 'empty-state', 'No environment — 環境は選択されていません。'), button('環境を作成', () => editEnvironment()));
-  showSettings('Environment variables', box, {kind: 'environment', id: ''});
-}
+function emptyEnvironmentDrawer() {studio.environmentChosen(''); chooseSidebar('environments');}
 function copyConfiguration(owner, kind) {settingsClipboard = snapshotSettings(owner, kind); toast('設定をコピーしました。貼り付け先のメニューから貼り付けできます。');}
-function pasteConfiguration(owner, kind) {applySettings(owner, kind, settingsClipboard); settingsChanged(true); refreshSettingsDrawer(); toast('設定を貼り付けました。名前は変更していません。');}
+function pasteConfiguration(owner, kind) {applySettings(owner, kind, settingsClipboard); settingsChanged(true); refreshSettingsDrawer(); if(kind==='environment')studio?.refresh(); toast('設定を貼り付けました。名前は変更していません。');}
 function configurationActions(owner, kind) {
   return [{label: '設定をコピー', run: () => copyConfiguration(owner, kind)}, {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== kind, run: () => pasteConfiguration(owner, kind)}];
 }
@@ -236,6 +236,8 @@ function kvEditor(list, changed, options = {}) {
       }
       const more = button('⋯', () => {}, 'icon-button row-menu'); more.setAttribute('aria-label', `行 ${index + 1} の操作`);
       bindContext(tr, more, (anchor, event) => openItemMenu(anchor, [
+        {label: 'この上に行を追加', run: () => editRows(index, 0, [{key:'', value:'', disabled:false}])},
+        {label: 'この下に行を追加', run: () => editRows(index + 1, 0, [{key:'', value:'', disabled:false}])},
         {label: '値をコピー', run: () => copyText(row.value)},
         {label: '行をコピー', run: () => {rowClipboard = clone(row); toast('行をコピーしました。');}},
         {label: '行を複製', run: () => editRows(index + 1, 0, [clone(row)])},
@@ -255,7 +257,7 @@ function caption(title, parent) {const line = element('div', 'section-caption', 
 function updateCounts() {
   const r = active().request, count = list => list.filter(enabled).filter(row => row.key).length;
   $('paramsCount').textContent = count(urlParts(r.url).query) || ''; $('headersCount').textContent = count(rows(r.header)) || '';
-  $('bodyDot').textContent = r.body?.mode && r.body.mode !== 'none' ? '●' : ''; $('scriptDot').textContent = contextFor(workspace, active()).events.length ? '●' : '';
+  $('bodyDot').textContent = r.body?.mode && r.body.mode !== 'none' ? '●' : ''; $('scriptDot').textContent = (contextFor(workspace, active()).events.length || r._minipost?.before || r._minipost?.after || r._minipost?.extractions?.length) ? '●' : '';
 }
 function authEditor(owner, inherited = false, changed = () => {}) {
   const box = element('div');
@@ -286,7 +288,7 @@ function renderPaneSection(root, pane) {
   root.replaceChildren();
   const tab = active(), r = tab.request, context = contextFor(workspace, tab);
   const scriptWarning = context.events.some(e => e.disabled !== true);
-  $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'Scriptsは実行されません。送信に必要な値を変数へ設定してください。';
+  $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'インポート済みスクリプトは参照のみです。実行するコードはスクリプト編集欄へ明示的にコピーしてください。';
   if (pane === 'params') {
     const u = urlParts(r.url); r.url = {...r.url, query: u.query, variable: u.variable};
     if (r.url.variable.length) caption('Query Params', root);
@@ -303,14 +305,7 @@ function renderPaneSection(root, pane) {
     }
     const timeout = input(settings.timeout_ms, 'Timeout ms', value => {settings.timeout_ms = Number(value); touch();}, 'number'); timeout.min = '0';
     const line = element('label', 'settings-line'); line.append('Timeout', timeout, 'ms（0 = 無制限）'); root.append(line);
-  } else if (pane === 'scripts') {
-    if (!context.events.length) root.append(element('p', 'empty-state', 'Scriptsなし'));
-    context.events.forEach(event => {
-      const details = element('section', 'scripts-block');
-      details.append(element('h3', '', `${event.listen || 'Script'}${event.disabled ? ' · disabled' : ''}`));
-      const source = event.script?.exec; details.append(element('pre', '', Array.isArray(source) ? source.join('\n') : source || '')); root.append(details);
-    });
-  }
+  } else if (pane === 'scripts') studio.renderScripts(root, tab);
 }
 const editorSections = [
   ['params','クエリとパス変数'],
@@ -318,7 +313,7 @@ const editorSections = [
   ['authorization','認証'],
   ['body','リクエスト本文'],
   ['settings','通信設定'],
-  ['scripts','スクリプト（参照のみ）']
+  ['scripts','スクリプト']
 ];
 // Disclosure preferences are presentation state, not request changes or revisions.
 const sectionKey = 'minipost.sections.v1';
@@ -335,6 +330,7 @@ function applyEditorPage() {
     tab.tabIndex = selected ? 0 : -1;
   }
   $('editorContent').setAttribute('aria-labelledby', 'editor-tab-' + editorPage);
+  document.documentElement.dataset.editorPage = editorPage;
   for (const section of $('editorContent').querySelectorAll('.editor-section')) {
     const single = editorPage !== 'all';
     section.hidden = single && section.dataset.pane !== editorPage;
@@ -414,9 +410,11 @@ function renderBody(root, tab) {
   if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; touch(); renderPane();}, 'text-button'));
   if (body.mode === 'raw') {
     body.options ||= {}; body.options.raw ||= {language: 'text'};
-    toolbar.append(select([['text', 'Text'], ['json', 'JSON'], ['xml', 'XML'], ['html', 'HTML'], ['javascript', 'JavaScript']], body.options.raw.language || 'text', value => {body.options.raw.language = value; touch();}));
-    toolbar.append(button('Beautify', () => {try {body.raw = JSON.stringify(JSON.parse(body.raw || ''), null, 2); touch(); renderPane();} catch (error) {toast(`JSON: ${error.message}`);}}, 'text-button'));
-    const area = element('textarea', 'code-editor'); area.value = body.raw || ''; area.spellcheck = false; area.setAttribute('aria-label', 'Raw body'); area.placeholder = '{\n  "name": "{{name}}"\n}'; area.oninput = () => {body.raw = area.value; touch();}; root.append(area);
+    const editor = createCodeEditor({value:body.raw || '', language:body.options.raw.language || 'text', label:'Raw body', onChange:value=>{body.raw=value;touch();}});
+    const language = select([['text','Text'],['json','JSON'],['xml','XML'],['html','HTML'],['javascript','JavaScript']], body.options.raw.language || 'text', value=>{body.options.raw.language=value;editor.setLanguage(value);touch();});
+    language.setAttribute('aria-label','本文のフォーマット');toolbar.append(language);
+    toolbar.append(button('JSON整形',()=>{try{editor.setValue(JSON.stringify(JSON.parse(editor.textarea.value),null,2));}catch(error){toast(`JSON: ${error.message}`);}},'text-button'));
+    root.append(editor.element);
   } else if (body.mode === 'urlencoded' || body.mode === 'formdata') {
     const key = body.mode; body[key] = rows(body[key]); root.append(kvEditor(body[key], touch, {files: key === 'formdata'}));
   } else if (body.mode === 'file') {
@@ -427,7 +425,7 @@ function renderBody(root, tab) {
     body.graphql ||= {query: '', variables: '{}'};
     for (const key of ['query', 'variables']) {
       caption(key === 'query' ? 'Query' : 'Variables (JSON)', root);
-      const area = element('textarea', 'code-editor'); area.value = typeof body.graphql[key] === 'object' ? JSON.stringify(body.graphql[key], null, 2) : body.graphql[key] || ''; area.setAttribute('aria-label', `GraphQL ${key}`); area.oninput = () => {body.graphql[key] = area.value; touch();}; root.append(area);
+      root.append(createCodeEditor({value:typeof body.graphql[key] === 'object' ? JSON.stringify(body.graphql[key],null,2) : body.graphql[key] || '',language:key === 'query' ? 'graphql' : 'json',label:`GraphQL ${key}`,onChange:value=>{body.graphql[key]=value;touch();}}).element);
     }
   }
 }
@@ -457,6 +455,7 @@ function discardDraft(id) {
 function addTab(tab = freshTab()) {persist(true); tab.settings = requestSettings(tab.settings); workspace.tabs.push(tab); selectRequest(tab.id);}
 function openRequest(collection, item) {
   workbench?.closeNavigation(); selectedCollectionId = collection._mpId;
+  studio?.captureContext({collectionId:collection._mpId,parentId:findItem(collection,item._mpId)?.parents.at(-1)?._mpId});
   const existing = workspace.tabs.find(t => t.collectionId === collection._mpId && t.itemId === item._mpId);
   if (existing) {selectRequest(existing.id); return;}
   addTab({...freshTab(), name: item.name, request: normalizeRequest(item.request), settings: requestSettings(item.settings), collectionId: collection._mpId, itemId: item._mpId});
@@ -481,6 +480,7 @@ function renderEnvironments() {
   $('environment').value = workspace.environmentId || '';
 }
 function renderSidebarSection() {
+  if (studio?.renderSidebarSection(side)) return;
   const title = {collections: 'Collections', environments: 'Environments', history: 'History'}[side];
   document.querySelector('.sidebar').setAttribute('aria-label', title);
   $('sidebarAdd').hidden = side === 'history'; $('clearHistory').hidden = side !== 'history';
@@ -521,7 +521,7 @@ function renderSidebarSection() {
       if (search && !force && !matches(item)) return;
       const isFolder = Array.isArray(item.item), expanded = search || !(workspace.collapsed || []).includes(item._mpId);
       const row = element('div', `tree-row${active().itemId === item._mpId ? ' selected' : ''}`); row.style.paddingLeft = `${level * 13 + 4}px`;
-      const open = button('', () => {selectedCollectionId = collection._mpId; if (isFolder) {toggleCollapse(item._mpId); renderSidebar();} else openRequest(collection, item);}, 'tree-open');
+      const open = button('', () => {selectedCollectionId = collection._mpId; studio?.captureContext({collectionId:collection._mpId,parentId:isFolder?item._mpId:findItem(collection,item._mpId)?.parents.at(-1)?._mpId}); if (isFolder) {toggleCollapse(item._mpId); renderSidebar();} else openRequest(collection, item);}, 'tree-open');
       if (isFolder) open.append(element('span', 'tree-arrow', expanded ? '▾' : '▸'), element('span', 'tree-folder', '▱'));
       else open.append(element('span', `method-label method-${item.request.method}`, item.request.method));
       if (isFolder) open.setAttribute('aria-expanded', String(Boolean(expanded)));
@@ -539,6 +539,7 @@ function renderSidebarSection() {
         const more = button('⋯', () => {}, 'icon-button'); more.setAttribute('aria-label', `${draft.name}の下書き操作`);
         bindContext(row, more, (anchor, event) => openItemMenu(anchor, [
           {label: '送信', run: () => {selectRequest(draft.id); sendRequest();}},
+          ...(studio?.draftActions(draft) || []),
           {label: '変更履歴', run: () => showRevisions(requestKey(workspace, draft))},
           {label: '複製', run: () => addTab({...clone(draft), id: uid(), name: copyName(draft.name, workspace.tabs.map(t => t.name)), dirty: true})},
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
@@ -552,7 +553,7 @@ function renderSidebarSection() {
       if (search && !match && !c.item.some(matches)) continue;
       const row = element('div', 'tree-row'); row.style.marginTop = '4px';
       const expanded = search || !(workspace.collapsed || []).includes(c._mpId);
-      const open = button('', () => {selectedCollectionId = c._mpId; toggleCollapse(c._mpId); renderSidebar();}, 'tree-open');
+      const open = button('', () => {selectedCollectionId = c._mpId; studio?.captureContext({collectionId:c._mpId}); toggleCollapse(c._mpId); renderSidebar();}, 'tree-open');
       open.append(element('span', 'tree-arrow', expanded ? '▾' : '▸'), element('span', 'tree-folder', '▤'), element('strong', 'tree-label', c.info.name)); open.setAttribute('aria-expanded', String(Boolean(expanded)));
       const more = button('⋯', () => {}, 'icon-button'); bindContext(row, more, (anchor, event) => collectionMenu(c, null, anchor, event)); more.title = `${c.info.name}の設定`; more.setAttribute('aria-label', `${c.info.name}の設定`); row.append(open, more); root.append(row);
       if (expanded) c.item.forEach(item => paintItem(c, item, 1, match));
@@ -572,10 +573,12 @@ function renderSidebar() {
   root.dataset.side = side;
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
+  studio?.syncView(side);
 }
 function chooseSidebar(name) {
   side = name;
   renderSidebar();
+  studio?.syncView(side);
   saveNavigation();
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
@@ -585,7 +588,7 @@ function newCollection() {
   let name = 'My Collection'; const box = field('Name', input(name, 'Collection name', value => name = value));
   showModal('New collection', box, () => {
     if (!name.trim()) throw new Error('名前を入力してください。');
-    const c = {_mpId: uid(), info: {name: name.trim(), schema: SCHEMA}, item: [], variable: []}; workspace.collections.push(c); selectedCollectionId = c._mpId; side = 'collections'; closeModal(); persist(); renderAll();
+    const c = {_mpId: uid(), info: {name: name.trim(), schema: SCHEMA}, item: [], variable: []}; workspace.collections.push(c); selectedCollectionId = c._mpId; side = 'collections'; studio?.captureContext({collectionId:c._mpId}); closeModal(); persist(); renderAll();
   }, '作成');
 }
 function folderChoices(collection) {
@@ -609,7 +612,7 @@ function saveRequest() {
     const parent = findItem(collection, folderId)?.item || collection;
     const item = {_mpId: uid(), name: name.trim(), request: clone(tab.request), settings: requestSettings(tab.settings)};
     parent.item.push(item); Object.assign(tab, {name: item.name, collectionId: collection._mpId, itemId: item._mpId, dirty: false}); delete tab.pendingFolderId;
-    revisionStore.transfer(priorKey, requestKey(workspace, tab));
+    revisionStore.transfer(priorKey, requestKey(workspace, tab)); studio?.transferResponse(priorKey, requestKey(workspace, tab));
     side = 'collections'; closeModal(); persist(); renderAll(); toast('コレクションに保存しました。');
   });
 }
@@ -617,11 +620,8 @@ function collectionMenu(collection, folder, anchor, event) {
   selectedCollectionId = collection._mpId;
   const owner = folder || collection, name = folder?.name || collection.info.name;
   const actions = [
-    {label: 'リクエストを追加', run: () => addTab({...freshTab(), collectionId: collection._mpId, pendingFolderId: folder?._mpId, dirty: true})},
-    {label: 'フォルダーを追加', run: () => {
-      let value = 'New folder'; const box = field('Folder name', input(value, 'Folder name', text => value = text));
-      showModal('New folder', box, () => {if (!value.trim()) throw new Error('名前を入力してください。'); owner.item.push({_mpId: uid(), name: value.trim(), item: []}); closeModal(); persist(); renderAll();}, '作成');
-    }},
+    {label:'リクエストを追加',run:()=>studio.createItem('request',{collectionId:collection._mpId,parentId:folder?._mpId})},
+    {label:'フォルダーを追加',run:()=>studio.createItem('folder',{collectionId:collection._mpId,parentId:folder?._mpId})},
     {label: '変数・認証を編集', run: () => editCollection(collection, folder)},
     {label: '複製', run: () => {
       if (folder) {
@@ -654,6 +654,7 @@ function editCollection(collection, folder = null) {
 }
 function editRequestItem(collection, item, anchor, event) {
   openItemMenu(anchor, [
+    ...studio.requestActions(collection,item),
     {label: '送信', run: () => {openRequest(collection, item); sendRequest();}},
     {label: '変更履歴', run: () => showRevisions(`request:${collection._mpId}:${item._mpId}`)},
     {label: '名前を変更', run: () => {
@@ -671,7 +672,7 @@ function editRequestItem(collection, item, anchor, event) {
     {label: '削除', danger: true, run: () => {if (!confirm(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
   ], event);
 }
-function environmentMenu(env, globals, anchor, event) {
+function environmentActions(env, globals) {
   const owner = globals ? {get values() {return workspace.globals;}, set values(value) {workspace.globals = value;}} : env;
   const actions = [{label: '変数を編集', run: () => globals ? editEnvironment(null, true) : chooseEnvironment(env.id, true)}];
   if (!globals) actions.push({label: '複製', run: () => {const copy = duplicateEnvironment(env, workspace.environments.map(e => e.name)); workspace.environments.push(copy); chooseEnvironment(copy.id, true); toast('環境を複製しました。');}});
@@ -679,28 +680,14 @@ function environmentMenu(env, globals, anchor, event) {
   if (!globals) actions.push(null, {label: '削除', danger: true, run: () => {
     if (!confirm(`環境「${env.name}」を削除しますか？`)) return;
     workspace.environments = workspace.environments.filter(e => e.id !== env.id); chooseEnvironment(workspace.environmentId === env.id ? '' : workspace.environmentId);
-  }}); openItemMenu(anchor, actions, event);
+  }}); return actions;
 }
+function environmentMenu(env, globals, anchor, event) {openItemMenu(anchor,environmentActions(env,globals),event);}
 function exportEnvironment(env, globals = false) {
   const name = globals ? 'Globals' : env.name || 'Environment', values = globals ? workspace.globals : env.values;
   exportFile(`${name}.postman_${globals ? 'globals' : 'environment'}.json`, {...(globals ? {} : {id: env.id}), name, values: values.map(v => ({...v, enabled: enabled(v)})), _postman_variable_scope: globals ? 'globals' : 'environment'});
 }
-function editEnvironment(env, globals = false) {
-  if (!globals && !env) {
-    const names = workspace.environments.map(e => e.name);
-    env = {id: uid(), name: names.includes('New environment') ? copyName('New environment', names) : 'New environment', values: []};
-    workspace.environments.push(env); workspace.environmentId = env.id; persist();
-  }
-  if (!globals) workspace.environmentId = env.id;
-  if (globals) workspace.globals = rows(workspace.globals); else env.values = rows(env.values);
-  const box = element('div');
-  if (!globals) box.append(field('Environment name', input(env.name, 'Environment name', value => {env.name = value; settingsChanged(true);} )));
-  const tools = element('div', 'settings-tools'); tools.append(button('Export', () => exportEnvironment(env, globals)));
-  const more = button('⋯', event => environmentMenu(env, globals, event.currentTarget), 'icon-button'); more.setAttribute('aria-label', 'この設定の操作'); tools.append(more);
-  box.append(tools, kvEditor(globals ? workspace.globals : env.values, settingsChanged, {secret: true}), element('p', 'input-condition', '認証値はブラウザとエクスポートに平文で保存されます。'));
-  renderEnvironments(); renderSidebar();
-  showSettings(globals ? 'Global variables' : 'Environment variables', box, {kind: globals ? 'globals' : 'environment', id: globals ? '' : env.id});
-}
+function editEnvironment(env, globals = false) {studio.editEnvironment(env, globals);}
 function preferencesForArchive() {
   let layout = null;
   try {layout = JSON.parse(localStorage.getItem('minipost.layout.v1'));} catch {}
@@ -751,11 +738,13 @@ function showArchiveImport(bundle, source = 'ファイル') {
   showModal('MiniPost 全体バックアップを取り込む', box, () => {
     persist(true);
     if (saveStatus.startsWith('保存できません')) throw new Error('現在の編集内容をローカル保存できません。先にエクスポートしてください。');
+    if (studio?.isRunning()) throw new Error('実行中のリレーションを停止してから取り込んでください。');
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.length) next.tabs.push(freshTab());
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
     commitImportedWorkspace(next, mode.value === 'replace' ? parsed.layout : null);
     workspace = next;
+    studio?.reset();
     revisionStore = new RevisionStore(workspace);
     responses.clear(); requests.forEach(x => x.abort()); requests.clear(); selectedFiles.clear();
     closeModal();
@@ -875,7 +864,10 @@ function codeView(text, json = false, search = '') {
 }
 function emptyResponse(title, message) {const box = element('div', 'response-empty'); box.append(element('strong', '', title)); if (message) box.append(element('p', '', message)); return box;}
 function renderResponse() {
-  const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id);
+  const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id) || studio?.responseFor(active());
+  $('extractResponse').disabled = !studio?.responseFor(active());
+  $('automationError').textContent = result?.automationErrors?.join('\n') || '';
+  $('automationError').hidden = !result?.automationErrors?.length;
   document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
   for (const tab of $('responseTabs').querySelectorAll('[data-response]')) {
     const selected = tab.dataset.response === responseView;
@@ -906,13 +898,10 @@ function renderResponse() {
 }
 async function sendRequest() {
   const tab = active(); if (requests.has(tab.id)) {requests.get(tab.id).abort(); return;}
-  let compiled;
-  try {compiled = compileRequest(workspace, tab, selectedFiles.get(tab.id) || {});}
-  catch (error) {responses.set(tab.id, {error: error.message}); renderResponse(); return;}
   const snapshot = clone(tab), environmentId = workspace.environmentId, controller = new AbortController(); requests.set(tab.id, controller);
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
-    const result = await sendThroughProxy(compiled.payload, controller.signal);
+    const result = await studio.execute(tab,{signal:controller.signal,environmentId,files:selectedFiles.get(tab.id)||{}});
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
     workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: result.status, elapsed_ms: result.elapsed_ms}); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
@@ -943,7 +932,7 @@ function showRevisions(key) {
 }
 $('requestHistory').onclick = () => showRevisions(requestKey(workspace, active()));
 $('send').onclick = sendRequest;
-$('addTab').onclick = () => {workbench.closeNavigation(); addTab(); $('url').focus();};
+$('addTab').onclick = event => studio.creationMenu(event.currentTarget,event);
 $('duplicateRequest').onclick = () => addTab({...clone(active()), id: uid(), itemId: undefined, name: `${active().name} copy`, dirty: true});
 $('saveRequest').onclick = saveRequest;
 $('requestName').oninput = () => {active().name = $('requestName').value; touch();};
@@ -958,14 +947,8 @@ $('dataActions').onclick = event => openItemMenu(event.currentTarget, [
   {label:'サーバーから読込',run:loadFromServer}
 ], event);
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
-$('sidebarAdd').onclick = event => openItemMenu(event.currentTarget, [
-  {label:'コレクションを作成',run:newCollection},
-  {label:'環境を作成',run:()=>editEnvironment()}
-]);
+$('sidebarAdd').onclick = event => studio.creationMenu(event.currentTarget,event);
 $('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
-$('gatewayExample').onclick = async () => {
-  try {const r = await fetch('/api/examples/gateway'); if (!r.ok) throw new Error(`HTTP ${r.status}`); applyImports([importPostman(await r.json())]);} catch (error) {toast(error.message);}
-};
 for (const tab of $('editorTabs').querySelectorAll('[data-editor]'))
   tab.onclick = () => selectEditorPage(tab.dataset.editor);
 for (const tab of $('responseTabs').querySelectorAll('[data-response]'))
@@ -975,9 +958,9 @@ bindTabStrip($('editorTabs'), '[role="tab"]');
 bindTabStrip($('responseTabs'), '[role="tab"]');
 bindTabStrip($('sidebarTabs'), '[role="tab"]');
 $('responseSearch').oninput = () => {clearTimeout(responseSearchTimer); responseSearchTimer = setTimeout(renderResponse, 180);};
-$('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id)); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
+$('copyResponse').onclick = async () => {const value = responseText(responses.get(active().id) || studio?.responseFor(active())); if (!value) return toast('コピーするレスポンスがありません。'); await copyText(value);};
 $('downloadResponse').onclick = () => {
-  const result = responses.get(active().id); if (!result || result.error) return toast('保存するレスポンスがありません。');
+  const result = responses.get(active().id) || studio?.responseFor(active()); if (!result || result.error) return toast('保存するレスポンスがありません。');
   const raw = result.body_base64 || (result.body_encoding === 'base64' ? result.body : null);
   const data = raw != null ? Uint8Array.from(atob(raw), c => c.charCodeAt(0)) : result.body;
   const suffix = /json/i.test(result.content_type) ? '.json' : /html/i.test(result.content_type) ? '.html' : result.body_encoding === 'base64' ? '.bin' : '.txt';
@@ -986,13 +969,33 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
+  if (['environments','relations'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
   if ($('modal').open && ($('modal').matches(':modal') || $('modal').contains(document.activeElement))) return;
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {event.preventDefault(); sendRequest();}
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations'].includes(side)) {event.preventDefault(); sendRequest();}
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(); bindItemMenu(); bindSurface();
+studio = initStudio({
+  $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,
+  workspace:()=>workspace,active,side:()=>side,setSide:value=>{side=value;saveNavigation();},
+  renderSidebar,renderAll,renderEditor,renderEnvironments,closeNavigation:()=>workbench.closeNavigation(),
+  chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
+  addDraft:()=>{side='collections';addTab();$('url').focus();},
+  findDraft:(collectionId,itemId)=>workspace.tabs.find(t=>t.collectionId===collectionId&&t.itemId===itemId),
+  filesFor:tab=>selectedFiles.get(workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id)||{},
+  saveTab:tab=>{
+    const collection=workspace.collections.find(c=>c._mpId===tab.collectionId),item=findItem(collection,tab.itemId)?.item;
+    if(item){item.request=clone(tab.request);for(const draft of workspace.tabs)if(draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId)draft.request=clone(tab.request);}
+    persist();if(active().id===tab.id)renderEditor();
+  },
+  recordBackground:(tab,response,environmentId)=>{
+    const draft=workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId));
+    if(draft)responses.set(draft.id,response);
+    workspace.history.push({id:uid(),at:new Date().toISOString(),tab:clone(tab),environmentId,status:response.status,elapsed_ms:response.elapsed_ms});persist();renderSidebar();renderResponse();
+  }
+});
 // Internal editor/response pages are tabbed; only request selection itself stays tab-free.
 // All-settings view retains flat spacing and heading disclosure.
 setTheme(); renderAll(); if (recoveryMessage) toast(recoveryMessage);

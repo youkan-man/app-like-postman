@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/redesign.css">
   <link rel="stylesheet" href="/corporate.css">
   <link rel="stylesheet" href="/content-tabs.css">
+  <link rel="stylesheet" href="/studio.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -18,10 +19,11 @@
     <button id="toggleSidebar" class="icon-button" aria-label="一覧の開閉" aria-controls="navigation" aria-expanded="true" title="一覧を開閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <strong class="brand"><span class="brand-mark" aria-hidden="true">M</span><span>MiniPost</span></strong>
     <div class="header-actions">
-      <button id="addTab" class="button" title="新規リクエスト">＋ 新規</button>
+      <button id="addTab" class="button" title="表示中のカテゴリに追加" aria-haspopup="menu">＋ 新規 ▾</button>
       <button id="import" class="button" title="全体または個別のインポート">インポート</button>
       <button id="dataActions" class="button" title="全体バックアップ・サーバー保存・復元" aria-haspopup="menu">データ管理 ▾</button>
     </div>
+    <button id="stopRelationGlobal" class="button" hidden>実行を停止</button>
     <span class="top-spacer"></span>
     <div class="env-picker"><label for="environment">環境</label><select id="environment" aria-label="適用中の環境"></select></div>
     <button id="layoutToggle" class="icon-button" aria-label="リクエストとレスポンスのレイアウト" aria-pressed="false" title="左右／上下に配置">◫</button>
@@ -31,7 +33,7 @@
   <div class="workspace">
     <div id="navigation" class="navigation">
       <aside class="sidebar" aria-label="保存済みデータ">
-        <nav id="sidebarTabs" class="content-tabs sidebar-navigation" role="tablist" aria-label="ワークスペースの表示"><button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent">コレクション</button><button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent">環境</button><button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent">送信履歴</button></nav>
+        <nav id="sidebarTabs" class="content-tabs sidebar-navigation" role="tablist" aria-label="ワークスペースの表示"><button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent">コレクション</button><button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent">環境</button><button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent">送信履歴</button><button type="button" id="sidebarTabs-relations" role="tab" data-sidebar="relations" aria-controls="sidebarContent">リレーション</button></nav>
         <div class="sidebar-tools">
           <input id="search" type="search" placeholder="すべて検索" aria-label="保存済みデータを検索">
           <button id="sidebarAdd" class="icon-button" title="コレクションを追加" aria-label="コレクションを追加">＋</button>
@@ -39,11 +41,11 @@
           <button id="navClose" class="icon-button" aria-label="一覧を閉じる" hidden>×</button>
         </div>
         <div id="sidebarContent" class="sidebar-content"></div>
-        <div class="sidebar-footer"><button id="gatewayExample" class="text-button">＋ COM Gateway サンプル</button></div>
       </aside>
     </div>
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
+      <section id="workspacePage" class="workspace-page" aria-label="ワークスペース編集" hidden></section>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
           <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
@@ -62,7 +64,7 @@
         </section>
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
         <section class="response-panel" aria-label="レスポンス">
-          <div class="response-heading"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
+          <div class="response-heading"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
           <div class="response-toolbar">
             <nav id="responseTabs" class="content-tabs response-navigation" role="tablist" aria-label="レスポンス表示形式">
               <button type="button" role="tab" id="response-tab-pretty" data-response="pretty" aria-controls="responseContent" aria-selected="true" tabindex="0">整形</button>
@@ -73,6 +75,7 @@
             </nav>
             <input id="responseSearch" type="search" placeholder="レスポンス内を検索" aria-label="レスポンス内検索">
           </div>
+          <div id="automationError" class="warning" role="status" hidden></div>
           <div id="responseContent" class="response-content" role="tabpanel" aria-labelledby="response-tab-pretty" tabindex="0" aria-label="受信データ"></div>
         </section>
       </div>

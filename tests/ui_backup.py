@@ -9,6 +9,7 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 
 from playwright.sync_api import expect, sync_playwright
+from browser_app import BrowserApp
 from test_proxy import proxy, start_server
 
 
@@ -39,7 +40,7 @@ def main():
                 browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True, args=['--no-sandbox'])
                 page = browser.new_page(viewport={'width': 1440, 'height': 900}, accept_downloads=True)
                 page.on('pageerror', lambda error: errors.append(str(error)))
-                page.goto(app_url)
+                fixture = BrowserApp(app_url); fixture.open(page)
                 expect(page.locator('#connectionStatus')).to_contain_text('connected')
                 assert server_workspace()[0] == 404
 
@@ -92,9 +93,8 @@ def main():
                 passed('whole export includes collections, environments, request history, revisions and layout')
 
                 page.locator('#dataActions').click()
-                with page.expect_response(lambda response: response.url.endswith('/api/workspace') and response.request.method == 'POST') as pending:
-                    page.get_by_role('menuitem', name='サーバーへ保存').click()
-                assert pending.value.status == 200
+                page.get_by_role('menuitem', name='サーバーへ保存').click()
+                expect(page.locator('#serverSaveState')).to_have_class('saved')
                 assert proxy.WORKSPACE_FILE.is_file()
                 status, on_server = server_workspace()
                 assert status == 200
@@ -135,6 +135,9 @@ def main():
                 expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
                 expect(page.locator('#importMode')).to_have_value('replace')
                 page.locator('#modalSubmit').click()
+                if fixture.inline:
+                    page.wait_for_function('window.__testReloadRequested === true')
+                    fixture.reload(page)
                 expect(page.locator('#connectionStatus')).to_contain_text('connected')
                 restored = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2"))')
                 assert restored['environments'][0]['values'][0]['value'] == 'test-local-only'
@@ -152,8 +155,9 @@ def main():
                 damaged['workspace']['collections'][0]['info']['name'] = 'Backup rejected'
                 damaged['layout'] = {'layout': {'sidebar': 499}, 'sections': ['body']}
                 page.evaluate("""() => {
-                  window.__originalSetItem = Storage.prototype.setItem;
-                  Storage.prototype.setItem = function(key, value) {
+                  window.__storageTarget = localStorage.__data ? localStorage : Storage.prototype;
+                  window.__originalSetItem = window.__storageTarget.setItem;
+                  window.__storageTarget.setItem = function(key, value) {
                     if (key === 'minipost.workspace.v2' && value.includes('Backup rejected'))
                       throw new DOMException('Simulated quota reached', 'QuotaExceededError');
                     return window.__originalSetItem.call(this, key, value);
@@ -165,7 +169,7 @@ def main():
                 expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
-                page.evaluate('() => {Storage.prototype.setItem = window.__originalSetItem;}')
+                page.evaluate('() => {window.__storageTarget.setItem = window.__originalSetItem;}')
                 assert page.evaluate("""() => ({
                     workspace: localStorage.getItem('minipost.workspace.v2'),
                     layout: localStorage.getItem('minipost.layout.v1'),
@@ -176,10 +180,10 @@ def main():
 
                 page.screenshot(path=str(out / 'whole-backup-desktop.png'), full_page=True)
                 page.set_viewport_size({'width': 390, 'height': 844})
-                expect(page.locator('html')).to_have_attribute('data-response-empty', 'true')
+                expect(page.locator('html')).to_have_attribute('data-response-empty', 'false')
                 expect(page.locator('#responseStatus')).to_be_visible()
-                expect(page.locator('#responseStatus')).to_have_text('未送信')
-                assert 35 <= page.locator('.response-panel').bounding_box()['height'] < 90
+                expect(page.locator('#responseStatus')).to_contain_text('200')
+                expect(page.locator('#extractResponse')).to_be_enabled()
                 page.screenshot(path=str(out / 'whole-backup-phone.png'), full_page=True)
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 assert not errors, errors
