@@ -4,8 +4,8 @@
     "apt": ["ca-certificates", "nodejs", "openssl", "python3", "python3-venv", "python3-pip"]
   },
   "vms": {
-    "app": {"port": 8080},
-    "browser": {"port": 18081}
+    "app": {"port": 8080, "resources": {"disk_gib": 8}},
+    "browser": {"port": 18081, "resources": {"disk_gib": 8}}
   },
   "steps": [
     {
@@ -39,5 +39,5 @@
       "run": "bash ci/relay_2vm_verify_browser.sh"
     }
   ],
-  "environment_revision": "minipost-2vm-chromium-20261016-v1"
+  "environment_revision": "minipost-2vm-chromium-20261016-v2"
 }
