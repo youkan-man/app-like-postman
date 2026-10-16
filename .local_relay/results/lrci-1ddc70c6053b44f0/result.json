@@ -1,0 +1,37 @@
+{
+  "branch": "feat/workspace-relations-20261016",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-16T10:43:55.005671704Z",
+  "reason": "VM app prepare: Sandbox did not become ready",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-1ddc70c6053b44f0",
+  "source_sha": "590082c8c2c79dcd05e76622c181dee98d2169a1",
+  "started_at": "2026-10-16T10:43:31.767644094Z",
+  "status": "failed",
+  "version": 1,
+  "vms": {
+    "app": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-29c67ddc5b12",
+      "environment_id": "lrce-60a6a30f4e487dfdf62449b3",
+      "expires_at": "0001-01-01T00:00:00Z",
+      "reused": false,
+      "retained": false,
+      "release_verified": true,
+      "port": 8080
+    },
+    "browser": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-5fa8ce63729f",
+      "environment_id": "lrce-a565d6cbf747d44b149f2f0c",
+      "expires_at": "0001-01-01T00:00:00Z",
+      "reused": false,
+      "retained": false,
+      "release_verified": true,
+      "port": 18081
+    }
+  }
+}
