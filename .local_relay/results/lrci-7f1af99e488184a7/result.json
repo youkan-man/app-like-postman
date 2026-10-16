@@ -1,0 +1,13 @@
+{
+  "branch": "fix/restore-content-tabs-20261015",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-16T01:19:23.75029537Z",
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-7f1af99e488184a7",
+  "source_sha": "3484c063b046c5ebf548b8bcd980a069dc378490",
+  "started_at": "2026-10-16T01:19:16.22286008Z",
+  "status": "cancelled",
+  "version": 1
+}
