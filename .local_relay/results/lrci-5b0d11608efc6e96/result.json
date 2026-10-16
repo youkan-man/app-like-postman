@@ -1,0 +1,13 @@
+{
+  "branch": "feat/workspace-relations-20261016",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-16T05:45:30.718648512Z",
+  "reason": "branch Sandbox disappeared before contract expiry; set environment_revision to replace it",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-5b0d11608efc6e96",
+  "source_sha": "376fcaa80f468609302f58f09212a689b7d6d5a4",
+  "started_at": "2026-10-16T05:45:29.510303024Z",
+  "status": "failed",
+  "version": 1
+}
