@@ -622,7 +622,7 @@ function folderChoices(collection) {
   walkItems(collection?.item, (item, parents) => {if (item.item) values.push([item._mpId, [...parents.map(p => p.name), item.name].join(' / ')]);}); return values;
 }
 function saveRequest() {
-  const tab = active(); persist(true); const priorKey = requestKey(workspace, tab);
+  const tab = active(); const priorKey = requestKey(workspace, tab);
   const current = workspace.collections.find(c => c._mpId === tab.collectionId), located = findItem(current, tab.itemId);
   if (located) {located.item.name = tab.name; located.item.request = clone(tab.request); located.item.settings = requestSettings(tab.settings); tab.dirty = false; persist(); renderAll(); toast('コレクションに保存しました。'); return;}
   let name = tab.name, collectionId = current?._mpId || selectedCollectionId || workspace.collections[0]?._mpId || '', folderId = tab.pendingFolderId || '';

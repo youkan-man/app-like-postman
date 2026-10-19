@@ -48,7 +48,7 @@ export class WorkspaceStorage {
       if (!this.database) {reject(new Error('ローカル保存領域を再読込してください。')); return;}
       let transaction;
       try {
-        transaction = this.database.transaction('state', mode);
+        transaction = this.database.transaction('state', mode, mode === 'readwrite' ? {durability: 'strict'} : undefined);
         let result;
         transaction.oncomplete = () => resolve(typeof result === 'function' ? result() : result);
         transaction.onabort = () => reject(transaction.error || new Error('ローカル保存が中断されました。'));
