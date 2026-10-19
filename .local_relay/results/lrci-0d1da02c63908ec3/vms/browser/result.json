@@ -1,0 +1,23 @@
+{
+  "branch": "feat/workspace-relations-20261016",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-10-19T09:18:35.993285Z",
+    "id": "lrce-c3a62260b8f9fcfc966a335f",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-54e72f9e5268",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-0d1da02c63908ec3-browser",
+  "source_sha": "0c73af7f705137738b656111b9470e080fffbb91",
+  "started_at": "2026-10-19T06:18:34.241421312Z",
+  "status": "failed",
+  "version": 1
+}
