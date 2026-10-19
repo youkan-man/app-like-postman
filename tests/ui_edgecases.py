@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 
 from playwright.sync_api import expect, sync_playwright
+from browser_app import BrowserApp
 from test_proxy import proxy, start_server
 
 
@@ -24,7 +25,7 @@ def main():
             browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True, args=['--no-sandbox'])
             page = browser.new_page(viewport={'width': 1440, 'height': 920})
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(app_url)
+            fixture = BrowserApp(app_url); fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             collection = {
                 'info': {'name': 'Legacy auth', 'schema': 'https://schema.getpostman.com/json/collection/v2.0.0/collection.json'},

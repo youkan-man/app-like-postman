@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 from playwright.sync_api import expect, sync_playwright
+from browser_app import BrowserApp
 from test_proxy import proxy, start_server
 
 
@@ -71,7 +72,7 @@ def main():
                 page.locator('#send').click()
                 expect(page.locator('#responseStatus')).to_contain_text('200')
 
-            page.goto(app_url, wait_until='domcontentloaded')
+            fixture = BrowserApp(app_url); fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             assert page.locator('#newRequest, #sidebarMore, #editEnvironment').count() == 0
             expect(page.locator('#addTab')).to_be_visible()
@@ -112,7 +113,7 @@ def main():
             passed('internal settings page navigation retains request data and avoids revisions')
 
             # Only visibility changes: open fields retain the flat editor geometry.
-            expect(page.locator('#editorContent details, #editorContent summary')).to_have_count(0)
+            expect(page.locator('#editorContent > details, #editorContent > summary')).to_have_count(0)
             expect(page.locator('section.editor-section')).to_have_count(6)
             for name in ['params', 'headers', 'authorization', 'body', 'settings', 'scripts']:
                 section = page.locator(f'section.editor-section[data-pane={name}]')
@@ -146,7 +147,7 @@ def main():
             headers = page.locator('section.editor-section[data-pane=headers]')
             scripts = page.locator('section.editor-section[data-pane=scripts]')
             headers.get_by_role('button', name='HTTP ヘッダー').click()
-            scripts.get_by_role('button', name='スクリプト（参照のみ）').click()
+            scripts.get_by_role('button', name='スクリプト', exact=True).click()
             page.locator('#url').fill(page.locator('#url').input_value())
             expect(headers.locator('.editor-section-body')).not_to_be_visible()
             expect(scripts.locator('.editor-section-body')).not_to_be_visible()
@@ -155,13 +156,13 @@ def main():
             page.locator('section.editor-section[data-pane=params] h2 button').click()
             assert page.evaluate('localStorage.getItem("minipost.workspace.v2")') == before
             page.locator('section.editor-section[data-pane=params] h2 button').click()
-            page.reload(wait_until='domcontentloaded')
+            fixture.reload(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             expect(headers.locator('.editor-section-body')).not_to_be_visible()
             expect(scripts.locator('.editor-section-body')).not_to_be_visible()
             capture('disclosure-desktop')
             headers.get_by_role('button', name='HTTP ヘッダー').click()
-            scripts.get_by_role('button', name='スクリプト（参照のみ）').click()
+            scripts.get_by_role('button', name='スクリプト', exact=True).click()
             send()
             page.locator('#editorContent').evaluate('el => el.scrollTop = 0')
             passed('disclosure survives render and reload without changing request data or revisions')
@@ -186,24 +187,22 @@ def main():
             page.keyboard.press('Escape')
 
             page.locator('#sidebarTabs [data-sidebar=environments]').click()
-            page.get_by_role('button', name='◫  Local development', exact=True).click()
-            expect(page.locator('#modal')).to_have_attribute('data-kind', 'drawer')
-            assert not page.locator('#modal').evaluate('el => el.matches(":modal")')
-            assert not page.locator('.main').evaluate('el => el.inert')
-            page.locator('#modal').get_by_label('Value 1', exact=True).fill(echo_url + '/saved')
-            capture('environment-drawer')
-            page.locator('#cancelModal').click()
-            page.get_by_role('button', name='◫  Local development', exact=True).click()
-            expect(page.locator('#modal').get_by_label('Value 1', exact=True)).to_have_value(echo_url + '/saved')
-            page.locator('#modal').get_by_label('Value 1', exact=True).fill(echo_url)
-            page.locator('#modal').get_by_label('Value 2', exact=True).fill('ui-updated-token')
-            expect(page.locator('#modalSubmit')).not_to_be_visible()
+            page.get_by_role('button', name='Local development', exact=True).click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            expect(page.locator('#workspacePage')).to_be_visible()
+            expect(page.locator('#exchange')).not_to_be_visible()
+            page.locator('#workspacePage').get_by_label('Value 1', exact=True).fill(echo_url + '/saved')
+            capture('environment-page')
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
+            page.locator('#sidebarTabs [data-sidebar=environments]').click()
+            expect(page.locator('#workspacePage').get_by_label('Value 1', exact=True)).to_have_value(echo_url + '/saved')
+            page.locator('#workspacePage').get_by_label('Value 1', exact=True).fill(echo_url)
+            page.locator('#workspacePage').get_by_label('Value 2', exact=True).fill('ui-updated-token')
             expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
-            page.locator('#closeModal').click()
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             send()
             assert dict(json.loads(page.locator('.response-code').inner_text())['headers'])['Authorization'] == 'Bearer ui-updated-token'
-            passed('nonmodal variable drawer autosave and close with real auth round trip')
-            page.locator('#sidebarTabs [data-sidebar=collections]').click()
+            passed('full-page variable autosave survives page switches and real auth round trip')
 
             open_request('Update channel')
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
@@ -229,12 +228,12 @@ def main():
             passed('side-by-side layout and keyboard horizontal separator')
             page.locator('#wrapResponse').click()
             assert page.locator('.response-code').evaluate('el => getComputedStyle(el).whiteSpace') == 'pre'
-            page.reload()
+            fixture.reload(page)
             expect(page.locator('html')).to_have_attribute('data-layout', 'side')
             expect(page.locator('#wrapResponse')).to_have_attribute('aria-pressed', 'false')
             passed('split position and wrapping preferences survive reload')
-            expect(page.locator('html')).to_have_attribute('data-response-empty', 'true')
-            expect(page.locator('#wrapResponse')).not_to_be_visible()
+            expect(page.locator('html')).to_have_attribute('data-response-empty', 'false')
+            expect(page.locator('#wrapResponse')).to_be_visible()
             send()
             expect(page.locator('#wrapResponse')).to_be_visible()
             page.locator('#wrapResponse').click()
@@ -255,7 +254,7 @@ def main():
             page.locator('#sidebarResize').focus()
             page.keyboard.press('ArrowRight')
             assert page.locator('.sidebar').bounding_box()['width'] > before
-            page.reload()
+            fixture.reload(page)
             assert page.locator('.sidebar').bounding_box()['width'] > before
             passed('sidebar resize persists without altering workspace data')
             page.locator('#toggleSidebar').click()
@@ -321,16 +320,14 @@ def main():
             page.set_viewport_size({'width': 1440, 'height': 920})
             page.locator('#search').fill('')
             page.locator('#sidebarTabs [data-sidebar=environments]').click()
-            page.get_by_role('button', name='◫  Local development', exact=True).click()
-            page.locator('#modal').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
+            page.get_by_role('button', name='Local development', exact=True).click()
+            page.locator('#workspacePage').get_by_label('Value 2', exact=True).fill('autosaved-mobile-edit')
             page.set_viewport_size({'width': 390, 'height': 844})
-            expect(page.locator('#modal').get_by_label('Value 2', exact=True)).to_have_value('autosaved-mobile-edit')
-            expect(page.locator('#modal')).to_have_attribute('aria-modal', 'true')
-            assert page.locator('#modal').evaluate('el => el.matches(":modal")')
+            expect(page.locator('#workspacePage').get_by_label('Value 2', exact=True)).to_have_value('autosaved-mobile-edit')
+            expect(page.locator('#modal')).not_to_be_visible()
             capture('mobile-variables')
-            page.locator('#cancelModal').click()
             page.set_viewport_size({'width': 1440, 'height': 920})
-            passed('variable drawer changes to modal without losing in-progress fields')
+            passed('variable page remains inline across desktop and phone without losing values')
             page.locator('#sidebarTabs [data-sidebar=collections]').click()
             open_request('Read channels')
             page.evaluate('document.documentElement.style.fontSize="26px"')
@@ -340,10 +337,12 @@ def main():
             capture('text-200-percent')
             page.evaluate('document.documentElement.style.fontSize=""')
             passed('200 percent root text enlargement keeps actions reachable')
+            previous_storage = page.evaluate('({...localStorage.__data})') if fixture.inline else None
             touch_context = browser.new_context(viewport={'width':390,'height':844}, has_touch=True, storage_state=context.storage_state())
             page = touch_context.new_page()
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(app_url, wait_until='domcontentloaded')
+            if fixture.inline: fixture.local = previous_storage
+            fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             page.locator('#toggleSidebar').tap()
             page.get_by_role('button', name='Read channelsの操作', exact=True).tap()

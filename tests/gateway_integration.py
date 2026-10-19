@@ -16,7 +16,7 @@ SCRIPT = """
 import fs from 'node:fs';
 import {importPostman,walkItems,compileRequest} from './static/core.mjs';
 const options=JSON.parse(fs.readFileSync(0,'utf8'));
-const c=importPostman(fs.readFileSync('examples/com-gateway.postman_collection.json','utf8')).collections[0];
+const c=importPostman(fs.readFileSync('tests/fixtures/com-gateway.postman_collection.json','utf8')).collections[0];
 const env={id:'test',values:Object.entries(options).map(([key,value])=>({key,value}))};
 const ws={collections:[c],globals:[],environments:[env],environmentId:'test'};
 const result=[];
@@ -34,7 +34,7 @@ def browser_gateway(app, base, token):
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto(app.url, wait_until='domcontentloaded')
         expect(page.locator('#connectionStatus')).to_contain_text('connected')
-        collection = json.loads((ROOT / 'examples/com-gateway.postman_collection.json').read_text())
+        collection = json.loads((ROOT / 'tests/fixtures/com-gateway.postman_collection.json').read_text())
         environment = {'name':'Real Gateway outside Docker','_postman_variable_scope':'environment','values':[
             {'key':'baseUrl','value':base,'enabled':True}, {'key':'gatewayToken','value':token,'enabled':True}]}
         for value in [collection, environment]:

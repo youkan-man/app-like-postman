@@ -71,7 +71,7 @@ jobs:
         run: |
           mkdir -p artifacts/browser
           git rev-parse HEAD > artifacts/browser/tested-commit.txt
-          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py static tests examples requirements-test.txt Dockerfile docker-compose.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
+          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py static tests requirements-test.txt Dockerfile docker-compose.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
           sha256sum artifacts/browser/tested-source.zip > artifacts/browser/tested-source.sha256
       - name: Install Playwright and Chromium
         run: |
@@ -95,9 +95,21 @@ jobs:
       - name: Local-first backup and explicit server storage
         if: ${{ !cancelled() }}
         run: python tests/ui_backup.py 2>&1 | tee artifacts/browser/ui-backup.log
+      - name: Native IndexedDB quota recovery and server restore
+        if: ${{ !cancelled() }}
+        run: python tests/ui_storage.py 2>&1 | tee artifacts/browser/ui-storage.log
       - name: Category paging and single-request acceptance
         if: ${{ !cancelled() }}
         run: python tests/ui_paging.py 2>&1 | tee artifacts/browser/ui-paging.log
+      - name: Context creation, primary variables, scripts and relations
+        if: ${{ !cancelled() }}
+        run: python tests/ui_automation.py 2>&1 | tee artifacts/browser/ui-automation.log
+      - name: Extraction focus, context menus and responsive forms
+        if: ${{ !cancelled() }}
+        run: python tests/ui_extraction.py 2>&1 | tee artifacts/browser/ui-extraction.log
+      - name: Keyboard focus and context-action regression
+        if: ${{ !cancelled() }}
+        run: python tests/ui_focus.py 2>&1 | tee artifacts/browser/ui-focus.log
       - name: Upload screenshots and browser results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

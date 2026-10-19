@@ -224,10 +224,10 @@ class ProxyTests(unittest.TestCase):
                 self.assertIn('javascript', response.headers['Content-Type'])
                 self.assertGreater(len(response.read()), 0)
 
-    def test_example_endpoint(self):
-        with urlopen(self.proxy_url + '/api/examples/gateway') as response:
-            data = json.load(response)
-        self.assertEqual(data['info']['name'], 'COM Transport Gateway')
+    def test_removed_sample_endpoint(self):
+        with self.assertRaises(HTTPError) as raised:
+            urlopen(self.proxy_url + '/api/examples/gateway')
+        self.assertEqual(raised.exception.code, 404)
 
     def test_proxy_validation_status(self):
         with self.assertRaises(HTTPError) as raised:

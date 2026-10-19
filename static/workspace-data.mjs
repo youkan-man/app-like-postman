@@ -33,10 +33,13 @@ function validRevisions(map) {
   if (map == null) return true;
   if (!record(map)) return false;
   for (const [key, entries] of Object.entries(map)) {
-    if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft):[^:]+(?::[^:]+)?$/.test(key)) return false;
+    if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft|relation):[^:]+(?::[^:]+)?$/.test(key)) return false;
     if (!Array.isArray(entries) || !entries.every(entry => record(entry) && (record(entry.value) || (Object.hasOwn(entry, 'before') && Object.hasOwn(entry, 'after'))))) return false;
   }
   return true;
+}
+function validRelations(relations) {
+  return relations == null || (Array.isArray(relations) && relations.every(r => record(r) && validId(r.id) && typeof r.name === 'string' && Array.isArray(r.steps) && r.steps.every(s => record(s) && validId(s.id))));
 }
 function validWorkspace(ws) {
   return record(ws) && ws.version === 2 &&
@@ -53,7 +56,7 @@ function validWorkspace(ws) {
     (ws.collapsed == null || Array.isArray(ws.collapsed)) &&
     (ws.activeId == null || typeof ws.activeId === 'string') &&
     (ws.environmentId == null || typeof ws.environmentId === 'string') &&
-    validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
+    validRelations(ws.relations) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
 export function readWorkspaceBundle(input) {
   const obj = typeof input === 'string' ? JSON.parse(input) : input;
@@ -88,6 +91,20 @@ export function mergeWorkspace(into, source) {
       h.tab.itemId = remap(h.tab.itemId);
     }
   });
+  for (const relation of imported.relations || []) {
+    relation.id = remap(relation.id); relation.environmentId = remap(relation.environmentId);
+    for (const step of relation.steps) {
+      step.id = remap(step.id); step.collectionId = remap(step.collectionId); step.itemId = remap(step.itemId); step.draftId = remap(step.draftId);
+      if (step.onTrue && !step.onTrue.startsWith('$')) step.onTrue = remap(step.onTrue);
+      if (step.onFalse && !step.onFalse.startsWith('$')) step.onFalse = remap(step.onFalse);
+    }
+  }
+  for (const run of imported.relationRuns || []) {
+    run.id = remap(run.id); run.relationId = remap(run.relationId);
+    for (const entry of run.entries || []) {entry.stepId = remap(entry.stepId);if (entry.branch?.target && !entry.branch.target.startsWith('$')) entry.branch.target = remap(entry.branch.target);}
+  }
+  into.relations ||= []; into.relations.push(...(imported.relations || []));
+  into.relationRuns ||= []; into.relationRuns.push(...(imported.relationRuns || []));
   into.collections.push(...imported.collections);
   into.environments.push(...imported.environments);
   into.globals.push(...imported.globals);
@@ -100,6 +117,7 @@ export function mergeWorkspace(into, source) {
     for (const [key, values] of Object.entries(imported[property] || {})) {
       const parts = key.split(':');
       const renamed = [parts[0], ...parts.slice(1).map(remap)].join(':');
+      if (parts[0] === 'relation') for (const entry of values) {const value=entry.value;if(value){value.environmentId=remap(value.environmentId);for(const step of value.steps || []){step.id=remap(step.id);step.collectionId=remap(step.collectionId);step.itemId=remap(step.itemId);step.draftId=remap(step.draftId);for(const field of ['onTrue','onFalse'])if(step[field] && !step[field].startsWith('$'))step[field]=remap(step[field]);}}}
       if (renamed === 'globals') {
         into[property].globals = [...(into[property].globals || []), ...values];
       } else into[property][renamed] = values;

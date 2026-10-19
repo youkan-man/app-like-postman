@@ -10,6 +10,7 @@ import sys
 import time
 
 from playwright.sync_api import sync_playwright, expect
+from browser_app import BrowserApp
 from test_proxy import ROOT, proxy, start_server
 
 
@@ -41,7 +42,7 @@ def main():
             context = browser.new_context(viewport={'width': 1440, 'height': 920}, accept_downloads=True)
             page = context.new_page(); errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(app_url)
+            fixture = BrowserApp(app_url); fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             passed('initial workspace and real proxy health')
 
@@ -78,7 +79,7 @@ def main():
             expect(page.get_by_label('Raw body')).to_contain_text('')
             send(); payload = body_json(); assert json.loads(payload['body'])['message'] == 'hello workspace'
             page.get_by_label('Raw body').fill('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
-            page.keyboard.press('Control+s'); page.reload(); expect(page.get_by_label('リクエスト名')).to_have_value('JSON request')
+            page.keyboard.press('Control+s'); fixture.reload(page); expect(page.get_by_label('リクエスト名')).to_have_value('JSON request')
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); expect(page.get_by_label('Raw body')).to_have_value('{\n  "message": "edited {{label}}",\n  "count": 3,\n  "enabled": true\n}')
             send(); assert json.loads(body_json()['body'])['message'] == 'edited workspace'
             passed('JSON body variables, keyboard save and reload persistence')
@@ -150,7 +151,7 @@ def main():
             passed('untrusted imported names remain text; scripts retained but never executed')
 
             # Imported hostile labels remain visible as escaped text in this test.
-            page.locator('#gatewayExample').click(); expect(page.locator('#modalTitle')).to_have_text('インポート完了'); page.locator('#modalSubmit').click()
+            expect(page.locator('#gatewayExample')).to_have_count(0)
             open_request('JSON request'); expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible(); send()
             page.wait_for_timeout(300)
             page.screenshot(path=str(out / 'browser-e2e.png'), full_page=True)
@@ -161,10 +162,20 @@ def main():
                 expect(page.locator('#send')).to_be_visible()
             passed('responsive layout at desktop, tablet and phone widths')
             page.set_viewport_size({'width': 1440, 'height': 920})
+            expect(page.locator('html')).to_have_attribute('data-navigation', 'open')
+            expect(page.locator('#navigation')).to_be_visible()
             old_width = page.locator('.sidebar').bounding_box()['width']; handle = page.locator('#sidebarResize').bounding_box()
-            page.mouse.move(handle['x'] + 2, handle['y'] + 70); page.mouse.down(); page.mouse.move(handle['x'] + 72, handle['y'] + 70); page.mouse.up()
-            assert page.locator('.sidebar').bounding_box()['width'] > old_width
-            passed('interactive sidebar resize')
+            if fixture.inline:
+                # Pointer capture is not retained after document.open in this DOM fixture.
+                # Native browser E2E below still verifies drag, not a synthetic substitute.
+                page.locator('#sidebarResize').focus(); page.keyboard.press('ArrowRight')
+                assert page.locator('.sidebar').bounding_box()['width'] > old_width
+                passed('keyboard sidebar resize in inline fixture')
+            else:
+                page.mouse.move(handle['x'] + 1, handle['y'] + 70)
+                page.mouse.down(); page.mouse.move(handle['x'] + 72, handle['y'] + 70, steps=4); page.mouse.up()
+                assert page.locator('.sidebar').bounding_box()['width'] > old_width
+                passed('interactive sidebar drag resize')
 
             assert not errors, errors
             passed('no uncaught browser JavaScript errors')

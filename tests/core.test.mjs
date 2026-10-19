@@ -148,7 +148,7 @@ test('unknown metadata and auth data survive re-export', () => {
   const c = importPostman(data).collections[0]; const out = exportCollection(c); assert.deepEqual(out.custom, {a: 1}); assert.deepEqual(out.item[0].request.auth, data.item[0].request.auth); assert.equal(out.item[0].request.certificate.name, 'keep');
 });
 test('Gateway sample imports with nested folders and no embedded token', () => {
-  const data = JSON.parse(fs.readFileSync(new URL('../examples/com-gateway.postman_collection.json', import.meta.url)));
+  const data = JSON.parse(fs.readFileSync(new URL('./fixtures/com-gateway.postman_collection.json', import.meta.url)));
   const {w, tab, c} = setup(data); assert.equal(c.item.length, 3);
   assert.equal(compileRequest(w, tab).payload.headers.length, 0);
   c.variable.find(v => v.key === 'baseUrl').value = 'http://127.0.0.1:9999';
