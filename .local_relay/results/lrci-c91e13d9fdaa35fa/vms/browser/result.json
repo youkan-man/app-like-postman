@@ -1,0 +1,13 @@
+{
+  "branch": "feat/script-assertions-20261022",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-c91e13d9fdaa35fa-browser",
+  "source_sha": "2dd8e9a3a419ca53ea649d0d8c8f0b5e59bd9c86",
+  "started_at": "2026-10-23T06:51:27.190064278Z",
+  "status": "preparing",
+  "version": 1
+}
