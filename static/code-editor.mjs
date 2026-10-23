@@ -21,7 +21,7 @@ const scriptMembers = {
   console: ['log','warn','error'],
   response: ['status','statusText','headers','body','elapsed_ms','size'],
 };
-const memberPattern = /(?:^|[^\\w$])([A-Za-z_$][\\w$]*)\\.([\\w$]*)$/;
+const memberPattern = /(?:^|[^\w$])([A-Za-z_$][\w$]*)\.([\w$]*)$/;
 export function scriptCompletions(prefix) {
   const match = String(prefix).match(memberPattern);
   if (match) return (scriptMembers[match[1]] || []).filter(item => item.startsWith(match[2])).map(item => ({label:item,insert:item.slice(match[2].length)}));
