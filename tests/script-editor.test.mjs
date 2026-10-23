@@ -7,6 +7,8 @@ test('script completion resolves object members and partial names',()=>{
  assert.ok(scriptCompletions('vars.s').some(x=>x.label==='set'));
  assert.ok(scriptCompletions('console.l').some(x=>x.label==='log'));
  assert.deepEqual(scriptCompletions('unknown.method'),[]);
+ assert.deepEqual(scriptCompletions('pm.response.js'),[{label:'json',insert:'on'}]);
+ assert.ok(scriptCompletions('pm.environment.s').some(x=>x.label==='set'));
 });
 test('script highlight escapes HTML and styles JavaScript keywords',()=>{
  const html=highlight('const x = "<unsafe>";','javascript');
