@@ -25,7 +25,7 @@ const memberPattern = /(?:^|[^\w$])([A-Za-z_$][\w$]*)\.([\w$]*)$/;
 export function scriptCompletions(prefix) {
   const match = String(prefix).match(memberPattern);
   if (match) return (scriptMembers[match[1]] || []).filter(item => item.startsWith(match[2])).map(item => ({label:item,insert:item.slice(match[2].length)}));
-  const word = String(prefix).match(/[A-Za-z_$][\\w$]*$/)?.[0] || '';
+  const word = String(prefix).match(/[A-Za-z_$][\w$]*$/)?.[0] || '';
   if (!word) return [];
   return Object.keys(scriptMembers).filter(item => item.startsWith(word)).map(item=>({label:item,insert:item.slice(word.length)}));
 }
