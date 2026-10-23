@@ -38,7 +38,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   function sync(){pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;}
   area.addEventListener('input',()=>{paint();onChange(area.value);});area.addEventListener('scroll',sync);
   area.addEventListener('keydown',event=>{
-    if(event.key==='Tab'&&!event.shiftKey&&!readOnly){event.preventDefault();if(!document.execCommand('insertText',false,'  ')){area.setRangeText('  ',area.selectionStart,area.selectionEnd,'end');area.dispatchEvent(new Event('input',{bubbles:true}));}}
+    if(event.key==='Tab'&&!event.shiftKey&&!readOnly&&(!intellisense||root.querySelector('.source-suggestions')?.hidden!==false)){event.preventDefault();if(!document.execCommand('insertText',false,'  ')){area.setRangeText('  ',area.selectionStart,area.selectionEnd,'end');area.dispatchEvent(new Event('input',{bubbles:true}));}}
   });
   if (intellisense && !readOnly) {
     const suggestions=document.createElement('div');suggestions.className='source-suggestions';suggestions.setAttribute('role','listbox');suggestions.hidden=true;
@@ -59,7 +59,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
       const item=matches[index];if(!item)return;
       area.setRangeText(item.insert,area.selectionStart,area.selectionEnd,'end');area.dispatchEvent(new Event('input',{bubbles:true}));close();area.focus();
     };
-    area.addEventListener('input',update);area.addEventListener('click',update);area.addEventListener('blur',()=>setTimeout(close,100));
+    area.addEventListener('input',update);area.addEventListener('click',update);area.addEventListener('compositionstart',close);area.addEventListener('blur',()=>setTimeout(close,100));
     area.addEventListener('keydown',event=>{
       if(suggestions.hidden)return;
       if(event.key==='Escape'){event.preventDefault();close();}
