@@ -1,37 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p .local_relay/output
-if [[ -z "${LOCAL_RELAY_VM_APP_IP:-}" ]]; then
-  echo 'Missing injected LOCAL_RELAY_VM_APP_IP (no proven VM peer address)' >&2
-  exit 2
-fi
-PORT="${LOCAL_RELAY_VM_APP_PORT:-8080}"
-export HOST=0.0.0.0 PORT MINIPOST_WORKSPACE_FILE="/tmp/minipost-2vm-${LOCAL_RELAY_VM_APP_IP//./-}.json"
-# The test instance is disposable and uses test-only storage.
-if [[ -e .local_relay/output/app.pid ]]; then
-  prior=$(cat .local_relay/output/app.pid)
-  if kill -0 "$prior" 2>/dev/null; then
-    echo "Managed MiniPost process already exists at PID ${prior}" >&2
-    exit 2
-  fi
-fi
-setsid python3 -u app.py </dev/null >.local_relay/output/app-server.log 2>&1 &
-pid=$!
-echo "$pid" >.local_relay/output/app.pid
-python3 - <<'PY'
-import json,os,time,urllib.request
-base=f'http://127.0.0.1:{int(os.environ["PORT"])}'
+[[ -n "${LOCAL_RELAY_VM_APP_IP:-}" ]] || { echo 'Missing injected app peer address' >&2; exit 2; }
+root=$(pwd)
+unit=minipost-relay-ci-test
+instance=$(python3 -c 'import uuid; print(uuid.uuid4().hex)')
+port=${LOCAL_RELAY_VM_APP_PORT:-8080}
+# Only stop the unit owned by this test. Never kill arbitrary port owners.
+systemctl stop "${unit}.service" 2>/dev/null || true
+systemctl reset-failed "${unit}.service" 2>/dev/null || true
+systemd-run --unit="$unit" --collect --property=RuntimeMaxSec=1800s \
+  --property="WorkingDirectory=$root" \
+  --property="StandardOutput=append:$root/.local_relay/output/app-server.log" \
+  --property="StandardError=append:$root/.local_relay/output/app-server.log" \
+  --setenv=HOST=0.0.0.0 --setenv="PORT=$port" \
+  --setenv="MINIPOST_TEST_INSTANCE=$instance" \
+  --setenv="MINIPOST_WORKSPACE_FILE=/tmp/minipost-relay-$instance.json" \
+  /usr/bin/python3 -u "$root/ci/relay_fixture_server.py"
+export MINIPOST_TEST_INSTANCE="$instance" PORT="$port"
+if ! python3 - <<'PY'
+import json, os, time, urllib.request, subprocess
+from pathlib import Path
+base=f'http://127.0.0.1:{os.environ["PORT"]}'
 for attempt in range(60):
-  try:
-    with urllib.request.urlopen(base+'/api/health',timeout=1.5) as response:
-      payload=json.load(response)
-      if response.status==200 and payload.get('ok'):
-        print('Application VM HTTP server ready',base,flush=True)
+    if subprocess.run(['systemctl','is-active','--quiet','minipost-relay-ci-test.service']).returncode:
+        raise SystemExit('The test process exited; an unrelated healthy server is not acceptance evidence')
+    try:
+        with urllib.request.urlopen(base+'/__relay_test_identity',timeout=2) as response:
+            identity=json.load(response)
+        if identity.get('instance')!=os.environ['MINIPOST_TEST_INSTANCE']:
+            raise SystemExit('Port belongs to a different application instance')
+        with urllib.request.urlopen(base+'/api/health',timeout=2) as response:
+            assert json.load(response)['ok']
+        Path('.local_relay/output/app-readiness.json').write_text(json.dumps({'ready':True,'instance':identity['instance'],'files':identity['files']}))
+        print('PASS exact newly launched MiniPost instance',flush=True)
         break
-  except Exception:
-    time.sleep(0.5)
+    except (OSError,ValueError,AssertionError):
+        time.sleep(.5)
 else:
-  raise SystemExit('Application VM HTTP readiness timeout; inspect app-server.log')
-with open('.local_relay/output/app-readiness.json','w') as output:
-  json.dump({'ready':True,'port':int(os.environ['PORT']),'test_only':True},output)
+    raise SystemExit('Application identity/readiness timeout')
 PY
+then
+  systemctl stop "${unit}.service" || true
+  cat .local_relay/output/app-server.log >&2
+  exit 1
+fi
