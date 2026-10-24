@@ -109,7 +109,7 @@ export function signatureHelp(source, position=source.length){
     }else if(')]}'.includes(c))stack.pop();
     else if(c===','&&stack.at(-1)?.opening==='(')stack.at(-1).argument++;
   }
-  for(const call of stack.toReversed()){
+  for(const call of stack.slice().reverse()){
     if(!call.name)continue;
     const at=call.name.lastIndexOf('.');const spec=scriptAPI[call.name.slice(0,at)]?.[call.name.slice(at+1)];
     if(spec?.[0].includes('('))return {name:call.name,signature:call.name.slice(0,at+1)+spec[0],description:spec[1],argument:call.argument};
