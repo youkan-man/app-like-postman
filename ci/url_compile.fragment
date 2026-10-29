@@ -1,0 +1,13 @@
+  if (!/^https?:\/\//i.test(base)) throw new Error('HTTP / HTTPSに対応しています。');
+  const pathVariables = {};
+  // Keep raw text in the transport JSON. The backend encodes path values,
+  // Unicode and query components exactly once, after resolving structure.
+  for (const match of base.matchAll(/(?:^|\/):([\w-]+)(?=\/|[?#]|$)/g)) {
+    if (!Object.hasOwn(context.vars, match[1])) throw new Error(`パス変数 :${match[1]} が未設定です。`);
+    pathVariables[match[1]] = resolve(context.vars[match[1]]);
+  }
+  const query = u.query.filter(enabled).filter(p => p.key).map(p => ({key: resolve(p.key), value: resolve(p.value)}));
+  const setQueryValue = (key, value) => {
+    for (let index = query.length - 1; index >= 0; index--) if (query[index].key === key) query.splice(index, 1);
+    query.push({key, value, replace: true});
+  };
