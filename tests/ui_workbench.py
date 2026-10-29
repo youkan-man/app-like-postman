@@ -71,6 +71,11 @@ def main():
             def send():
                 page.locator('#send').click()
                 expect(page.locator('#responseStatus')).to_contain_text('200')
+                # The HTTP result precedes the asynchronous IndexedDB commit.
+                # Establish a durable baseline before checking that navigation
+                # does not edit the workspace; do not race the prior Send save.
+                expect(page.locator('#send')).to_contain_text('Send')
+                expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
 
             fixture = BrowserApp(app_url); fixture.open(page)
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
@@ -272,6 +277,7 @@ def main():
             passed('list selection opens one request without a tab strip')
             page.locator('#search').fill('Request 44')
             open_request('Request 44')
+            expect(page.locator('#requestName')).to_have_value('Request 44')
             expect(page.locator('#search')).to_have_value('Request 44')
             page.locator('#search').fill('')
             assert page.locator('#sidebarContent').evaluate('el => el.scrollHeight > el.clientHeight')
