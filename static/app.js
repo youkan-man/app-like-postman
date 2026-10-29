@@ -962,7 +962,7 @@ function showRevisions(key) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
     details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', async () => {
       if (!await confirmAction('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。', {title:'変更履歴を復元', accept:'復元', danger:false})) return;
-      revisionStore.restore(key, entry); selectedFiles.delete(active().id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
+      revisionStore.restore(key, entry); for (const draft of workspace.tabs) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';

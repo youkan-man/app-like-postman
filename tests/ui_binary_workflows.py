@@ -123,6 +123,21 @@ def main():
             second=b'B\x00\xff';pick('second.bin',second);ready('second.bin');send(second)
             choose('Upload A');send(bytes(range(256))*24576)
             passed('request switches keep attachments separate and never reuse another request file')
+            # Restoring B while A is selected must invalidate B's files, not A's.
+            expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
+            page.get_by_role('button',name='Upload Bの操作',exact=True).click()
+            page.get_by_role('menuitem',name='変更履歴',exact=True).click()
+            revision=page.locator('.revision-entry').last
+            revision.locator('summary').click()
+            revision.get_by_role('button',name='この版を復元',exact=True).click()
+            page.locator('#appConfirm').get_by_role('button',name='復元',exact=True).click()
+            page.locator('#closeModal').click()
+            expect(page.locator('#requestName')).to_have_value('Upload A')
+            send(bytes(range(256))*24576)
+            choose('Upload B');count=len(RECEIVED);page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_have_text('ERROR');assert len(RECEIVED)==count
+            passed('restoring another request invalidates only its attachments and preserves the selected request file')
+            pick('second.bin',second);ready('second.bin');choose('Upload A')
             delayed_reads();replacement=b'new selection\x00\xff';pick('hold-replacement.bin',replacement)
             expect(page.locator('[data-file-slot=binary] .file-pick')).to_have_attribute('aria-busy','true')
             count=len(RECEIVED);page.locator('#send').click();expect(page.locator('#send')).to_contain_text('Cancel');assert len(RECEIVED)==count
@@ -186,7 +201,10 @@ def main():
             capture('binary-receiver-sha256-desktop')
             for width,height in [(1440,920),(390,844),(320,720)]:
                 page.set_viewport_size({'width':width,'height':height})
+                # matchMedia change handlers run after viewport acknowledgement.
+                page.wait_for_function("document.getElementById('navClose').hidden === !matchMedia('(max-width: 820px)').matches")
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
+                expect(page.locator('#sidebarTabs')).to_be_visible()
                 tabs=page.locator('#sidebarTabs button').all();boxes=[tab.bounding_box() for tab in tabs]
                 assert max(b['y'] for b in boxes)-min(b['y'] for b in boxes)<1,boxes
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
