@@ -13,7 +13,7 @@ from app import Handler
 
 
 def source_hashes():
-    paths = [ROOT / 'app.py', ROOT / 'network.py', *sorted((ROOT / 'static').iterdir())]
+    paths = [ROOT / 'app.py', ROOT / 'network.py', ROOT / 'url_codec.py', *sorted((ROOT / 'static').iterdir())]
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in paths if path.is_file()}
 

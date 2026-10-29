@@ -17,6 +17,7 @@ from email.message import Message
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
+from url_codec import request_url, wire_url, form_body, transform_text
 from network import runtime_info, connection_details, connection_diagnostic, format_network_error
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -44,6 +45,8 @@ def _quoted(value):
 
 
 def prepare_body(payload, headers):
+    if "form_urlencoded" in payload:
+        return form_body(payload["form_urlencoded"])
     if "multipart" in payload:
         boundary = "----MiniPost" + uuid.uuid4().hex
         parts = []
@@ -74,7 +77,7 @@ def prepare_body(payload, headers):
 def send_http_request(payload):
     if not isinstance(payload, dict):
         raise ValueError("リクエストはJSONオブジェクトで指定してください。")
-    url = str(payload.get("url", "")).strip()
+    url = request_url(payload)
     method = str(payload.get("method", "GET")).upper()
     if not TOKEN.fullmatch(method):
         raise ValueError("HTTPメソッドが不正です。")
@@ -144,7 +147,7 @@ def send_http_request(payload):
         if payload.get("follow_redirects", True) and status in {301, 302, 303, 307, 308} and location:
             if hop == 20:
                 raise ValueError("リダイレクト回数が20回を超えました。Settingsで追従をOFFにできます。")
-            next_url = urljoin(url, location)
+            next_url = wire_url(urljoin(url, location))
             next_target = urlsplit(next_url)
             next_port = next_target.port or (443 if next_target.scheme == "https" else 80)
             if (target.scheme, target.hostname, port) != (next_target.scheme, next_target.hostname, next_port):
@@ -253,11 +256,11 @@ class Handler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
-        if self.path not in ("/api/request", "/api/workspace"):
+        if self.path not in ("/api/request", "/api/workspace", "/api/url-transform"):
             self.send_json(404, {"ok": False, "error": "Not Found"})
             return
         try:
-            if self.path == "/api/workspace":
+            if self.path in ("/api/workspace", "/api/url-transform"):
                 origin = self.headers.get("Origin")
                 if origin and urlsplit(origin).netloc != self.headers.get("Host"):
                     self.send_json(403, {"ok": False, "error": "別オリジンからの保存は許可されていません。"})
@@ -270,7 +273,9 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_json(413 if length > MAX_WORKSPACE_BYTES else 400, {"ok": False, "error": "保存データのサイズまたは形式が不正です。"})
                 return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            if self.path == "/api/workspace":
+            if self.path == "/api/url-transform":
+                self.send_json(200, {"ok": True, "text": transform_text(payload)})
+            elif self.path == "/api/workspace":
                 self.send_json(200, write_workspace(payload))
             else:
                 self.send_json(200, send_http_request(payload))

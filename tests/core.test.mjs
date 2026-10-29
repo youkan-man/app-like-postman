@@ -36,20 +36,20 @@ test('reject invalid JSON, unknown formats, v1 and unknown variable scopes', () 
 });
 test('query object overrides raw and preserves duplicate and disabled values', () => {
   const p = compile({url: {raw: 'http://localhost/p?k=old', query: [{key: 'k', value: 'a'}, {key: 'k', value: 'b'}, {key: 'disabled', value: 'x', disabled: true}]}});
-  assert.equal(p.url, 'http://localhost/p?k=a&k=b');
+  assert.equal(p.url, 'http://localhost/p'); assert.deepEqual(p.query, [{key:'k',value:'a'},{key:'k',value:'b'}]);
 });
 test('query string is parsed without duplication and keeps hash separate', () => {
   const r = normalizeRequest({url: 'http://localhost/p?x=1&x=2#section'}); assert.equal(r.url.query.length, 2);
-  const {w, tab} = setup(collection(r)); assert.equal(compileRequest(w, tab).payload.url, 'http://localhost/p?x=1&x=2');
+  const {w, tab} = setup(collection(r)); assert.equal(compileRequest(w, tab).payload.url, 'http://localhost/p'); assert.deepEqual(compileRequest(w,tab).payload.query,[{key:'x',value:'1'},{key:'x',value:'2'}]);
 });
 test('URL editing and Params editing remain synchronized', () => {
   const r = newRequest(); setUrlText(r, '{{baseUrl}}/p?q=a%20b'); assert.equal(r.url.query[0].value, 'a b');
   r.url.query.push({key: 'x', value: '{{token}}'}); setQuery(r, r.url.query);
-  assert.equal(displayUrl(r.url), '{{baseUrl}}/p?q=a%20b&x={{token}}');
+  assert.equal(displayUrl(r.url), '{{baseUrl}}/p?q=a b&x={{token}}');
   setUrlText(r, 'http://localhost/new?z=3'); assert.equal(r.url.query.length, 1); assert.equal(r.url.query[0].key, 'z');
 });
 test('construct structured URL with protocol, host, port, path', () => {
-  assert.equal(compile({url: {protocol: 'http', host: ['local', 'test'], port: '9090', path: ['api', 'ports'], query: [{key: 'a', value: '1'}]}}).url, 'http://local.test:9090/api/ports?a=1');
+  assert.equal(compile({url: {protocol: 'http', host: ['local', 'test'], port: '9090', path: ['api', 'ports'], query: [{key: 'a', value: '1'}]}}).url, 'http://local.test:9090/api/ports');
 });
 test('environment wins over collection and global; disabled overrides skipped', () => {
   const {w, tab, c} = setup(collection({url: '{{baseUrl}}/{{x}}'}, {variable: [{key: 'baseUrl', value: 'http://localhost'}, {key: 'x', value: 'collection'}]}));
@@ -65,9 +65,9 @@ test('variable recursion, false and zero values, cycles, missing and prototype k
   const proto = JSON.parse('{"__proto__":"safe"}'); assert.equal(resolver(proto)('{{__proto__}}'), 'safe');
 });
 test('dynamic variables stable within one request', () => {const r = resolver({}); assert.equal(r('{{$guid}}'), r('{{$guid}}')); assert.match(r('{{$timestamp}}'), /^\d+$/);});
-test('path variables with slash and UTF-8 are escaped', () => {
+test('path variables with slash and UTF-8 are passed as text to the backend', () => {
   const p = compile({url: {raw: 'http://localhost/:id/a', variable: [{key: 'id', value: '日本/語'}]}});
-  assert.equal(p.url, 'http://localhost/%E6%97%A5%E6%9C%AC%2F%E8%AA%9E/a');
+  assert.equal(p.url, 'http://localhost/:id/a'); assert.deepEqual(p.path_variables,{id:'日本/語'});
   assert.throws(() => compile({url: 'http://localhost/:missing'}), /パス変数/);
 });
 test('dynamic full URL query retained and additional params appended once', () => {
@@ -75,7 +75,7 @@ test('dynamic full URL query retained and additional params appended once', () =
 });
 test('URL query and header variables are escaped correctly', () => {
   const p = compile({url: {raw: 'http://localhost/', query: [{key: 'q', value: '{{q}}'}]}, header: [{key: 'X-Value', value: '{{q}}'}, {key: 'X-Off', value: 'x', disabled: true}]}, {variable: [{key: 'q', value: 'a&b +日本'}]});
-  assert.equal(new URL(p.url).searchParams.get('q'), 'a&b +日本'); assert.equal(p.headers.length, 1); assert.equal(p.headers[0].value, 'a&b +日本');
+  assert.equal(p.query.find(row=>row.key==='q').value, 'a&b +日本'); assert.equal(p.headers.length, 1); assert.equal(p.headers[0].value, 'a&b +日本');
 });
 test('raw header string supports colon in values and duplicate names', () => {const p = compile({header: 'X-Test: a:b\nX-Test: second'}); assert.equal(p.headers.length, 2); assert.equal(p.headers[0].value, 'a:b');});
 test('inherited bearer and explicit noauth', () => {
@@ -96,7 +96,7 @@ test('Basic UTF-8 and single generated Authorization', () => {
 test('API key header and query placement', () => {
   for (const where of ['header', 'query']) {
     const p = compile({auth: {type: 'apikey', apikey: [{key: 'key', value: 'api-key'}, {key: 'value', value: 'abc'}, {key: 'in', value: where}]}});
-    if (where === 'query') assert.equal(new URL(p.url).searchParams.get('api-key'), 'abc'); else assert.equal(p.headers[0].key, 'api-key');
+    if (where === 'query') assert.equal(p.query.find(row=>row.key==='api-key').value, 'abc'); else assert.equal(p.headers[0].key, 'api-key');
   }
 });
 test('OAuth access token only and unsupported auth errors', () => {
@@ -115,7 +115,7 @@ test('all raw languages and explicit content type respected', () => {
 });
 test('urlencoded repeated keys and inactive entries', () => {
   const p = compile({method: 'POST', body: {mode: 'urlencoded', urlencoded: [{key: 'q', value: 'a b'}, {key: 'q', value: 'c+d'}, {key: 'off', value: 'x', disabled: true}]}});
-  assert.equal(p.body, 'q=a+b&q=c%2Bd'); assert.equal(p.headers[0].value, 'application/x-www-form-urlencoded');
+  assert.equal(p.body,null); assert.deepEqual(p.form_urlencoded,[{key:'q',value:'a b'},{key:'q',value:'c+d'}]); assert.equal(p.headers[0].value, 'application/x-www-form-urlencoded');
 });
 test('binary and multipart require reselection and preserve chosen bytes', () => {
   const {w, tab} = setup(collection({method: 'POST', body: {mode: 'file', file: {src: '/private/path.bin'}}}));
