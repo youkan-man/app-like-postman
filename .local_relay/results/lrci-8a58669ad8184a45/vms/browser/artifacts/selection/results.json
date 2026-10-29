@@ -1,0 +1,19 @@
+{
+  "passed": 12,
+  "checks": [
+    "saved disclosure preferences are restored without adding card wrappers",
+    "no request-tab strip or routing selector",
+    "long labels keep row height and position on select, focus and context menu",
+    "switching selection retains each draft; selection alone does not add revisions",
+    "per-request history can restore a previous version without sending",
+    "restored request body reaches the real HTTP server on explicit Send",
+    "environment revisions are independent; merely reopening does not create an edit",
+    "drafts and revisions survive reload",
+    "unsaved work stays in the list and its history follows the first collection save",
+    "consecutive TLS redirect and timeout edits all persist",
+    "phone layout keeps single editor and history accessible",
+    "no uncaught JavaScript errors"
+  ],
+  "page_errors": [],
+  "target": "real HTTP"
+}

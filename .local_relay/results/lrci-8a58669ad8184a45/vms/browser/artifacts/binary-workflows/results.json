@@ -1,0 +1,38 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "zero bytes, all 256 byte values, 6 MiB, POST/PUT/PATCH match receiver SHA-256",
+    "request switches keep attachments separate and never reuse another request file",
+    "Send during replacement read waits and sends the new file, never the old one",
+    "file read completion updates its originating request even after switching selection",
+    "out-of-order completion cannot overwrite a newer file selection",
+    "read failure discards old bytes, blocks transmission, and recovers on reselection",
+    "Cancel interrupts a pending file send without sending or losing the file",
+    "asynchronous pre-request scripts use the attachment captured at Send",
+    "multipart insertion/deletion keep ready and pending file bytes on their original field",
+    "multiple multipart files preserve order, Unicode filenames, empty files and receiver hashes",
+    "deleting a pending multipart row cannot resurrect its file on a new row",
+    "all four sidebar categories stay on one row at desktop and phone widths",
+    "minimum sidebar width scrolls a single row and keyboard navigation reveals the selected category",
+    "reload explicitly requires file reselection, then sends the selected bytes correctly",
+    "cancelling the file chooser preserves the last selected file",
+    "request deletion uses the app dialog, cancel/Escape are non-destructive, and only accept deletes",
+    "environment deletion and primary-variable clearing use application confirmations",
+    "history clearing is confirmed inside the app at phone width with cancellation preserving history",
+    "revision restore confirmation stacks above the history drawer without closing it on cancellation",
+    "draft, folder and collection deletion all use application confirmations",
+    "primary context clear and relation deletion require in-app confirmation",
+    "no browser-native alert/confirm/prompt or uncaught JavaScript errors"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "screenshots": [
+    "binary-receiver-sha256-desktop.png",
+    "single-row-navigation-1440.png",
+    "single-row-navigation-390.png",
+    "single-row-navigation-320.png",
+    "request-delete-confirmation-desktop.png",
+    "history-confirmation-320.png"
+  ],
+  "received_requests": 21
+}
