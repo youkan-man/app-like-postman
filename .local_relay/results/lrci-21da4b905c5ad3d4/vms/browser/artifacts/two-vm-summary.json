@@ -1,0 +1,20 @@
+{
+  "mode": "two-vm Chromium HTTP",
+  "source_identity_verified": true,
+  "binary_checks": 17,
+  "confirmation_checks": 11,
+  "focus_checks": 12,
+  "extraction_checks": 11,
+  "script_checks": 16,
+  "native_automation_checks": 17,
+  "network": {
+    "ok": true,
+    "app_http": true,
+    "cross_vm_proxy": true,
+    "two_way": true,
+    "app_peer": "provider-injected",
+    "echo_port": 18081,
+    "mode": "Local Relay VM private peer networking"
+  },
+  "screenshots": 41
+}

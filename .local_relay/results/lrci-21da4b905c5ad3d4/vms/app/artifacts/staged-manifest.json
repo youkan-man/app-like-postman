@@ -1,0 +1,83 @@
+{
+  "patch_sha256": "624d9586ba0e6a4fe3063860389befa8edbad1c0eed6143ea4b56f8d2bde84f4",
+  "files": [
+    {
+      "path": "static/app.js",
+      "before": "fe70075919975aabb9c6a5c77f7858707f60989a3a0b647697faa730d1511c78",
+      "after": "15aabe7706b98c5882b49aec0ea1c48dc517b56694cbc162a3397bd3eb4b56e1",
+      "blob": "fe4a2187d59f7a1dc86d0428b0c56fdedee3070c"
+    },
+    {
+      "path": "static/relations.mjs",
+      "before": "0662d7d0dfe9a53dbbb8fa674b47926dbf7d14ca498f2f4f723c4df0fa163ae4",
+      "after": "b42d6d3130a266bced0d99a5d121a21f2d75d869902216030b28b42c7b939416",
+      "blob": "ecd0bd33c7efe9b228a6eb558c6694cd3a36c032"
+    },
+    {
+      "path": "static/studio.css",
+      "before": "f65888ce67d5809a5720dbd52e3f97d234a5fb4e410c486513f81ca40aeb939e",
+      "after": "f5c345f0e0120dee3dfbb577460fddb3921f61c1652cc050514c2fd7176e9d25",
+      "blob": "083bdc48f319291ce2b35d5534c6d21468ada738"
+    },
+    {
+      "path": "static/studio.mjs",
+      "before": "a27ecadea258b61d6a93aa78ddd33d5b8599eeef1883af28d038969b2de3fad6",
+      "after": "e2c8e8d730c159579a8a5947c71ba3bf7af76d3e9b12f430a9a69b4a4fca57e1",
+      "blob": "bde132a8201887719d12465753f01ffe3b69b423"
+    },
+    {
+      "path": "static/request-files.mjs",
+      "before": null,
+      "after": "c003a7877b85b8574186091f925c07ec1e5bc8f7d42ff96033fa318b36a8e131",
+      "blob": "8acc61d8d9c535e2ad8e39bd8eaa624b3323b669"
+    },
+    {
+      "path": "static/confirm-dialog.mjs",
+      "before": null,
+      "after": "c78e80e465aefcdd5d651c498abb82fc4a5bba49460b90939108078c4656e959",
+      "blob": "a24d305e4f767035d1531722cf6e30eb09600d6d"
+    },
+    {
+      "path": "tests/request-files.test.mjs",
+      "before": null,
+      "after": "b195fd748325c719353f6d01ee1c735a05cedee165c3bcd354051bf2693facaf",
+      "blob": "510bedca89059aacddedf88baf4435b4857dc06f"
+    },
+    {
+      "path": "tests/ui_binary.py",
+      "before": null,
+      "after": "64fe559708ae31238ce9048ae3fbe7755d2bceb03d9b5756e204f441a5c610bf",
+      "blob": "20bb03fb64cad924fce827213eb1c152b63dcd08"
+    },
+    {
+      "path": "tests/ui_confirmations.py",
+      "before": null,
+      "after": "b80eabf00ba0b2ace88e6fb3c7e3951b29922e502f9303a2dffa6080da0446e5",
+      "blob": "61c136a51079128aafac83d003e88268754818c1"
+    },
+    {
+      "path": "tests/ui_selection.py",
+      "before": "46b9fb821343e5d304ef9e936e55b37b4e46019d5c01e4f021a1031405544a3d",
+      "after": "e50565cd336c37c7d1bf5199d41e047a2f73ed5a8e1d30b811a72f771bed1856",
+      "blob": "6cd574c3cfbdab584ccbc919a4393051f4898825"
+    },
+    {
+      "path": "tests/ui_settings.py",
+      "before": "f65ef99070fb1bf039b6ea00987392e9e55a8bf4fcef28a7c50392d59704b9ba",
+      "after": "73330934db785b2944c491704e55812809af3a2b217e33d9f840800df942e6ab",
+      "blob": "74d72603b7e910443a026f3b6d6298bfc1e31b5b"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "before": "c4fb96422dd250443d9d6b30785c157262b66a2482785c47c043bf4f069ee73e",
+      "after": "e8d2a74a06ad4ab98e9a90e4f56d2ae9de248358b3096eca8801808b32304808",
+      "blob": "11bbdb2e0179696b07ddac1bd3c6e83dcbab55cc"
+    },
+    {
+      "path": "ci/relay_2vm_verify_browser.sh",
+      "before": "db4f6f12b502b97b2271f4276c9cfd10f4426c6b24ebbd58ac5477a1473211e7",
+      "after": "c618ec78b89ff953d4db0eeeffd1a8ac750498db7c3847b5c2e06e4d36bf97d3",
+      "blob": "1c04b14befb08a2e91b9955b9b6ceab257cd4625"
+    }
+  ]
+}

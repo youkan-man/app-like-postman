@@ -1,0 +1,11 @@
+PASS draft deletion preserves data on cancel and deletes on explicit confirmation
+PASS history restore confirms above the drawer without closing it on cancel
+PASS send-history clearing is cancellable and never uses browser UI
+PASS environment deletion uses the application dialog
+PASS primary variables toolbar confirmation respects cancel and accept
+PASS primary-variable context menu uses the same confirmation behavior
+PASS relation deletion uses the application dialog
+PASS saved-request deletion uses the application dialog
+PASS folder deletion uses the application dialog
+PASS collection deletion remains operable at 320px
+PASS all confirmation paths run without native dialogs or JavaScript errors

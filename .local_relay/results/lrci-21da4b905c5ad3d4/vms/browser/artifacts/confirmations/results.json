@@ -1,0 +1,22 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "draft deletion preserves data on cancel and deletes on explicit confirmation",
+    "history restore confirms above the drawer without closing it on cancel",
+    "send-history clearing is cancellable and never uses browser UI",
+    "environment deletion uses the application dialog",
+    "primary variables toolbar confirmation respects cancel and accept",
+    "primary-variable context menu uses the same confirmation behavior",
+    "relation deletion uses the application dialog",
+    "saved-request deletion uses the application dialog",
+    "folder deletion uses the application dialog",
+    "collection deletion remains operable at 320px",
+    "all confirmation paths run without native dialogs or JavaScript errors"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "screenshots": [
+    "history-confirmation.png",
+    "confirmation-320.png"
+  ]
+}

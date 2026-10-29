@@ -1,0 +1,154 @@
+name: MiniPost verification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minipost-verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  regression:
+    name: Import and HTTP regression
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Node import and request compilation
+        run: |
+          mkdir -p artifacts
+          node --test tests/*.test.mjs 2>&1 | tee artifacts/node-tests.log
+      - name: Python proxy and import-to-HTTP regression
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p artifacts
+          python -m unittest discover -s tests -p 'test_*.py' -v 2>&1 | tee artifacts/python-tests.log
+      - name: Upload regression logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: regression-${{ github.run_attempt }}
+          path: artifacts/
+          retention-days: 14
+
+  browser:
+    name: Chromium live HTTP E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ARTIFACT_DIR: artifacts/browser
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Record tested source
+        run: |
+          mkdir -p artifacts/browser
+          git rev-parse HEAD > artifacts/browser/tested-commit.txt
+          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py static tests requirements-test.txt Dockerfile docker-compose.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
+          sha256sum artifacts/browser/tested-source.zip > artifacts/browser/tested-source.sha256
+      - name: Install Playwright and Chromium
+        run: |
+          python -m pip install -r requirements-test.txt
+          python -m playwright install --with-deps chromium
+          python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); print('CHROMIUM=' + p.chromium.executable_path); p.stop()" >> "$GITHUB_ENV"
+      - name: Run real browser and loopback HTTP scenarios
+        run: python tests/browser_smoke.py 2>&1 | tee artifacts/browser/e2e.log
+      - name: UI interactions and visual evidence
+        if: ${{ !cancelled() }}
+        run: python tests/ui_workbench.py 2>&1 | tee artifacts/browser/ui-e2e.log
+      - name: UI import editing and enlarged labels
+        if: ${{ !cancelled() }}
+        run: python tests/ui_edgecases.py 2>&1 | tee artifacts/browser/ui-edgecases.log
+      - name: Settings autosave and context menu regressions
+        if: ${{ !cancelled() }}
+        run: python tests/ui_settings.py 2>&1 | tee artifacts/browser/ui-settings.log
+      - name: Single selection and per-setting revisions
+        if: ${{ !cancelled() }}
+        run: python tests/ui_selection.py 2>&1 | tee artifacts/browser/ui-selection.log
+      - name: Local-first backup and explicit server storage
+        if: ${{ !cancelled() }}
+        run: python tests/ui_backup.py 2>&1 | tee artifacts/browser/ui-backup.log
+      - name: Native IndexedDB quota recovery and server restore
+        if: ${{ !cancelled() }}
+        run: python tests/ui_storage.py 2>&1 | tee artifacts/browser/ui-storage.log
+      - name: Category paging and single-request acceptance
+        if: ${{ !cancelled() }}
+        run: python tests/ui_paging.py 2>&1 | tee artifacts/browser/ui-paging.log
+      - name: Context creation, primary variables, scripts and relations
+        if: ${{ !cancelled() }}
+        run: python tests/ui_automation.py 2>&1 | tee artifacts/browser/ui-automation.log
+      - name: Extraction focus, context menus and responsive forms
+        if: ${{ !cancelled() }}
+        run: python tests/ui_extraction.py 2>&1 | tee artifacts/browser/ui-extraction.log
+      - name: Keyboard focus and context-action regression
+        if: ${{ !cancelled() }}
+        run: python tests/ui_focus.py 2>&1 | tee artifacts/browser/ui-focus.log
+      - name: Binary bytes and application confirmations
+        if: ${{ !cancelled() }}
+        run: |
+          python tests/ui_binary.py 2>&1 | tee artifacts/browser/ui-binary.log
+          python tests/ui_confirmations.py 2>&1 | tee artifacts/browser/ui-confirmations.log
+      - name: Upload screenshots and browser results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: browser-${{ github.run_attempt }}
+          path: artifacts/browser/
+          retention-days: 14
+
+  docker:
+    name: Default Docker deployment and live browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ARTIFACT_DIR: artifacts/docker-network
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install real browser
+        run: |
+          python -m pip install -r requirements-test.txt
+          python -m playwright install --with-deps chromium
+      - name: Test shipped Compose without routing overrides
+        run: |
+          mkdir -p artifacts/docker-network
+          git rev-parse HEAD > artifacts/docker-network/tested-commit.txt
+          python tests/docker_network.py 2>&1 | tee artifacts/docker-network/test.log
+      - name: Upload Docker evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: docker-${{ github.run_attempt }}
+          path: artifacts/docker-network/
+          retention-days: 14

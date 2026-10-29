@@ -1,0 +1,33 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "sidebar categories occupy exactly one row",
+    "all byte values 00-FF reach the receiver unchanged",
+    "zero-byte binary sends a real empty body",
+    "2 MiB binary length and SHA-256 match at the actual receiver",
+    "Send waits for file replacement and never sends the previous bytes",
+    "finishing a read after request selection updates only the originating request",
+    "out-of-order file reads cannot overwrite the newest selection",
+    "Cancel interrupts the pending send; a later explicit resend uses the chosen file",
+    "file read failures do not silently resend a previous attachment",
+    "clearing binary selection removes the bytes as well as the displayed name",
+    "multipart insertion during read keeps the bytes bound to the original row",
+    "multipart removal and duplication preserve independent file-row bindings",
+    "multipart multi-file selection includes Unicode filenames and empty files",
+    "repeated relation uses the attachment snapshot captured at run start",
+    "application confirmation defaults to Cancel, supports Escape and executes only on confirmation",
+    "320px and 390px navigation stays single-row with reachable tabs and no page overflow",
+    "no browser-native dialogs or uncaught JavaScript errors"
+  ],
+  "screenshots": [
+    "confirmation-desktop.png",
+    "binary-desktop.png",
+    "navigation-390.png",
+    "binary-390.png",
+    "navigation-320.png",
+    "binary-320.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "receiver_requests": 16
+}
