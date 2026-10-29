@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import base64
+import atexit
+import errno
 import gzip
 import http.client
 import json
@@ -19,12 +21,17 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 from url_codec import request_url, wire_url, form_body, transform_text
 from network import runtime_info, connection_details, connection_diagnostic, format_network_error
+from upload_stream import UploadStore, UploadError, StreamBody, prepare_stream_body, CHUNK_BYTES, MAX_METADATA_BYTES
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 # No automatic server-side persistence: only an explicit POST from the UI writes here.
 WORKSPACE_FILE = Path(os.getenv("MINIPOST_WORKSPACE_FILE") or
                       ("/data/workspace.json" if os.getenv("MINIPOST_CONTAINER") else ".minipost/workspace.json")).resolve()
 MAX_WORKSPACE_BYTES = 10 * 1024 * 1024
+# Legacy JSON requests stay bounded; new binary uploads use disk-backed chunks.
+MAX_REQUEST_JSON_BYTES = 64 * 1024 * 1024
+UPLOADS = UploadStore(directory=os.getenv("MINIPOST_UPLOAD_DIR") or None)
+atexit.register(UPLOADS.close)
 WORKSPACE_LOCK = threading.Lock()
 TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
@@ -45,6 +52,10 @@ def _quoted(value):
 
 
 def prepare_body(payload, headers):
+    if "body_upload" in payload or "body_file" in payload or any(
+            isinstance(part, dict) and ("upload" in part or "file" in part)
+            for part in payload.get("multipart", []) or []):
+        raise UploadError("転送用ファイルの参照がありません。ファイルを選び直して送信してください。")
     if "form_urlencoded" in payload:
         return form_body(payload["form_urlencoded"])
     if "multipart" in payload:
@@ -74,7 +85,7 @@ def prepare_body(payload, headers):
     return None if body is None else str(body).encode("utf-8")
 
 
-def send_http_request(payload):
+def send_http_request(payload, upload=None):
     if not isinstance(payload, dict):
         raise ValueError("リクエストはJSONオブジェクトで指定してください。")
     url = request_url(payload)
@@ -94,7 +105,7 @@ def send_http_request(payload):
         # The caller cannot supply conflicting byte-buffer framing.
         if key.lower() not in {"content-length", "transfer-encoding", "connection"}:
             headers.append((key, value))
-    body = prepare_body(payload, headers)
+    body = prepare_stream_body(payload, headers, upload) if upload is not None else prepare_body(payload, headers)
     timeout_ms = float(payload.get("timeout_ms", 30000))
     if timeout_ms < 0 or not timeout_ms < float("inf"):
         raise ValueError("Timeoutは0以上の数値で指定してください。0は無制限です。")
@@ -120,6 +131,9 @@ def send_http_request(payload):
             if target.scheme == "https":
                 phase = "tls"
                 connection.sock = context.wrap_socket(connection.sock, server_hostname=target.hostname)
+            if upload is not None:
+                upload.check()
+                upload.outgoing = connection.sock
             phase = "send"
             path = (target.path or "/") + ("?" + target.query if target.query else "")
             connection.putrequest(method, path, skip_host=any(k.lower() == "host" for k, _ in headers), skip_accept_encoding=True)
@@ -130,7 +144,10 @@ def send_http_request(payload):
                 connection.putheader("Content-Length", str(len(body)))
             elif method in {"POST", "PUT", "PATCH"}:
                 connection.putheader("Content-Length", "0")
-            connection.endheaders(body)
+            if isinstance(body, StreamBody):
+                body.send(connection)
+            else:
+                connection.endheaders(body)
             phase = "receive"
             response = connection.getresponse()
             response_headers = response.getheaders()
@@ -144,6 +161,8 @@ def send_http_request(payload):
             raise
         finally:
             connection.close()
+            if upload is not None:
+                upload.outgoing = None
         if payload.get("follow_redirects", True) and status in {301, 302, 303, 307, 308} and location:
             if hop == 20:
                 raise ValueError("リダイレクト回数が20回を超えました。Settingsで追従をOFFにできます。")
@@ -242,7 +261,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/health":
-            self.send_json(200, {"ok": True, "runtime": runtime_info()})
+            self.send_json(200, {"ok": True, "runtime": runtime_info(), "uploads": {"protocol": 1, "chunk_bytes": CHUNK_BYTES}})
         elif self.path == "/api/workspace":
             try:
                 saved = read_workspace()
@@ -255,7 +274,73 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             super().do_GET()
 
+    def upload_origin_allowed(self):
+        origin = self.headers.get("Origin")
+        return (not origin or urlsplit(origin).netloc == self.headers.get("Host")) and self.headers.get("Sec-Fetch-Site") != "cross-site"
+
+    def log_request(self, code="-", size="-"):
+        # Upload IDs are short-lived capability tokens; do not put them in logs.
+        if self.path.startswith("/api/uploads/"):
+            self.log_message('"%s /api/uploads/[session]" %s %s', self.command, str(code), str(size))
+        else:
+            super().log_request(code, size)
+
+    def do_DELETE(self):
+        match = re.fullmatch(r"/api/uploads/([a-f0-9]{64})", self.path)
+        if not match:
+            self.send_json(404, {"ok": False, "error": "Not Found"})
+        elif not self.upload_origin_allowed():
+            self.send_json(403, {"ok": False, "error": "別オリジンからのファイル操作は許可されていません。"})
+        else:
+            UPLOADS.discard(match[1])
+            self.send_json(200, {"ok": True})
+
+    def post_upload(self):
+        # Never leave unread bytes eligible for reuse as another HTTP request.
+        self.close_connection = True
+        token = None
+        try:
+            if not self.upload_origin_allowed():
+                raise UploadError("別オリジンからのファイル転送は許可されていません。", 403)
+            lengths = self.headers.get_all("Content-Length", [])
+            if len(lengths) != 1 or self.headers.get("Transfer-Encoding"):
+                raise UploadError("ファイル転送にはContent-Lengthが必要です。", 411)
+            length = int(lengths[0])
+            if self.path == "/api/uploads":
+                if not 0 < length <= MAX_METADATA_BYTES:
+                    raise UploadError("転送情報のサイズが不正です。", 413)
+                if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+                    raise UploadError("転送情報はapplication/jsonで指定してください。", 415)
+                payload = json.loads(self.rfile.read(length))
+                if not isinstance(payload, dict):
+                    raise UploadError("転送情報の形式が不正です。")
+                token = UPLOADS.create(payload.get("sizes"))
+                self.send_json(201, {"ok": True, "upload_id": token, "chunk_bytes": CHUNK_BYTES})
+            else:
+                match = re.fullmatch(r"/api/uploads/([a-f0-9]{64})/(\d+)", self.path)
+                if not match:
+                    raise UploadError("Not Found", 404)
+                token, index = match[1], int(match[2])
+                if self.headers.get("Content-Type", "").split(";")[0] != "application/octet-stream":
+                    raise UploadError("ファイルはapplication/octet-streamで転送してください。", 415)
+                offset = int(self.headers.get("X-MiniPost-Offset", "-1"))
+                upload = UPLOADS.get(token)
+                # Bound an abandoned partial chunk; target timeout is separate.
+                self.connection.settimeout(60)
+                offset = upload.append(index, offset, length, self.rfile, self.connection)
+                self.send_json(200, {"ok": True, "offset": offset})
+        except Exception as error:
+            if token is not None:
+                UPLOADS.discard(token)
+            disk_full = isinstance(error, OSError) and error.errno in (errno.ENOSPC, errno.EDQUOT)
+            status = 507 if disk_full else getattr(error, "status", 400)
+            message = "一時ファイル用ディスクの空き容量が不足しています。送信していません。" if disk_full else str(error)
+            self.send_json(status, {"ok": False, "error": message})
+
     def do_POST(self):
+        if self.path == "/api/uploads" or self.path.startswith("/api/uploads/"):
+            self.post_upload()
+            return
         if self.path not in ("/api/request", "/api/workspace", "/api/url-transform"):
             self.send_json(404, {"ok": False, "error": "Not Found"})
             return
@@ -272,14 +357,26 @@ class Handler(SimpleHTTPRequestHandler):
             if length < 1 or (self.path == "/api/workspace" and length > MAX_WORKSPACE_BYTES):
                 self.send_json(413 if length > MAX_WORKSPACE_BYTES else 400, {"ok": False, "error": "保存データのサイズまたは形式が不正です。"})
                 return
+            if length > MAX_REQUEST_JSON_BYTES:
+                self.close_connection = True
+                self.send_json(413, {"ok": False, "error": "JSON本文が大きすぎます。バイナリファイルは大容量転送対応の画面で選び直してください。"})
+                return
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if self.path == "/api/url-transform":
                 self.send_json(200, {"ok": True, "text": transform_text(payload)})
             elif self.path == "/api/workspace":
                 self.send_json(200, write_workspace(payload))
+            elif isinstance(payload, dict) and "upload_id" in payload:
+                if not self.upload_origin_allowed():
+                    raise UploadError("別オリジンからのファイル送信は許可されていません。", 403)
+                with UPLOADS.claim(payload["upload_id"], self.connection) as upload:
+                    self.send_json(200, send_http_request(payload, upload))
             else:
                 self.send_json(200, send_http_request(payload))
         except Exception as error:
+            if isinstance(error, UploadError):
+                self.send_json(error.status, {"ok": False, "error": str(error)})
+                return
             diagnostic = getattr(error, "minipost_network", None)
             # Certificate verification errors are ValueErrors too. Preserve TLS cause.
             if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):

@@ -1,3 +1,4 @@
+import {File} from 'node:buffer';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {RequestFiles, readSelectedFile} from '../static/request-files.mjs';
@@ -5,14 +6,14 @@ import {compileRequest, newRequest} from '../static/core.mjs';
 import {executeRequest} from '../static/execution.mjs';
 import {PrimaryVariables} from '../static/runtime.mjs';
 const binary = () => ({method:'POST',url:'http://example.test/upload',body:{mode:'file'}});
-const file = (name, bytes) => ({name, type:'application/octet-stream', arrayBuffer:async()=>Uint8Array.from(bytes).buffer});
+const file = (name, bytes) => new File([Uint8Array.from(bytes)], name, {type:'application/octet-stream'});
 const deferred = () => {let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const stored = name => ({name,type:'application/octet-stream',size:1,data:'AA=='});
 for (const length of [0,1,2,255,256,49151,49152,49153,6*1024*1024]) {
-  test(`binary encoding preserves every byte: ${length} bytes`,async()=>{
+  test(`file-backed selection preserves every byte: ${length} bytes`,async()=>{
     const input=Buffer.alloc(length);for(let i=0;i<length;i++)input[i]=i%256;
     const result=await readSelectedFile(file('日本語.bin',input));
-    assert.equal(result.data,input.toString('base64'));assert.equal(result.size,length);
+    assert.equal(result.data,undefined);assert.deepEqual(Buffer.from(await result.blob.arrayBuffer()),input);assert.equal(result.size,length);
   });
 }
 test('send awaits the newly selected file, never the previous selection',async()=>{
@@ -88,7 +89,7 @@ test('binary compile preserves empty and all-byte files and user Content-Type',a
     const bytes=Uint8Array.from({length},(_,i)=>i);await attachments.read('r','binary',[file('bytes.bin',bytes)]);
     const request={...binary(),header:[{key:'Content-Type',value:'custom/binary'}]};
     const payload=compileRequest(workspace,{request},await attachments.snapshot('r',request)).payload;
-    assert.equal(payload.body_base64,Buffer.from(bytes).toString('base64'));
+    assert.equal(payload.body_base64,undefined);assert.deepEqual(Buffer.from(await payload.body_file.arrayBuffer()),Buffer.from(bytes));
     assert.equal(payload.headers.find(row=>row.key==='Content-Type').value,'custom/binary');
   }
 });

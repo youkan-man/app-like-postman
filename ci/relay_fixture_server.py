@@ -4,16 +4,17 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import resource
 import sys
 from http.server import ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from app import Handler
+from app import Handler, UPLOADS
 
 
 def source_hashes():
-    paths = [ROOT / 'app.py', ROOT / 'network.py', ROOT / 'url_codec.py', *sorted((ROOT / 'static').iterdir())]
+    paths = [ROOT / 'app.py', ROOT / 'network.py', ROOT / 'url_codec.py', ROOT / 'upload_stream.py', *sorted((ROOT / 'static').iterdir())]
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in paths if path.is_file()}
 
@@ -25,6 +26,9 @@ def main():
         def do_GET(self):
             if self.path == '/__relay_test_identity':
                 self.send_json(200, identity)
+            elif self.path == '/__relay_test_resources':
+                self.send_json(200, {'ok': True, 'max_rss_kib': resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+                                     'pending_uploads': len(UPLOADS.entries)})
             else:
                 super().do_GET()
 

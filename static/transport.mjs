@@ -1,12 +1,16 @@
+import {uploadPlan, uploadFiles} from './upload-transport.mjs';
 /** Distinguish a reverse-proxy HTML 502 from a MiniPost JSON failure. No retries. */
-export async function sendThroughProxy(payload, signal) {
+async function callProxy(path, options) {
   let response;
   try {
-    response = await fetch('/api/request', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload), signal});
+    response = await fetch(path, options);
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     const failure = new Error('MiniPostへの接続に失敗しました。ブラウザとMiniPost間の接続・入口プロキシを確認してください。');
     failure.title = 'ERROR · MiniPost接続'; throw failure;
+  }
+  if (path === '/api/uploads' && response.status === 404) {
+    throw new Error('MiniPostのバックエンドが大容量転送に未対応です。バックエンドも更新してください。');
   }
   const text = await response.text();
   let result;
@@ -21,4 +25,12 @@ export async function sendThroughProxy(payload, signal) {
     throw error;
   }
   return result;
+}
+
+export async function sendThroughProxy(payload, signal, onProgress) {
+  const staged = await uploadFiles(uploadPlan(payload), signal, callProxy, onProgress);
+  try {
+    return await callProxy('/api/request', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(staged.request), signal});
+  } finally {await staged.release();}
 }
