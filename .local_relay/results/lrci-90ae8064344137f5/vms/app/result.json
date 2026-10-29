@@ -1,0 +1,23 @@
+{
+  "branch": "fix/chunked-send-20261029",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-10-29T07:22:18.571974Z",
+    "id": "lrce-8b716b446d12177375117070",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "b87fdd7b79b0336ffe234757ab21cfafb385df3a4317071c859415ea629c51ce",
+    "sandbox_id": "sb-63eb9879da35",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-90ae8064344137f5-app",
+  "source_sha": "00760b6e5e5a3aa8d6ec1bfbf1e11ac1c42f1d85",
+  "started_at": "2026-10-29T04:22:14.880048072Z",
+  "status": "ready",
+  "version": 1
+}
