@@ -60,5 +60,18 @@
 }
 
 /* Sidebar pages share the existing finite content navigation, not request tabs. */
-.sidebar-navigation { flex-wrap:wrap; padding:0 6px; border-bottom:1px solid var(--line); background:var(--surface); }
-.sidebar-navigation [role="tab"] {flex:1 1 auto; padding:6px 5px;}
+/* One continuous row: narrowing the pane must not reorder or wrap categories. */
+.sidebar-navigation {
+  flex-wrap:nowrap;
+  padding:0;
+  border-bottom:1px solid var(--line);
+  background:var(--surface);
+  overscroll-behavior-x:contain;
+}
+.sidebar-navigation [role="tab"] {
+  flex:1 0 auto;
+  min-width:max-content;
+  min-height:31px;
+  padding:6px 5px;
+}
+.sidebar-navigation [aria-selected="true"] {background:var(--accent-bg);}

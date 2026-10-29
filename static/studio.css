@@ -1,9 +1,6 @@
 /* Workspace extension: dense controls, wide editors, aligned tab/page ownership. */
 :root {--syntax-key:#164f91;--syntax-string:#21693b;--syntax-number:#9b4721;--syntax-keyword:#7f3596;--syntax-comment:#6b7280;--syntax-tag:#135f86;--syntax-variable:#943d84;}
 :root[data-theme=dark] {--syntax-key:#94c9ff;--syntax-string:#a8daa0;--syntax-number:#f3bb89;--syntax-keyword:#dcb0f8;--syntax-comment:#a0acba;--syntax-tag:#8cd8ea;--syntax-variable:#f1b0db;}
-.sidebar-navigation {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:0 6px;}
-.sidebar-navigation [role=tab] {min-width:0;min-height:31px;padding:6px 5px;}
-.sidebar-navigation [aria-selected=true] {background:var(--accent-bg);}
 #addTab {white-space:nowrap;}
 .item-menu {max-height:calc(100dvh - 16px);overflow-y:auto;}
 .workspace-page {flex:1 1 auto;min-width:0;min-height:0;overflow:auto;background:var(--surface);padding:14px 16px;}

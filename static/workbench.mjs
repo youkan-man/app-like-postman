@@ -118,6 +118,39 @@ export function initWorkbench(storage = localStorage) {
 
 /** Keyboard navigation shared by the static editor and response tab strips. */
 export function bindTabStrip(root, selector) {
+  // The sidebar is a single scrollable row, including at its minimum width.
+  // Reveal only this strip; never scroll the tree, editor or document with it.
+  if (root.classList.contains('sidebar-navigation')) {
+    root.setAttribute('aria-orientation', 'horizontal');
+    let pending = 0;
+    const revealSelected = () => {
+      pending = 0;
+      const selected = root.querySelector(`${selector}[aria-selected="true"]`);
+      if (!selected || !root.clientWidth) return;
+      const strip = root.getBoundingClientRect(), tab = selected.getBoundingClientRect();
+      const left = strip.left + root.clientLeft, right = left + root.clientWidth;
+      if (tab.left < left) root.scrollLeft += tab.left - left;
+      else if (tab.right > right) root.scrollLeft += tab.right - right;
+    };
+    const schedule = () => {if (!pending) pending = requestAnimationFrame(revealSelected);};
+    new MutationObserver(changes => {
+      if (changes.some(change => change.oldValue !== change.target.getAttribute('aria-selected'))) schedule();
+    }).observe(root, {subtree: true, attributes: true, attributeFilter: ['aria-selected'], attributeOldValue: true});
+    const resize = new ResizeObserver(schedule);
+    resize.observe(root);
+    for (const tab of root.querySelectorAll(selector)) resize.observe(tab);
+    root.addEventListener('wheel', event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.deltaX || !event.deltaY) return;
+      const maximum = root.scrollWidth - root.clientWidth;
+      if (maximum <= 0) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? root.clientWidth : 1;
+      const next = clamp(root.scrollLeft + event.deltaY * unit, 0, maximum);
+      if (next === root.scrollLeft) return;
+      event.preventDefault();
+      root.scrollLeft = next;
+    }, {passive: false});
+    schedule();
+  }
   root.addEventListener('keydown', event => {
     const tabs = [...root.querySelectorAll(selector)], current = event.target.closest(selector);
     if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;

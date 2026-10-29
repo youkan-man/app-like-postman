@@ -98,6 +98,9 @@ jobs:
       - name: Native IndexedDB quota recovery and server restore
         if: ${{ !cancelled() }}
         run: python tests/ui_storage.py 2>&1 | tee artifacts/browser/ui-storage.log
+      - name: Single-row sidebar navigation and narrow-pane access
+        if: ${{ !cancelled() }}
+        run: python tests/ui_sidebar_tabs.py 2>&1 | tee artifacts/browser/ui-sidebar-tabs.log
       - name: Category paging and single-request acceptance
         if: ${{ !cancelled() }}
         run: python tests/ui_paging.py 2>&1 | tee artifacts/browser/ui-paging.log
