@@ -1,0 +1,33 @@
+{
+  "instance": "f56b4440323b48439a6c3d431918e6cd",
+  "files": {
+    "app.py": "6555555948364a0ad6b8ff751b2382e78f26c58a7b8eb6fac160c332b336aac6",
+    "network.py": "f354528b773d61d2a49a9c7ba80ade7ce932c7bdaff83e7a035b1a9a9aad0bce",
+    "static/app.js": "dc6ce39b1fb19de15ad98ef3a6dec75337af572349b045909c2dbf4bfcea742d",
+    "static/code-editor.mjs": "85b145ff293973cd2a1bea2057352b7d0be7eba8e522af043dc583c622a73719",
+    "static/confirm-dialog.mjs": "e9d447c6db6cc52cae71cd476f80e5fba62f486f3da00d2774571dfa831e5a80",
+    "static/content-tabs.css": "906b980bf3f1bbbed85d1eaa77d557db0676d5fcee52452ab9200b0a50e7af94",
+    "static/core.mjs": "9be92dede8e46134add562c6906ddf93d86e4af1c57ba2a4d7e2e6ba9b1152f7",
+    "static/corporate.css": "4798cdf892fa81ab182d3aee4e8c8dc8615e703f135c0a5f73d5e998261f8301",
+    "static/editops.mjs": "7de6420313804c1b52f94e9335b33e6d4743451f7910e653d867accd74c77207",
+    "static/execution.mjs": "989a315a76e66f553de2fa479f35acc0da787eb978b6c9902b8d994d94d0da1f",
+    "static/index.html": "0b95b68a17d19969d649996d7987af145fe1f43d986117530276714528be5bd7",
+    "static/redesign.css": "2b239f36621b04dce9fd2c2469b99cd593d7196ef31a6309c85477ffaaa0c10b",
+    "static/relations.mjs": "0662d7d0dfe9a53dbbb8fa674b47926dbf7d14ca498f2f4f723c4df0fa163ae4",
+    "static/request-files.mjs": "66695b8267366c959489e72ffd2b77b7538c261a5307023afa356219c2ed8cd0",
+    "static/revisions.mjs": "f9afa76811e64e46378cd54f0a77bee8accafcb5903a1683a21ff10baffed6fc",
+    "static/runtime.mjs": "f907e631f2492f956d34f04d6b761fc279ca8697c85adea1daa30b2cb4a897af",
+    "static/script-editor.css": "b5be96cc7b6adb42297d9a5fca11a00dd51fa99328d464f2b8f8b6a1e422ef76",
+    "static/script-intelligence.mjs": "d2aab8bc69091cecbd96392646bd1092141cb446b517650f13eae2fbf0dd24a4",
+    "static/script-runner.mjs": "9b3a2359d60da9774af16e2fc533a0c3e48c87761ecb1e8f5c2f4846379d70a3",
+    "static/selection.css": "4a8fb2edd145d5fc8b0fb8bfea70dadcf58d1b31d327b2a0ca7a436c2f25cda8",
+    "static/settings.css": "35fecc00918518be59e93e177eee2782c7d3a3c6094ade95ddd5752478ec3579",
+    "static/storage.mjs": "15539d5b9bc961b2609fefcb307ce28aee9e2a6c632a8d44c418b039ab5cf777",
+    "static/studio.css": "1baa00d8c9e10d2e08e720680177d7febab18c893bd415802fde52fad914e1f7",
+    "static/studio.mjs": "6df06265bf29f2984db0be1e764226e438b24918aeb89de647fe7d640add8a80",
+    "static/style.css": "dd19fa48bbdf8275a94e3f2950c71f107cdab88fb9563b27cb4a5df1d91b0a46",
+    "static/transport.mjs": "6500100c743dcdcf62921adca81c2a94dbfd05acba613942e02bee12c8406b50",
+    "static/workbench.mjs": "5811e545e4d7aae61e4c78f9c546926e1b1d48f2f42d0cbb45d3d84603054b0a",
+    "static/workspace-data.mjs": "d374dd5d7b87604dbdd593574c97cdd270b06cbc42e1e04087cdf6b6c256d540"
+  }
+}
