@@ -7,6 +7,8 @@ import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snap
 import {createCodeEditor} from './code-editor.mjs';
 import {initStudio} from './studio.mjs';
 import {WorkspaceStorage} from './storage.mjs';
+import {RequestFiles} from './request-files.mjs';
+import {confirmAction} from './confirm-dialog.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio;
@@ -28,7 +30,7 @@ try {
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 workspace.relations ||= []; workspace.relationRuns ||= [];
 let revisionStore = new RevisionStore(workspace);
-const responses = new Map(), requests = new Map(), selectedFiles = new Map();
+const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
 const navigationKey = 'minipost.navigation.v1';
 const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
@@ -103,15 +105,16 @@ function persist(now = false) {
   saveTimer = setTimeout(save, 220);
 }
 // Saved requests are updated in the browser collection automatically. Server writes remain opt-in.
-function touch() {
-  const tab = active(), collection = workspace.collections.find(c => c._mpId === tab.collectionId);
+function touchTab(tab) {
+  const collection = workspace.collections.find(c => c._mpId === tab.collectionId);
   const item = findItem(collection, tab.itemId)?.item;
   if (item?.request) {
     item.name = tab.name; item.request = clone(tab.request); item.settings = clone(tab.settings);
     tab.dirty = false;
   } else tab.dirty = true;
-  persist(); renderSelection(); renderSidebar(); updateCounts();
+  persist(); if (active().id === tab.id) {renderSelection(); updateCounts();} renderSidebar();
 }
+function touch() {touchTab(active());}
 function download(name, content, type = 'application/json') {
   const blob = content instanceof Blob ? content : new Blob([content], {type});
   const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -209,6 +212,7 @@ function bindContext(target, anchor, menu) {
   });
 }
 function kvEditor(list, changed, options = {}) {
+  const fileTabId = options.files ? active().id : null;
   const wrap = element('div', 'kv-editor'), table = element('table', 'kv-table'), head = element('tr');
   const columns = [['', 'check'], ['キー', ''], ...(options.files ? [['種類', 'type']] : []), ['値', ''], ['説明', ''], ['', 'action row-actions']];
   for (const [name, cls] of columns) head.append(element('th', cls, name));
@@ -225,29 +229,18 @@ function kvEditor(list, changed, options = {}) {
       checkCell.append(check); tr.append(checkCell);
       const keyCell = element('td', 'kv-key'); keyCell.append(input(row.key, `Key ${index + 1}`, value => {row.key = value; changed();})); tr.append(keyCell);
       if (options.files) {
-        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {row.type = value; changed(); paint(); tbody.children[index]?.querySelector('select')?.focus({preventScroll:true});})); tr.append(typeCell);
+        const typeCell = element('td', 'kv-type'); typeCell.append(select([['text', 'Text'], ['file', 'File']], row.type || 'text', value => {selectedFiles.remove(fileTabId, `form-${index}`); row.type = value; changed(); paint(); tbody.children[index]?.querySelector('select')?.focus({preventScroll:true});})); tr.append(typeCell);
       }
       const valueCell = element('td', 'kv-value');
       if (options.files && row.type === 'file') {
-        const chosen = selectedFiles.get(active().id)?.[`form-${index}`];
-        const names = chosen?.map(f => f.name).join(', ') || (Array.isArray(row.src) ? row.src.join(', ') : row.src);
-        valueCell.append(button(chosen ? names : names ? `${names} — 再選択` : 'ファイルを選択', () => chooseFiles(`form-${index}`, true, names => {row.src = names; changed(); paint();}), 'file-pick'));
+        valueCell.append(filePicker(fileTabId, `form-${index}`, row.src, true));
       } else valueCell.append(input(row.value, `Value ${index + 1}`, value => {row.value = value; changed();}, options.secret && row.type === 'secret' ? 'password' : 'text'));
       tr.append(valueCell);
       const descriptionCell = element('td', 'kv-description'); descriptionCell.append(input(describe(row.description), `Description ${index + 1}`, value => {row.description = value; changed();})); tr.append(descriptionCell);
       const actionCell = element('td', 'row-actions kv-actions');
       function editRows(at, remove, additions = []) {
         list.splice(at, remove, ...additions);
-        if (options.files) {
-          const files = selectedFiles.get(active().id) || {}, previous = {...files};
-          for (const key of Object.keys(files)) if (key.startsWith('form-')) delete files[key];
-          const oldLength = list.length + remove - additions.length;
-          for (let n = 0; n < oldLength; n++) {
-            if (n >= at && n < at + remove) continue;
-            const next = n < at ? n : n - remove + additions.length;
-            if (previous[`form-${n}`]) files[`form-${next}`] = previous[`form-${n}`];
-          }
-        }
+        if (options.files) selectedFiles.spliceRows(fileTabId, at, remove, additions.length);
         changed(); paint();
         // The menu trigger was replaced along with the row. Place keyboard focus
         // on the inserted/remainder row rather than dropping it onto <body>.
@@ -403,20 +396,48 @@ function renderPane() {
   root.scrollTop = scrollTop;
   updateCounts();
 }
-async function chooseFiles(key, multiple, done) {
-  const chooser = element('input'); chooser.type = 'file'; chooser.multiple = multiple;
-  const tabId = active().id;
+function refreshFileFields(tabId) {
+  if (active().id === tabId) renderPaneSection($('request-fields-body'), 'body');
+}
+function filePicker(tabId, key, source, multiple) {
+  const slot = selectedFiles.describe(tabId, key), chosen = slot?.state === 'ready' ? slot.files : null;
+  const previous = Array.isArray(source) ? source.join(', ') : source;
+  const label = slot?.state === 'loading' ? `読込中: ${slot.names.join(', ')}` : chosen ? chosen.map(file => file.name).join(', ') : previous ? `${previous} — 再選択` : 'ファイルを選択';
+  const wrap = element('div', 'file-selection'); wrap.dataset.fileSlot = key;
+  const pick = button(label, () => chooseFiles(tabId, key, multiple), 'button file-pick');
+  pick.title = key === 'binary' ? '送信するバイナリファイルを選択' : `行 ${Number(key.slice(5)) + 1} のファイルを選択`;
+  pick.setAttribute('aria-busy', String(slot?.state === 'loading')); wrap.append(pick);
+  if (chosen) wrap.append(element('span', 'file-size', `${chosen.reduce((size,file) => size + file.size, 0).toLocaleString()} bytes`));
+  if (slot?.state === 'error') wrap.append(element('span', 'file-read-error', `読込失敗: ${slot.error.message}`));
+  if (slot || previous) wrap.append(button('選択を解除', () => {
+    selectedFiles.remove(tabId, key);
+    const tab = workspace.tabs.find(tab => tab.id === tabId); if (!tab) return;
+    if (key === 'binary') delete tab.request.body.file;
+    else {const row = tab.request.body.formdata?.[Number(key.slice(5))]; if (row) delete row.src;}
+    touchTab(tab); refreshFileFields(tabId);
+    $('request-fields-body')?.querySelector(`[data-file-slot="${key}"] .file-pick`)?.focus({preventScroll:true});
+  }, 'text-button file-clear'));
+  return wrap;
+}
+function chooseFiles(tabId, key, multiple) {
+  const chooser = element('input'); chooser.type = 'file'; chooser.multiple = multiple; chooser.hidden = true;
+  // Attach the input for mobile pickers. Cancellation preserves the prior selection.
+  document.body.append(chooser);
+  const cleanup = () => chooser.remove(); chooser.addEventListener('cancel', cleanup, {once:true});
   chooser.onchange = async () => {
-    try {
-      const files = await Promise.all([...chooser.files].map(async file => {
-        const data = new Uint8Array(await file.arrayBuffer()); let binary = '';
-        for (let n = 0; n < data.length; n += 32768) binary += String.fromCharCode(...data.subarray(n, n + 32768));
-        return {name: file.name, type: file.type, data: btoa(binary)};
-      }));
-      if (!files.length) return;
-      const selected = selectedFiles.get(tabId) || {}; selected[key] = files; selectedFiles.set(tabId, selected);
-      if (active().id === tabId) done(files.map(f => f.name));
-    } catch (error) {toast(`ファイルを読み込めませんでした: ${error.message}`);}
+    const files = [...chooser.files]; cleanup(); if (!files.length) return;
+    if (!workspace.tabs.some(tab => tab.id === tabId)) return;
+    const pending = selectedFiles.read(tabId, key, files); refreshFileFields(tabId);
+    const slot = await pending; if (!slot) return;
+    const currentKey = selectedFiles.keyOf(tabId, slot), tab = workspace.tabs.find(tab => tab.id === tabId);
+    if (!tab || currentKey === undefined) return;
+    if (slot.state === 'ready') {
+      const names = slot.files.map(file => file.name);
+      if (currentKey === 'binary') {tab.request.body ||= {}; tab.request.body.file = {src:names[0]};}
+      else {const row = tab.request.body.formdata?.[Number(currentKey.slice(5))]; if (row) row.src = names;}
+      touchTab(tab);
+    } else toast(`ファイルを読み込めませんでした: ${slot.error.message}`);
+    refreshFileFields(tabId);
   };
   chooser.click();
 }
@@ -439,9 +460,7 @@ function renderBody(root, tab) {
   } else if (body.mode === 'urlencoded' || body.mode === 'formdata') {
     const key = body.mode; body[key] = rows(body[key]); root.append(kvEditor(body[key], touch, {files: key === 'formdata'}));
   } else if (body.mode === 'file') {
-    const chosen = selectedFiles.get(tab.id)?.binary?.[0];
-    root.append(button(chosen ? chosen.name : 'ファイルを選択', () => chooseFiles('binary', false, names => {body.file = {src: names[0]}; touch(); renderPane();})));
-    if (!chosen && body.file?.src) root.append(element('p', 'input-condition', `${body.file.src}：送信前に選び直してください。`));
+    root.append(filePicker(tab.id, 'binary', body.file?.src, false));
   } else if (body.mode === 'graphql') {
     body.graphql ||= {query: '', variables: '{}'};
     for (const key of ['query', 'variables']) {
@@ -464,9 +483,10 @@ function selectRequest(id) {
   if ($('modal').open) closeModal();
   persist(); renderAll();
 }
-function discardDraft(id) {
+async function discardDraft(id) {
   const draft = workspace.tabs.find(t => t.id === id);
-  if (!draft || !confirm('この下書きを削除しますか？')) return;
+  if (!draft || !await confirmAction('この下書きを削除しますか？')) return;
+  if (!workspace.tabs.includes(draft)) return;
   persist(true); requests.get(id)?.abort(); requests.delete(id); responses.delete(id); selectedFiles.delete(id);
   workspace.tabs = workspace.tabs.filter(t => t.id !== id);
   if (!workspace.tabs.length) workspace.tabs.push(freshTab());
@@ -621,17 +641,17 @@ function folderChoices(collection) {
   const values = [['', 'コレクション直下']];
   walkItems(collection?.item, (item, parents) => {if (item.item) values.push([item._mpId, [...parents.map(p => p.name), item.name].join(' / ')]);}); return values;
 }
-function saveRequest() {
+async function saveRequest() {
   const tab = active(); const priorKey = requestKey(workspace, tab);
   const current = workspace.collections.find(c => c._mpId === tab.collectionId), located = findItem(current, tab.itemId);
-  if (located) {located.item.name = tab.name; located.item.request = clone(tab.request); located.item.settings = requestSettings(tab.settings); tab.dirty = false; persist(); renderAll(); toast('コレクションに保存しました。'); return;}
+  if (located) {located.item.name = tab.name; located.item.request = clone(tab.request); located.item.settings = requestSettings(tab.settings); tab.dirty = false; const saved = persist(true); renderAll(); if (await saved) toast('コレクションに保存しました。'); return;}
   let name = tab.name, collectionId = current?._mpId || selectedCollectionId || workspace.collections[0]?._mpId || '', folderId = tab.pendingFolderId || '';
   const box = element('div'); box.append(field('Request name', input(name, 'Request name', value => name = value)));
   const options = workspace.collections.map(c => [c._mpId, c.info.name]); if (!options.length) options.push(['', 'My Collection（新規作成）']);
   const folderSelect = select(folderChoices(workspace.collections.find(c => c._mpId === collectionId)), folderId, value => folderId = value);
   const collectionSelect = select(options, collectionId, value => {collectionId = value; folderId = ''; folderSelect.replaceChildren(...folderChoices(workspace.collections.find(c => c._mpId === value)).map(([id, label]) => new Option(label, id)));});
   box.append(field('Collection', collectionSelect), field('Folder', folderSelect));
-  showModal('Save request', box, () => {
+  showModal('Save request', box, async () => {
     if (!name.trim()) throw new Error('リクエスト名を入力してください。');
     let collection = workspace.collections.find(c => c._mpId === collectionId);
     if (!collection) {collection = {_mpId: uid(), info: {name: 'My Collection', schema: SCHEMA}, item: [], variable: []}; workspace.collections.push(collection);}
@@ -639,7 +659,7 @@ function saveRequest() {
     const item = {_mpId: uid(), name: name.trim(), request: clone(tab.request), settings: requestSettings(tab.settings)};
     parent.item.push(item); Object.assign(tab, {name: item.name, collectionId: collection._mpId, itemId: item._mpId, dirty: false}); delete tab.pendingFolderId;
     revisionStore.transfer(priorKey, requestKey(workspace, tab)); studio?.transferResponse(priorKey, requestKey(workspace, tab));
-    side = 'collections'; closeModal(); persist(); renderAll(); toast('コレクションに保存しました。');
+    side = 'collections'; closeModal(); const saved = persist(true); renderAll(); if (await saved) toast('コレクションに保存しました。');
   });
 }
 function collectionMenu(collection, folder, anchor, event) {
@@ -660,8 +680,8 @@ function collectionMenu(collection, folder, anchor, event) {
     ...configurationActions(owner, 'scope')
   ];
   if (!folder) actions.push({label: 'エクスポート', run: () => exportFile(`${name}.postman_collection.json`, exportCollection(collection))});
-  actions.push(null, {label: '削除', danger: true, run: () => {
-    if (!confirm(`「${name}」と配下の保存済みリクエストを削除しますか？編集中の内容は下書きとして残ります。`)) return;
+  actions.push(null, {label: '削除', danger: true, run: async () => {
+    if (!await confirmAction(`「${name}」と配下の保存済みリクエストを削除しますか？編集中の内容は下書きとして残ります。`)) return;
     if (folder) {const parent = findItem(collection, folder._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(item => item._mpId !== folder._mpId);}
     else workspace.collections = workspace.collections.filter(c => c !== collection);
     persist(); renderAll(); refreshSettingsDrawer();
@@ -695,7 +715,7 @@ function editRequestItem(collection, item, anchor, event) {
     {label: '設定をコピー', run: () => copyConfiguration({request: item.request, settings: item.settings}, 'request')},
     {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {openRequest(collection, item); const tab = active(); applySettings(tab, 'request', settingsClipboard); tab.settings = requestSettings(tab.settings); selectedFiles.delete(tab.id); touch(); renderEditor();}},
     {label: 'URLをコピー', run: () => copyText(displayUrl(item.request.url))},
-    {label: '削除', danger: true, run: () => {if (!confirm(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
+    {label: '削除', danger: true, run: async () => {if (!await confirmAction(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
   ], event);
 }
 function environmentActions(env, globals) {
@@ -703,8 +723,8 @@ function environmentActions(env, globals) {
   const actions = [{label: '変数を編集', run: () => globals ? editEnvironment(null, true) : chooseEnvironment(env.id, true)}];
   if (!globals) actions.push({label: '複製', run: () => {const copy = duplicateEnvironment(env, workspace.environments.map(e => e.name)); workspace.environments.push(copy); chooseEnvironment(copy.id, true); toast('環境を複製しました。');}});
   actions.push({label: '変更履歴', run: () => showRevisions(globals ? 'globals' : `environment:${env.id}`)}, ...configurationActions(owner, 'environment'), {label: 'エクスポート', run: () => exportEnvironment(env, globals)});
-  if (!globals) actions.push(null, {label: '削除', danger: true, run: () => {
-    if (!confirm(`環境「${env.name}」を削除しますか？`)) return;
+  if (!globals) actions.push(null, {label: '削除', danger: true, run: async () => {
+    if (!await confirmAction(`環境「${env.name}」を削除しますか？`)) return;
     workspace.environments = workspace.environments.filter(e => e.id !== env.id); chooseEnvironment(workspace.environmentId === env.id ? '' : workspace.environmentId);
   }}); return actions;
 }
@@ -918,7 +938,7 @@ async function sendRequest() {
   const snapshot = clone(tab), environmentId = workspace.environmentId, controller = new AbortController(); requests.set(tab.id, controller);
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
-    const result = await studio.execute(tab,{signal:controller.signal,environmentId,files:selectedFiles.get(tab.id)||{}});
+    const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal)});
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
     workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: result.status, elapsed_ms: result.elapsed_ms}); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
@@ -940,9 +960,9 @@ function showRevisions(key) {
   if (!entries.length) box.append(element('p', 'empty-state', '変更履歴はまだありません。'));
   for (const entry of [...entries].reverse()) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
-    details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', () => {
-      if (!confirm('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。')) return;
-      revisionStore.restore(key, entry); selectedFiles.delete(active().id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
+    details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', async () => {
+      if (!await confirmAction('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。', {title:'変更履歴を復元', accept:'復元', danger:false})) return;
+      revisionStore.restore(key, entry); for (const draft of workspace.tabs) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
@@ -965,7 +985,7 @@ $('dataActions').onclick = event => openItemMenu(event.currentTarget, [
 ], event);
 $('importFiles').onchange = () => importDialog([...$('importFiles').files]);
 $('sidebarAdd').onclick = event => studio.creationMenu(event.currentTarget,event);
-$('clearHistory').onclick = () => {if (confirm('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
+$('clearHistory').onclick = async () => {if (await confirmAction('送信履歴をすべて削除しますか？')) {workspace.history = []; persist(); renderSidebar();}};
 for (const tab of $('editorTabs').querySelectorAll('[data-editor]'))
   tab.onclick = () => selectEditorPage(tab.dataset.editor);
 for (const tab of $('responseTabs').querySelectorAll('[data-response]'))
@@ -1001,7 +1021,7 @@ studio = initStudio({
   chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
   addDraft:()=>{side='collections';addTab();$('url').focus();},
   findDraft:(collectionId,itemId)=>workspace.tabs.find(t=>t.collectionId===collectionId&&t.itemId===itemId),
-  filesFor:tab=>selectedFiles.get(workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id)||{},
+  filesFor:(tab,signal)=>selectedFiles.snapshot(workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
   saveTab:tab=>{
     const collection=workspace.collections.find(c=>c._mpId===tab.collectionId),item=findItem(collection,tab.itemId)?.item;
     if(item){item.request=clone(tab.request);for(const draft of workspace.tabs)if(draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId)draft.request=clone(tab.request);}

@@ -1,0 +1,23 @@
+{
+  "branch": "fix/binary-navigation-dialogs-20261029",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-10-29T05:57:26.468066Z",
+    "id": "lrce-5f9c0df761b42d449d39d1c6",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-fdc87c24d1e2",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-8a58669ad8184a45-browser",
+  "source_sha": "ba906f7bef658b4d4f5ab2765f47f9a1d81bfd9b",
+  "started_at": "2026-10-29T02:57:24.787737283Z",
+  "status": "ready",
+  "version": 1
+}

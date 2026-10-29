@@ -1,0 +1,29 @@
+{
+  "native_regression_checks": {
+    "browser-results.json": 18,
+    "ui/ui-results.json": 22,
+    "edgecases/results.json": 5,
+    "settings/results.json": 16,
+    "selection/results.json": 12,
+    "backup/result.json": 9,
+    "storage/result.json": 6,
+    "paging/results.json": 10
+  },
+  "mode": "two-vm Chromium HTTP",
+  "source_identity_verified": true,
+  "focus_checks": 12,
+  "extraction_checks": 11,
+  "script_checks": 16,
+  "binary_workflow_checks": 22,
+  "native_automation_checks": 17,
+  "network": {
+    "ok": true,
+    "app_http": true,
+    "cross_vm_proxy": true,
+    "two_way": true,
+    "app_peer": "provider-injected",
+    "echo_port": 18081,
+    "mode": "Local Relay VM private peer networking"
+  },
+  "screenshots": 39
+}
