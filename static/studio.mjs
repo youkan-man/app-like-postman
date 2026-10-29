@@ -1,3 +1,4 @@
+import {confirmAction} from './confirm-dialog.mjs';
 /** Workspace pages own editing state; runtime, scripts and relation execution are separate. */
 import {SCHEMA,clone,uid,rows,enabled,findItem,walkItems,contextFor,newRequest} from './core.mjs';
 import {PrimaryVariables,RESPONSE_KEY,extractVariableNames,upsertVariable,responseMetadata,metadataElements,extractionWrites,requestAutomation,variableText,checkName} from './runtime.mjs';
@@ -62,7 +63,7 @@ export function initStudio(api) {
       heading.append(btn('変更履歴',()=>api.showRevisions(`environment:${env.id}`),'button'));
       heading.append(btn('エクスポート',()=>api.exportEnvironment(env),'button'));
     } else if(isGlobals)heading.append(btn('変更履歴',()=>api.showRevisions('globals'),'button'));
-    else if(isPrimary)heading.append(btn('すべて消去',()=>{if(confirm('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView('environments');}},'button'));
+    else if(isPrimary)heading.append(btn('すべて消去',async()=>{if(await confirmAction('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView('environments');}},'button'));
     page.append(heading);
     if(!env&&!isPrimary&&!isGlobals){const empty=el('div','workspace-empty');empty.append(el('h2','','環境を選択してください'),btn('環境を作成',()=>createEnvironment(),'button primary'));page.append(empty);return;}
     const body=el('div','workspace-page-body variables-page');body.append(kvEditor(scopeRows(),scopeChanged,{secret:!isPrimary}));page.append(body);
@@ -80,11 +81,11 @@ export function initStudio(api) {
       Object.assign(line.dataset,attributes);if(attributes.scope==='globals')button.id='globalVariables';line.append(button,more);bindContext(line,more,menu);root.append(line);
     }
     if(side==='environments'){
-      row('一次変数',envSelection==='primary',()=>{envSelection='primary';surfaceKey='';api.renderSidebar();syncView(side);api.closeNavigation();},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable('primary')},{label:'すべて消去',danger:true,run:()=>{if(confirm('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView(side);}}}],e),{scope:'primary'});
+      row('一次変数',envSelection==='primary',()=>{envSelection='primary';surfaceKey='';api.renderSidebar();syncView(side);api.closeNavigation();},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable('primary')},{label:'すべて消去',danger:true,run:async()=>{if(await confirmAction('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView(side);}}}],e),{scope:'primary'});
       row('Globals',envSelection==='globals',()=>editEnvironment(null,true),(a,e)=>api.environmentMenu(null,true,a,e),{scope:'globals'});
       for(const env of w().environments.filter(e=>e.name.toLowerCase().includes(query)))row(env.name,envSelection===env.id,()=>{api.chooseEnvironment(env.id);editEnvironment(env);},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable(env.id)},{label:'この後に環境を追加',run:()=>createEnvironment(env.id)},...api.environmentActions(env,false)],e),{environmentId:env.id});
     } else {
-      for(const relation of (w().relations||[]).filter(r=>r.name.toLowerCase().includes(query)))row(relation.name,relation.id===relationId,()=>openRelation(relation.id),(a,e)=>openItemMenu(a,[{label:'この後にリレーションを追加',run:()=>createRelation(relation.id)},{label:'ステップを追加',run:()=>{openRelation(relation.id);addStep(relation);}},{label:'複製',run:()=>duplicateRelation(relation)},{label:'削除',danger:true,run:()=>{if(running?.relationId===relation.id)return toast('実行中です。停止してから削除してください。');if(confirm(`「${relation.name}」を削除しますか？`)){w().relations=w().relations.filter(r=>r!==relation);persist();surfaceKey='';api.renderSidebar();syncView('relations');}}}],e),{relationId:relation.id});
+      for(const relation of (w().relations||[]).filter(r=>r.name.toLowerCase().includes(query)))row(relation.name,relation.id===relationId,()=>openRelation(relation.id),(a,e)=>openItemMenu(a,[{label:'この後にリレーションを追加',run:()=>createRelation(relation.id)},{label:'ステップを追加',run:()=>{openRelation(relation.id);addStep(relation);}},{label:'複製',run:()=>duplicateRelation(relation)},{label:'削除',danger:true,run:async()=>{if(controller&&running?.relationId===relation.id)return toast('実行中です。停止してから削除してください。');if(await confirmAction(`「${relation.name}」を削除しますか？`)){if(controller&&running?.relationId===relation.id)return toast('実行中です。停止してから削除してください。');w().relations=w().relations.filter(r=>r!==relation);persist();surfaceKey='';api.renderSidebar();syncView('relations');}}}],e),{relationId:relation.id});
       if(!root.children.length)root.append(el('p','sidebar-empty','リレーションはありません'));
     }
     return true;
@@ -350,7 +351,7 @@ export function initStudio(api) {
     const stop=$('stopRelationLocal');if(stop)stop.disabled=false;
     try {
       const result=await runRelation(relation,{workspace:w(),primary:()=>primary.snapshot(),variables:tab=>contextFor({...w(),environmentId:chosenEnv},tab,primary.rows).vars,signal:controller.signal,
-        execute:async(tab,{signal})=>{const response=await execute(tab,{signal,environmentId:chosenEnv,files:api.filesFor(tab)});api.recordBackground(tab,response,chosenEnv);return response;},onProgress:run=>{running=run;renderRunLog();}});
+        execute:async(tab,{signal})=>{const response=await execute(tab,{signal,environmentId:chosenEnv,files:api.filesFor(tab,signal)});api.recordBackground(tab,response,chosenEnv);return response;},onProgress:run=>{running=run;renderRunLog();}});
       w().relationRuns.push(clone(result));persist();
     }catch(error){running={relationId:relation.id,name:relation.name,status:'failed',entries:[],error:error.message};toast(error.message);}finally{controller=null;$('stopRelationGlobal').hidden=!manualControllers.size;renderRunLog();}
   }

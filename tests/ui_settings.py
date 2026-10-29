@@ -307,8 +307,8 @@ def main():
             passed('mobile inline-page menus work; resizing and Escape keep automatically saved edits')
 
             # Removing the active environment also removes stale page content.
-            page.once('dialog', lambda dialog: dialog.accept())
             env_menu('Staging renamed copy', '削除')
+            page.locator('#appConfirm').get_by_role('button', name='削除', exact=True).click()
             expect(page.locator('#environment')).to_have_value('')
             expect(modal).to_contain_text('環境を選択してください')
             saved()

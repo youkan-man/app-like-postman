@@ -9,6 +9,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
   send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{}}) {
   throwIfAborted(signal);
   const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request);
+  const attachments=typeof files?.then==='function'?clone(await files):clone(files);throwIfAborted(signal);
   const environment=workspace.environments.find(e=>e.id===environmentId);
   async function run(source,result,phase) {
     if(!automation.enabled||!source.trim())return;
@@ -28,7 +29,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
   }
   await run(automation.before,null,'before');
   throwIfAborted(signal);
-  const compiled=compileRequest(view,snapshot,files,primary.rows);
+  const compiled=compileRequest(view,snapshot,attachments,primary.rows);
   const result=await send(compiled.payload,signal);throwIfAborted(signal);
   result.received_at=new Date().toISOString();result.automationErrors=[];
   try {primary.apply(extractionWrites(automation.extractions,responseMetadata(result)));onVariables(false);}

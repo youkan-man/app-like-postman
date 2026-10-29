@@ -113,8 +113,8 @@ def main():
             entry = entries.nth(1)
             entry.locator('summary').click()
             before_send = len(state()['history'])
-            page.once('dialog', lambda d:d.accept())
             entry.get_by_role('button',name='この版を復元').click()
+            page.locator('#appConfirm').get_by_role('button', name='復元', exact=True).click()
             saved()
             assert len(state()['history']) == before_send
             assert state()['revisions'][key][-1]['reason'] == '復元'
