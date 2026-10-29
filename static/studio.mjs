@@ -256,7 +256,7 @@ export function initStudio(api) {
           for(const [target,changes] of [[env?.values,out.writes.environment],[w().globals,out.writes.globals]])for(const row of changes){if(row.remove){for(let at=target.length-1;at>=0;at--)if(target[at].key===row.key)target.splice(at,1);}else upsertVariable(target,row.key,row.value);}
           if(out.writes.environment.length||out.writes.globals.length)persist();noteScript(tab,{phase,logs:out.logs});toast('スクリプトを実行しました。リクエストは送信していません。');
         }catch(error){noteScript(tab,{phase,error:error.message,logs:[]});toast(error.message);}finally{manualControllers.delete(manual);$('stopRelationGlobal').hidden=!controller&&!manualControllers.size;run.disabled=false;}
-      },'button');header.append(run);panel.append(header,createCodeEditor({value:config[phase],language:'javascript',label:`${title}スクリプト`,onChange:value=>{config[phase]=value;save();}}).element);
+      },'button');header.append(run);panel.append(header,createCodeEditor({value:config[phase],language:'javascript',intellisense:true,label:`${title}スクリプト`,onChange:value=>{config[phase]=value;save();}}).element);
     }
     selectPhase('before');
     phases.onkeydown=event=>{const current=phaseNodes.findIndex(item=>item.tab===event.target);if(current<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?1:(current+1)%2;phaseNodes[next].tab.click();phaseNodes[next].tab.focus();};

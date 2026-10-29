@@ -18,7 +18,7 @@ self.onmessage = async ({data}) => {
     response:response?{code:response.status,status:response.statusText,responseTime:response.elapsed_ms,responseSize:response.size,
       headers:{get:name=>{const v=response.headers[String(name).toLowerCase()];return Array.isArray(v)?v[0]:v;},all:()=>response.headers},
       json:()=>{if(data.raw?.body_encoding==='base64')throw Error('バイナリ応答はJSONとして読めません');return JSON.parse(data.raw?.body||'');},text:()=>data.raw?.body||''}:null,
-    test:(name,fn)=>{fn();log('test','PASS '+name);}};
+    test:(name,fn)=>{try{fn();log('test','PASS '+name);}catch(error){log('test','FAIL '+name+': '+String(error?.message||error));throw error;}},\n    expect:(actual)=>({to:{equal:expected=>{if(!Object.is(actual,expected))throw Error('Expected '+text(actual)+' to equal '+text(expected));},eql:expected=>{if(JSON.stringify(actual)!==JSON.stringify(expected))throw Error('Expected deep equality');},include:expected=>{if(!String(actual).includes(String(expected)))throw Error('Expected value to include '+text(expected));}}})};
   try {
     const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
     await new AsyncFunction('pm','vars','response','request','console','"use strict";\\n'+data.source)(pm,pm.variables,response,data.request,{log:(...a)=>log('log',...a),warn:(...a)=>log('warn',...a),error:(...a)=>log('error',...a)});
