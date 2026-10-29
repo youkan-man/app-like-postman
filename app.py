@@ -29,6 +29,91 @@ TEXT_TYPES = ("text/", "json", "xml", "javascript", "yaml", "csv", "svg")
 TOKEN = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
 
+
+class RequestBodyError(ValueError):
+    def __init__(self, message, status=400):
+        super().__init__(message)
+        self.status = status
+
+
+def read_request_body(stream, headers, limit=None):
+    """Read one unambiguous HTTP request body, including a chunked proxy hop.
+
+    Chunk boundaries are transport framing, not bytes forwarded to the API.
+    Trailer fields are consumed but never merged into authorization or framing.
+    The existing workspace size limit also applies to a decoded chunked body.
+    """
+    lengths = headers.get_all('Content-Length', [])
+    transfers = headers.get_all('Transfer-Encoding', [])
+    if lengths and transfers:
+        raise RequestBodyError('Content-LengthとTransfer-Encodingは同時に指定できません。')
+    result = bytearray()
+
+    def line():
+        value = stream.readline(8193)
+        if len(value) > 8192 or not value.endswith(b'\r\n'):
+            raise RequestBodyError('chunked転送の行末またはヘッダー長が不正です。')
+        return value[:-2]
+
+    def append_exact(length):
+        if limit is not None and len(result) + length > limit:
+            raise RequestBodyError('保存データが10 MiBを超えています。', 413)
+        remaining = length
+        while remaining:
+            block = stream.read(min(remaining, 65536))
+            if not block:
+                raise RequestBodyError('リクエスト本文の受信が途中で終了しました。')
+            result.extend(block)
+            remaining -= len(block)
+
+    if transfers:
+        codings = [part.strip().lower() for value in transfers for part in value.split(',')]
+        if (not codings or any(not TOKEN.fullmatch(code) for code in codings) or
+                codings[-1] != 'chunked' or codings.count('chunked') != 1):
+            raise RequestBodyError('Transfer-Encodingの形式が不正です。')
+        if codings != ['chunked']:
+            raise RequestBodyError('このTransfer-Encodingには対応していません。chunkedを指定してください。', 501)
+        while True:
+            raw = line()
+            size_text, separator, extension = raw.partition(b';')
+            if separator:
+                size_text = size_text.rstrip(b' \t')
+                if any(byte < 32 and byte != 9 or byte == 127 for byte in extension):
+                    raise RequestBodyError('chunk拡張の形式が不正です。')
+            if not re.fullmatch(rb'[0-9a-fA-F]+', size_text):
+                raise RequestBodyError('chunkサイズの形式が不正です。')
+            length = int(size_text, 16)
+            if length == 0:
+                # Trailer fields cannot redefine the already chosen message framing.
+                total = 0
+                for _ in range(101):
+                    trailer = line(); total += len(trailer) + 2
+                    if not trailer:
+                        return bytes(result)
+                    if total > 65536:
+                        raise RequestBodyError('trailerが大きすぎます。')
+                    name, colon, value = trailer.partition(b':')
+                    if (not colon or not re.fullmatch(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name) or
+                            name.lower() in {b'content-length', b'transfer-encoding', b'host'} or
+                            any(byte < 32 and byte != 9 or byte == 127 for byte in value)):
+                        raise RequestBodyError('trailerの形式が不正です。')
+                raise RequestBodyError('trailerの項目数が多すぎます。')
+            append_exact(length)
+            if stream.read(2) != b'\r\n':
+                raise RequestBodyError('chunk本文の終端が不正です。')
+    if not lengths:
+        raise RequestBodyError('Content-LengthまたはTransfer-Encoding: chunkedが必要です。', 411)
+    values = [part.strip() for value in lengths for part in value.split(',')]
+    if not values or any(not re.fullmatch(r'[0-9]+', value) for value in values):
+        raise RequestBodyError('Content-Lengthの形式が不正です。')
+    # Avoid huge integer conversions. Leading zeroes do not change byte length.
+    normalized = [value.lstrip('0') or '0' for value in values]
+    if len(set(normalized)) != 1 or len(normalized[0]) > 20:
+        raise RequestBodyError('Content-Lengthの値が不正または一致していません。')
+    append_exact(int(normalized[0]))
+    return bytes(result)
+
+
 def _decode64(value):
     try:
         return base64.b64decode(value, validate=True)
@@ -265,15 +350,20 @@ class Handler(SimpleHTTPRequestHandler):
                 if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
                     self.send_json(415, {"ok": False, "error": "application/jsonが必要です。"})
                     return
-            length = int(self.headers.get("Content-Length", "0"))
-            if length < 1 or (self.path == "/api/workspace" and length > MAX_WORKSPACE_BYTES):
-                self.send_json(413 if length > MAX_WORKSPACE_BYTES else 400, {"ok": False, "error": "保存データのサイズまたは形式が不正です。"})
-                return
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            content = read_request_body(self.rfile, self.headers,
+                                        MAX_WORKSPACE_BYTES if self.path == "/api/workspace" else None)
+            if not content:
+                raise RequestBodyError("送信するJSON本文が空です。")
+            payload = json.loads(content.decode("utf-8"))
             if self.path == "/api/workspace":
                 self.send_json(200, write_workspace(payload))
             else:
                 self.send_json(200, send_http_request(payload))
+        except RequestBodyError as error:
+            self.close_connection = True
+            self.send_json(error.status, {"ok": False, "error_origin": "minipost",
+                                         "error": str(error),
+                                         "diagnostic": {"code": "REQUEST_BODY_FRAMING", "phase": "receive_request"}})
         except Exception as error:
             diagnostic = getattr(error, "minipost_network", None)
             # Certificate verification errors are ValueErrors too. Preserve TLS cause.

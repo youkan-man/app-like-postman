@@ -37,6 +37,12 @@
       "vm": "browser",
       "needs": ["prepare-browser", "start-app"],
       "run": "bash ci/relay_2vm_verify_browser.sh"
+    },
+    {
+      "name": "chunked-ingress-e2e",
+      "vm": "browser",
+      "needs": ["browser-cross-vm-e2e"],
+      "run": "bash ci/relay_chunked_ingress.sh"
     }
   ],
   "environment_revision": "minipost-2vm-chromium-20261016-v2"
