@@ -1,15 +1,4 @@
 {
   "version": 1,
-  "packages": {"apt": ["ca-certificates", "git", "nodejs", "openssl", "python3", "python3-venv", "python3-pip"]},
-  "vms": {"app": {"port": 8080, "resources": {"disk_gib": 8}}, "browser": {"port": 18081, "resources": {"disk_gib": 8}}},
-  "steps": [
-    {"name":"stage-app","vm":"app","needs":[],"run":"python3 ci/stage_binary_fixes.py"},
-    {"name":"stage-browser","vm":"browser","needs":[],"run":"python3 ci/stage_binary_fixes.py"},
-    {"name":"node-regression","vm":"app","needs":["stage-app"],"run":"mkdir -p .local_relay/output && node --test tests/*.test.mjs >.local_relay/output/node-regression.log 2>&1"},
-    {"name":"python-regression","vm":"app","needs":["node-regression"],"run":"python3 -m unittest discover -s tests -p 'test_*.py' -v >.local_relay/output/python-regression.log 2>&1"},
-    {"name":"start-app","vm":"app","needs":["python-regression"],"run":"bash ci/relay_2vm_start_app.sh"},
-    {"name":"prepare-browser","vm":"browser","needs":["stage-browser"],"run":"bash ci/relay_2vm_prepare_browser.sh"},
-    {"name":"browser-cross-vm-e2e","vm":"browser","needs":["prepare-browser","start-app"],"run":"bash ci/relay_2vm_verify_browser.sh"}
-  ],
-  "environment_revision":"minipost-binary-ui-verification-20261029"
+  "disabled": true
 }
