@@ -1,0 +1,54 @@
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] code 404, message File not found
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:21] "GET /api/workspace HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 05:36:22] "GET /api/workspace HTTP/1.1" 404 -
+PASS Postman individual import changes localStorage without writing server data
+127.0.0.1 - - [29/Oct/2026 05:36:22] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:22] "GET /api/workspace HTTP/1.1" 404 -
+PASS saved request is sent by context menu without server workspace persistence
+PASS whole export includes collections, environments, request history, revisions and layout
+127.0.0.1 - - [29/Oct/2026 05:36:23] "POST /api/workspace HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:23] "GET /api/workspace HTTP/1.1" 200 -
+PASS explicit menu action commits an atomic server backup
+127.0.0.1 - - [29/Oct/2026 05:36:23] "POST /api/workspace HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:23] "GET /api/workspace HTTP/1.1" 200 -
+PASS editing during a server write keeps the saved status marked as stale
+127.0.0.1 - - [29/Oct/2026 05:36:23] "GET /api/workspace HTTP/1.1" 200 -
+PASS new edits are local only and do not auto-sync to server
+127.0.0.1 - - [29/Oct/2026 05:36:23] "GET /api/workspace HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:36:23] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 05:36:24] "GET /api/health HTTP/1.1" 200 -
+PASS manually restoring a server backup retains environment and request data
+PASS failed full import rolls back workspace, layout and section preferences
+PASS backup UI and context actions produce no browser exceptions or viewport overflow

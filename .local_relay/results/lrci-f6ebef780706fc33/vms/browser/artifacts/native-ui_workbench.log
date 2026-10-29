@@ -1,0 +1,103 @@
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] code 404, message File not found
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 05:35:36] "GET /api/health HTTP/1.1" 200 -
+PASS formal corporate defaults with scoped setting/response tabs and no accumulating request tabs
+127.0.0.1 - - [29/Oct/2026 05:35:37] "POST /api/request HTTP/1.1" 200 -
+PASS existing Collection and Environment import through real HTTP
+PASS internal settings page navigation retains request data and avoids revisions
+PASS flat spacing is unchanged by pointer and keyboard disclosure; field nodes remain mounted
+127.0.0.1 - - [29/Oct/2026 05:35:40] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 05:35:40] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:40] "POST /api/request HTTP/1.1" 200 -
+PASS disclosure survives render and reload without changing request data or revisions
+PASS item context menu keyboard navigation and focus return
+PASS rename cancellation preserves the request
+127.0.0.1 - - [29/Oct/2026 05:35:42] "POST /api/request HTTP/1.1" 200 -
+PASS full-page variable autosave survives page switches and real auth round trip
+127.0.0.1 - - [29/Oct/2026 05:35:42] "POST /api/request HTTP/1.1" 200 -
+PASS side-by-side layout and keyboard horizontal separator
+127.0.0.1 - - [29/Oct/2026 05:35:43] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 05:35:43] "GET /api/health HTTP/1.1" 200 -
+PASS split position and wrapping preferences survive reload
+127.0.0.1 - - [29/Oct/2026 05:35:43] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:43] "POST /api/request HTTP/1.1" 200 -
+PASS response format tabs switch with pointer and keyboard
+127.0.0.1 - - [29/Oct/2026 05:35:43] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 05:35:44] "GET /api/health HTTP/1.1" 200 -
+PASS sidebar resize persists without altering workspace data
+PASS desktop sidebar collapse and restore
+PASS list selection opens one request without a tab strip
+PASS large request list search keeps its context
+127.0.0.1 - - [29/Oct/2026 05:35:45] "POST /api/request HTTP/1.1" 200 -
+PASS long request names and URLs remain editable and send intact
+PASS unresolved-variable error remains visible
+127.0.0.1 - - [29/Oct/2026 05:35:46] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:47] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:48] "POST /api/request HTTP/1.1" 200 -
+PASS desktop tablet and phone navigation, sending and response search
+PASS variable page remains inline across desktop and phone without losing values
+PASS 200 percent root text enlargement keeps actions reachable
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:49] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:50] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 05:35:50] "POST /api/request HTTP/1.1" 200 -
+PASS touch emulation opens item actions, sends and discloses flat fields
+PASS no uncaught UI JavaScript errors
