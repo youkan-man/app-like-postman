@@ -1,0 +1,45 @@
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] code 404, message File not found
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 03:15:01] "GET /api/health HTTP/1.1" 200 -
+PASS existing editor-page preference migrates without losing the selected page
+PASS opening twelve requests never adds request tabs or changes the category count
+PASS category switches and disclosure preserve the same input, flat spacing and revision state
+PASS switching individual categories preserves the all-settings collapse preference
+PASS keyboard paging does not change request values or append revisions
+PASS sidebar pages are independent and preserve each category search
+127.0.0.1 - - [29/Oct/2026 03:15:04] "POST /api/request HTTP/1.1" 200 -
+PASS response paging keeps actual response data and never resends a request
+127.0.0.1 - - [29/Oct/2026 03:15:05] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 03:15:05] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:15:05] "POST /api/request HTTP/1.1" 200 -
+PASS page choice and autosaved content survive reload
+PASS tablet and phone retain usable category controls without horizontal page overflow
+PASS no uncaught browser errors

@@ -1,0 +1,36 @@
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] code 404, message File not found
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:14:18] "POST /api/request HTTP/1.1" 200 -
+PASS v2.0 object auth opens and edits in request editor with real HTTP
+127.0.0.1 - - [29/Oct/2026 03:14:19] "POST /api/request HTTP/1.1" 200 -
+PASS v2.0 collection auth edits in drawer and remains inherited
+PASS history retains the date as well as time and request URL
+PASS 200 percent POST and DELETE labels do not overlap request names
+PASS no JavaScript errors in auth, history or typography checks
