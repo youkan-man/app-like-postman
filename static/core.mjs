@@ -19,9 +19,13 @@ export function splitUrl(raw = '') {
   const hash = hashAt < 0 ? '' : raw.slice(hashAt);
   const rest = hashAt < 0 ? raw : raw.slice(0, hashAt);
   const at = rest.indexOf('?');
-  return {base: at < 0 ? rest : rest.slice(0, at), hash, query: at < 0 ? [] : [...new URLSearchParams(rest.slice(at + 1))].map(([key, value]) => ({key, value, disabled: false}))};
+  const decode = value => {try {return decodeURIComponent(value);} catch {return value;}};
+  const query = at < 0 ? [] : rest.slice(at + 1).split('&').filter(Boolean).map(part => {
+    const equals = part.indexOf('=');
+    return {key: decode(equals < 0 ? part : part.slice(0, equals)), value: decode(equals < 0 ? '' : part.slice(equals + 1)), disabled: false};
+  });
+  return {base: at < 0 ? rest : rest.slice(0, at), hash, query};
 }
-const encode = value => encodeURIComponent(text(value)).replace(/%7B%7B(.*?)%7D%7D/g, (_, name) => `{{${decodeURIComponent(name)}}}`);
 export function urlParts(value) {
   if (typeof value === 'string' || !value) {
     const raw = text(value);
@@ -33,20 +37,25 @@ export function urlParts(value) {
     const path = Array.isArray(value.path) ? value.path.join('/') : text(value.path);
     raw = (value.protocol ? `${value.protocol}://` : '') + host + (value.port ? `:${value.port}` : '') + (path ? '/' + path.replace(/^\//, '') : '') + (value.hash ? `#${value.hash}` : '');
   }
-  const parts = splitUrl(text(raw));
+  const parts = value._mpTextParts ? {base: value.base, hash: value.hash || '', query: []} : splitUrl(text(raw));
   return {...value, ...parts, raw: text(raw), query: Array.isArray(value.query) ? rows(value.query) : parts.query, variable: rows(value.variable)};
 }
 export function displayUrl(value) {
   const u = urlParts(value);
-  const query = u.query.filter(enabled).filter(row => row.key).map(row => `${encode(row.key)}=${encode(row.value)}`).join('&');
-  return u.base + (query ? `?${query}` : '') + u.hash;
+  if (u._mpTypedUrl) return u.raw;
+  const query = u.query.filter(enabled).filter(row => row.key).map(row => `${text(row.key)}=${text(row.value)}`).join('&');
+  // Only legacy imported path escapes are decoded for readable display. URI
+  // reserved escapes (%2F, %3F, %23, ...) retain their structural meaning.
+  let base = u.base;
+  try {base = decodeURI(base);} catch {}
+  return base + (query ? `?${query}` : '') + u.hash;
 }
 export function setUrlText(request, value) {
   const previous = urlParts(request.url);
-  request.url = {...previous, ...splitUrl(value), raw: value};
+  request.url = {...previous, ...splitUrl(value), raw: value, _mpTextParts: true, _mpTypedUrl: true};
 }
 export function setQuery(request, query) {
-  request.url = {...urlParts(request.url), query};
+  request.url = {...urlParts(request.url), query, _mpTextParts: true, _mpTypedUrl: false};
   request.url.raw = displayUrl(request.url);
 }
 export function newRequest() {
@@ -57,8 +66,7 @@ export function normalizeRequest(value) {
   r.method = text(r.method || 'GET').toUpperCase();
   r.header = rows(r.header);
   const u = urlParts(r.url);
-  r.url = {...u, raw: displayUrl(u)};
-  delete r.url.base; delete r.url.hash; // hash is kept in raw; urlParts recovers it.
+  r.url = {...u, raw: displayUrl(u), _mpTextParts: true};
   return r;
 }
 function attachIds(items) {
@@ -208,16 +216,22 @@ export function compileRequest(workspace, tab, files = {}, primaryVariables = []
   const resolve = resolver(context.vars);
   const r = tab.request;
   const u = urlParts(r.url);
-  let base = resolve(u.base.trim());
+  let base = resolve(u.base.trimStart());
   if (!base) throw new Error('URLを入力してください。');
   if (!/^[a-z][a-z\d+.-]*:\/\//i.test(base)) base = `http://${base}`;
-  const target = new URL(base);
-  if (!['http:', 'https:'].includes(target.protocol)) throw new Error('HTTP / HTTPSに対応しています。');
-  target.pathname = target.pathname.replace(/(^|\/)\:([\w-]+)(?=\/|$)/g, (whole, slash, key) => {
-    if (!Object.hasOwn(context.vars, key)) throw new Error(`パス変数 :${key} が未設定です。`);
-    return slash + encodeURIComponent(resolve(context.vars[key]));
-  });
-  for (const p of u.query.filter(enabled)) if (p.key) target.searchParams.append(resolve(p.key), resolve(p.value));
+  if (!/^https?:\/\//i.test(base)) throw new Error('HTTP / HTTPSに対応しています。');
+  const pathVariables = {};
+  // Keep raw text in the transport JSON. The backend encodes path values,
+  // Unicode and query components exactly once, after resolving structure.
+  for (const match of base.matchAll(/(?:^|\/):([\w-]+)(?=\/|[?#]|$)/g)) {
+    if (!Object.hasOwn(context.vars, match[1])) throw new Error(`パス変数 :${match[1]} が未設定です。`);
+    pathVariables[match[1]] = resolve(context.vars[match[1]]);
+  }
+  const query = u.query.filter(enabled).filter(p => p.key).map(p => ({key: resolve(p.key), value: resolve(p.value)}));
+  const setQueryValue = (key, value) => {
+    for (let index = query.length - 1; index >= 0; index--) if (query[index].key === key) query.splice(index, 1);
+    query.push({key, value, replace: true});
+  };
   const headers = rows(r.header).filter(enabled).filter(h => h.key).map(h => ({key: resolve(h.key), value: resolve(h.value)}));
   function setHeader(key, value) {
     for (let i = headers.length - 1; i >= 0; i--) if (headers[i].key.toLowerCase() === key.toLowerCase()) headers.splice(i, 1);
@@ -231,17 +245,17 @@ export function compileRequest(workspace, tab, files = {}, primaryVariables = []
     else if (auth.type === 'basic') setHeader('Authorization', `Basic ${toBase64(`${attrs.username || ''}:${attrs.password || ''}`)}`);
     else if (auth.type === 'apikey') {
       if (!attrs.key) throw new Error('API Keyのキー名を入力してください。');
-      if (attrs.in === 'query') target.searchParams.set(attrs.key, attrs.value || '');
+      if (attrs.in === 'query') setQueryValue(attrs.key, attrs.value || '');
       else setHeader(attrs.key, attrs.value || '');
     } else if (auth.type === 'oauth2') {
       const token = attrs.accessToken || attrs.access_token;
       if (!token) throw new Error('OAuth 2.0の取得済みaccessTokenを設定してください。トークン取得フローは未対応です。');
-      if (attrs.addTokenTo === 'queryParams') target.searchParams.set('access_token', token);
+      if (attrs.addTokenTo === 'queryParams') setQueryValue('access_token', token);
       else setHeader('Authorization', `${attrs.headerPrefix || 'Bearer'} ${token}`);
     } else throw new Error(`${auth.type}認証の送信は未対応です。Authorizationで方式を変更してください。`);
   }
   const body = r.body || {};
-  const payload = {method: r.method || 'GET', url: target.toString(), headers, body: null, verify_tls: tab.settings?.verify_tls ?? false, follow_redirects: tab.settings?.follow_redirects ?? true, timeout_ms: tab.settings?.timeout_ms ?? 30000};
+  const payload = {method: r.method || 'GET', url: base, query, path_variables: pathVariables, headers, body: null, verify_tls: tab.settings?.verify_tls ?? false, follow_redirects: tab.settings?.follow_redirects ?? true, timeout_ms: tab.settings?.timeout_ms ?? 30000};
   if (!body.disabled && body.mode && body.mode !== 'none') {
     if (body.mode === 'raw') {
       payload.body = resolve(body.raw || '');
@@ -249,7 +263,7 @@ export function compileRequest(workspace, tab, files = {}, primaryVariables = []
       const types = {json: 'application/json', xml: 'application/xml', html: 'text/html', javascript: 'application/javascript', text: 'text/plain; charset=utf-8'};
       defaultHeader('Content-Type', types[language] || types.text);
     } else if (body.mode === 'urlencoded') {
-      payload.body = new URLSearchParams(rows(body.urlencoded).filter(enabled).filter(p => p.key).map(p => [resolve(p.key), resolve(p.value)])).toString();
+      payload.form_urlencoded = rows(body.urlencoded).filter(enabled).filter(p => p.key).map(p => ({key: resolve(p.key), value: resolve(p.value)}));
       defaultHeader('Content-Type', 'application/x-www-form-urlencoded');
     } else if (body.mode === 'formdata') {
       payload.multipart = [];

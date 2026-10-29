@@ -113,6 +113,9 @@ jobs:
       - name: Binary byte integrity, single-row navigation and application confirmations
         if: ${{ !cancelled() }}
         run: python tests/ui_binary_workflows.py 2>&1 | tee artifacts/browser/ui-binary-workflows.log
+      - name: Backend-only URL encoding, fixed category rail and collection drag
+        if: ${{ !cancelled() }}
+        run: python tests/ui_text_url_navigation.py 2>&1 | tee artifacts/browser/ui-text-url-navigation.log
       - name: Upload screenshots and browser results
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

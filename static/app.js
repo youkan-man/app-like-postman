@@ -9,6 +9,9 @@ import {initStudio} from './studio.mjs';
 import {WorkspaceStorage} from './storage.mjs';
 import {RequestFiles} from './request-files.mjs';
 import {confirmAction} from './confirm-dialog.mjs';
+import {moveCollectionItem} from './collection-move.mjs';
+import {bindCollectionDrag} from './collection-drag.mjs';
+import {bindUrlMenu} from './url-menu.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio;
@@ -614,6 +617,7 @@ function renderSidebar() {
   root.dataset.side = side;
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
+  $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション'}[side];
   studio?.syncView(side);
 }
 function chooseSidebar(name) {
@@ -629,6 +633,23 @@ function focusTreeItem(collectionId, itemId) {
 }
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}
+
+function moveTreeItem(intent) {
+  revisionStore.capture();
+  const result = moveCollectionItem(workspace, intent, {transfer:(from,to)=>{
+    revisionStore.transfer(from,to); studio.transferResponse(from,to);
+  }});
+  if (!result.changed) return;
+  selectedCollectionId = result.target._mpId;
+  if (!result.collection) {
+    const parents = intent.targetId ? findItem(result.target, intent.targetId)?.parents || [] : [];
+    const reveal = new Set([result.target._mpId, ...parents.map(item=>item._mpId), ...(intent.position==='inside'&&intent.targetId?[intent.targetId]:[])]);
+    workspace.collapsed = (workspace.collapsed || []).filter(id=>!reveal.has(id));
+    studio.captureContext({collectionId:result.target._mpId,parentId:result.parent===result.target?undefined:result.parent?._mpId});
+  }
+  persist(true); renderAll();
+  focusTreeItem(result.collection?result.item._mpId:result.target._mpId,result.collection?undefined:result.item._mpId);
+}
 
 function newCollection() {
   let name = 'My Collection'; const box = field('Name', input(name, 'Collection name', value => name = value));
@@ -1035,7 +1056,9 @@ studio = initStudio({
 });
 // Internal editor/response pages are tabbed; only request selection itself stays tab-free.
 // All-settings view retains flat spacing and heading disclosure.
-setTheme(); renderAll();
+setTheme(); bindCollectionDrag($('sidebarContent'),{workspace:()=>workspace,move:moveTreeItem,error:toast});
+bindUrlMenu($('url'),{openMenu:openItemMenu,notify:toast,identity:()=>active().id});
+renderAll();
 setSaveStatus(recoveryMessage ? '保存データの復元が必要です。' : 'ローカルに保存済み', !!recoveryMessage);
 $('saveState').title = storage.backend === 'indexedDB' ? 'このブラウザのIndexedDBへ保存します。サーバーへの自動送信は行いません。' : '従来のブラウザ保存を使用しています。';
 storage.onPreferenceError = () => toast('表示設定を保存できません。入力内容は維持しています。');

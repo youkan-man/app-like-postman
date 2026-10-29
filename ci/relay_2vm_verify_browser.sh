@@ -14,7 +14,7 @@ import hashlib,json,os,pathlib,urllib.request
 root=pathlib.Path.cwd()
 with urllib.request.urlopen(os.environ['MINIPOST_REMOTE_URL']+'/__relay_test_identity',timeout=8) as response:
     identity=json.load(response)
-paths=[root/'app.py',root/'network.py',*sorted((root/'static').iterdir())]
+paths=[root/'app.py',root/'network.py',root/'url_codec.py',*sorted((root/'static').iterdir())]
 expected={str(path.relative_to(root)):hashlib.sha256(path.read_bytes()).hexdigest() for path in paths if path.is_file()}
 assert identity.get('instance') and identity.get('files')==expected,'App process source differs from browser checkout'
 for path in sorted((root/'static').iterdir()):
@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_text_url_navigation.py >.local_relay/output/two-vm-text-url-navigation.log 2>&1 || { cat .local_relay/output/two-vm-text-url-navigation.log; exit 1; }
 python tests/ui_binary_workflows.py >.local_relay/output/two-vm-binary-workflows.log 2>&1 || { cat .local_relay/output/two-vm-binary-workflows.log; exit 1; }
 python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
 python tests/ui_focus.py >.local_relay/output/two-vm-ui-focus.log 2>&1 || { cat .local_relay/output/two-vm-ui-focus.log; exit 1; }
@@ -41,6 +42,8 @@ extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
+text_url=json.loads((root/'text-url-navigation/results.json').read_text())
+assert text_url['mode']=='native Chromium HTTP' and not text_url['page_errors'] and not text_url['native_dialogs']
 binary=json.loads((root/'binary-workflows/results.json').read_text())
 assert all(result['mode']=='native Chromium HTTP' for result in [focus,extract,script,binary])
 assert automation['transport']=='real browser HTTP'
@@ -49,7 +52,7 @@ regression_paths=['browser-results.json','ui/ui-results.json','edgecases/results
 regressions={path:json.loads((root/path).read_text()) for path in regression_paths}
 assert not any(result.get('page_errors') or result.get('errors') for result in regressions.values())
 assert regressions['storage/result.json']['native_indexeddb'] is True
-summary={'native_regression_checks':{path:len(result['checks']) for path,result in regressions.items()},'mode':'two-vm Chromium HTTP','source_identity_verified':True,'focus_checks':len(focus['checks']),'extraction_checks':len(extract['checks']),'script_checks':len(script['checks']),'binary_workflow_checks':len(binary['checks']),'native_automation_checks':len(automation['checks']),'network':network,'screenshots':sum(len(result['screenshots']) for result in [focus,extract,script,automation,binary])}
+summary={'text_url_navigation_checks':len(text_url['checks']),'native_regression_checks':{path:len(result['checks']) for path,result in regressions.items()},'mode':'two-vm Chromium HTTP','source_identity_verified':True,'focus_checks':len(focus['checks']),'extraction_checks':len(extract['checks']),'script_checks':len(script['checks']),'binary_workflow_checks':len(binary['checks']),'native_automation_checks':len(automation['checks']),'network':network,'screenshots':sum(len(result['screenshots']) for result in [focus,extract,script,automation,binary])}
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

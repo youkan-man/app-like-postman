@@ -32,7 +32,7 @@ class BrowserApp:
             def http_call(path, method='GET', body=None):
                 if self.url is None:
                     raise ValueError('Offline DOM fixture forbids HTTP')
-                if path not in ['/api/health', '/api/request', '/api/workspace']:
+                if path not in ['/api/health', '/api/request', '/api/workspace', '/api/url-transform']:
                     raise ValueError('Unknown test API path: ' + path)
                 data = body.encode() if isinstance(body, str) else None
                 request = urllib.request.Request(self.url + path, data=data, method=method, headers={'Content-Type':'application/json'})

@@ -206,13 +206,14 @@ def main():
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 expect(page.locator('#sidebarTabs')).to_be_visible()
                 tabs=page.locator('#sidebarTabs button').all();boxes=[tab.bounding_box() for tab in tabs]
-                assert max(b['y'] for b in boxes)-min(b['y'] for b in boxes)<1,boxes
+                assert len(boxes)==4 and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
+                assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                 if width==1440:
                     bounds=page.locator('#sidebarTabs').bounding_box();assert all(b['x']>=bounds['x'] and b['x']+b['width']<=bounds['x']+bounds['width']+1 for b in boxes),boxes
-                capture('single-row-navigation-'+str(width))
+                capture('fixed-rail-navigation-'+str(width))
                 if width<820:page.locator('#navClose').click()
-            passed('all four sidebar categories stay on one row at desktop and phone widths')
+            passed('all four sidebar categories remain visible on the fixed rail at desktop and phone widths')
             page.set_viewport_size({'width':1440,'height':920})
             # Test the smallest resizable sidebar, including keyboard scroll to the last tab.
             page.locator('#sidebarResize').focus();page.keyboard.press('Home')
@@ -220,7 +221,7 @@ def main():
             last=page.locator('#sidebarTabs-relations');expect(last).to_be_focused()
             b=last.bounding_box();nav=page.locator('#sidebarTabs').bounding_box();assert b['x']>=nav['x']-1 and b['x']+b['width']<=nav['x']+nav['width']+1
             page.locator('#sidebarResize').focus();page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight')
-            passed('minimum sidebar width scrolls a single row and keyboard navigation reveals the selected category')
+            passed('minimum sidebar width preserves the fixed category rail and keyboard navigation')
             choose('Upload A');expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
             fixture.reload(page);expect(page.locator('#connectionStatus')).to_contain_text('connected')
             choose('Upload A');expect(page.locator('[data-file-slot=binary]')).to_contain_text('再選択')

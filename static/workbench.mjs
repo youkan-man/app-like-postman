@@ -120,10 +120,12 @@ export function initWorkbench(storage = localStorage) {
 export function bindTabStrip(root, selector) {
   root.addEventListener('keydown', event => {
     const tabs = [...root.querySelectorAll(selector)], current = event.target.closest(selector);
-    if (!current || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const vertical = root.getAttribute('aria-orientation') === 'vertical';
+    const previous = vertical ? 'ArrowUp' : 'ArrowLeft', next = vertical ? 'ArrowDown' : 'ArrowRight';
+    if (!current || ![previous, next, 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     let index = tabs.indexOf(current);
-    index = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    index = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === next ? 1 : -1) + tabs.length) % tabs.length;
     tabs[index].click(); tabs[index].focus(); tabs[index].scrollIntoView({block: 'nearest', inline: 'nearest'});
   });
 }

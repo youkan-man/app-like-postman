@@ -35,14 +35,14 @@ test('v2.0 Bearer object is resolved at collection, folder and request scopes', 
 test('v2.0 API Key object supports header and query placement', () => {
   for (const placement of ['header', 'query']) {
     const payload = send({type: 'apikey', apikey: {key: 'gateway-key', value: '{{token}}', in: placement}});
-    if (placement === 'query') assert.equal(new URL(payload.url).searchParams.get('gateway-key'), 'fixture-token');
+    if (placement === 'query') assert.equal(payload.query.find(row=>row.key==='gateway-key').value, 'fixture-token');
     else assert.equal(payload.headers.find(h => h.key === 'gateway-key')?.value, 'fixture-token');
   }
 });
 test('v2.0 OAuth object supports header prefix and query token', () => {
   assert.equal(authorization(send({type: 'oauth2', oauth2: {accessToken: '{{token}}', headerPrefix: 'Token'}})), 'Token fixture-token');
   const payload = send({type: 'oauth2', oauth2: {accessToken: '{{token}}', addTokenTo: 'queryParams'}});
-  assert.equal(new URL(payload.url).searchParams.get('access_token'), 'fixture-token');
+  assert.equal(payload.query.find(row=>row.key==='access_token').value, 'fixture-token');
 });
 test('explicit noauth still suppresses inherited v2.0 authentication', () => {
   const {workspace, tab} = fixture({type: 'bearer', bearer: {token: '{{token}}'}}, {level: 'collection'});
