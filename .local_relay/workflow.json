@@ -8,7 +8,7 @@
   "steps": [
     {"name": "start-app", "vm": "app", "needs": [], "run": "bash ci/relay_2vm_start_app.sh"},
     {"name": "prepare-browser", "vm": "browser", "needs": [], "run": "bash ci/relay_2vm_prepare_browser.sh"},
-    {"name": "public-entry-e2e", "vm": "browser", "needs": ["start-app", "prepare-browser"], "run": "mkdir -p .local_relay/output && ARTIFACT_DIR=.local_relay/output PLAYWRIGHT_BROWSERS_PATH=/opt/minipost-playwright /opt/minipost-e2e-venv/bin/python tests/ui_public_entry.py >.local_relay/output/public-entry.log 2>&1"}
+    {"name": "public-entry-e2e", "vm": "browser", "needs": ["start-app", "prepare-browser"], "run": "bash ci/relay_public_entry.sh"}
   ],
   "environment_revision": "minipost-send-public-entry-20261029"
 }
