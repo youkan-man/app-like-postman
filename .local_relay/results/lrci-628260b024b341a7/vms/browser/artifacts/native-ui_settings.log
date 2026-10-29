@@ -1,0 +1,49 @@
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] code 404, message File not found
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [29/Oct/2026 03:21:33] "GET /api/health HTTP/1.1" 200 -
+PASS selected environment, highlighted row and main page agree; no Save/Cancel workflow
+127.0.0.1 - - [29/Oct/2026 03:21:34] "POST /api/request HTTP/1.1" 200 -
+PASS autosave preserves focus and open page; edited token immediately reaches real HTTP
+PASS header selector switches page without dropping either environment edits
+PASS No environment removes stale values; renaming updates selection and sidebar immediately
+PASS environment settings copy/paste preserves target identity and uses independent values
+PASS environment duplication and variable-row copy/duplicate/paste/disable/delete are independent
+PASS variable context menu keyboard/focus works without replacing native text-input menus
+127.0.0.1 - - [29/Oct/2026 03:21:38] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [29/Oct/2026 03:21:38] "GET /api/health HTTP/1.1" 200 -
+PASS close flushes pending autosave and reload restores selected environment and values
+PASS Ctrl+S leaves settings open; export includes automatically saved live values
+PASS Globals autosave is independent and never mislabeled as the selected environment
+127.0.0.1 - - [29/Oct/2026 03:21:40] "POST /api/request HTTP/1.1" 200 -
+PASS collection variables and inherited auth autosave without dismissing the drawer
+PASS scope settings paste and folder/collection duplication preserve independent hierarchy identities
+PASS storage errors keep the editor values and show a failed-save state, then recover
+PASS mobile inline-page menus work; resizing and Escape keep automatically saved edits
+PASS deleting the selected environment clears selection and stale settings together
+PASS no uncaught browser JavaScript errors
