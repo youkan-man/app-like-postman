@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>MiniPost</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+  <link rel="stylesheet" href="/selection.css">
+  <link rel="stylesheet" href="/redesign.css">
+  <link rel="stylesheet" href="/corporate.css">
+  <link rel="stylesheet" href="/content-tabs.css">
+  <link rel="stylesheet" href="/studio.css">
+  <link rel="stylesheet" href="/script-editor.css">
+  <link rel="stylesheet" href="/navigation-ui.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="toggleSidebar" class="icon-button" aria-label="一覧の開閉" aria-controls="navigation" aria-expanded="true" title="一覧を開閉"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <strong class="brand"><span class="brand-mark" aria-hidden="true">M</span><span>MiniPost</span></strong>
+    <div class="header-actions">
+      <button id="addTab" class="button" title="表示中のカテゴリに追加" aria-haspopup="menu">＋ 新規 ▾</button>
+      <button id="import" class="button" title="全体または個別のインポート">インポート</button>
+      <button id="dataActions" class="button" title="全体バックアップ・サーバー保存・復元" aria-haspopup="menu">データ管理 ▾</button>
+    </div>
+    <button id="stopRelationGlobal" class="button" hidden>実行を停止</button>
+    <span class="top-spacer"></span>
+    <div class="env-picker"><label for="environment">環境</label><select id="environment" aria-label="適用中の環境"></select></div>
+    <button id="layoutToggle" class="icon-button" aria-label="リクエストとレスポンスのレイアウト" aria-pressed="false" title="左右／上下に配置">◫</button>
+    <button id="theme" class="icon-button" title="ライト／ダーク切替" aria-label="配色を切り替え">◐</button>
+  </header>
+  <div id="navBackdrop" class="nav-backdrop" hidden></div>
+  <div class="workspace">
+    <div id="navigation" class="navigation">
+      <nav id="sidebarTabs" class="sidebar-navigation" role="tablist" aria-orientation="vertical" aria-label="ワークスペースの表示">
+        <button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent" aria-label="コレクション" title="コレクション"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v11H3z M3 7V4h6l2 3"/></svg><span class="visually-hidden">コレクション</span></button>
+        <button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent" aria-label="環境" title="環境"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 4v16M19 4v16M2 8h6M9 16h6M16 10h6"/></svg><span class="visually-hidden">環境</span></button>
+        <button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent" aria-label="送信履歴" title="送信履歴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 6v6l4 2"/></svg><span class="visually-hidden">送信履歴</span></button>
+        <button type="button" id="sidebarTabs-relations" role="tab" data-sidebar="relations" aria-controls="sidebarContent" aria-label="リレーション" title="リレーション"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v11a4 4 0 0 0 4 4h8M18 3v8a4 4 0 0 1-4 4H6M15 15l3 3-3 3"/></svg><span class="visually-hidden">リレーション</span></button>
+      </nav>
+      <aside class="sidebar" aria-label="保存済みデータ">
+        <h2 id="sidebarTitle" class="sidebar-title">コレクション</h2>
+
+        <div class="sidebar-tools">
+          <input id="search" type="search" placeholder="すべて検索" aria-label="保存済みデータを検索">
+          <button id="sidebarAdd" class="icon-button" title="コレクションを追加" aria-label="コレクションを追加">＋</button>
+          <button id="clearHistory" class="icon-button" title="送信履歴を削除" aria-label="送信履歴を削除" hidden>⌫</button>
+          <button id="navClose" class="icon-button" aria-label="一覧を閉じる" hidden>×</button>
+        </div>
+        <div id="sidebarContent" class="sidebar-content"></div>
+      </aside>
+    </div>
+    <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
+    <main class="main">
+      <section id="workspacePage" class="workspace-page" aria-label="ワークスペース編集" hidden></section>
+      <div id="exchange" class="exchange">
+        <section class="request-editor" aria-label="リクエスト編集">
+          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+          <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
+          <div id="requestWarning" class="warning" role="status" hidden></div>
+          <nav id="editorTabs" class="content-tabs editor-navigation" role="tablist" aria-label="リクエスト設定のページ">
+            <button type="button" role="tab" id="editor-tab-all" data-editor="all" aria-controls="editorContent" aria-selected="true" tabindex="0">すべて</button>
+            <button type="button" role="tab" id="editor-tab-params" data-editor="params" aria-controls="editorContent" aria-selected="false" tabindex="-1">クエリ</button>
+            <button type="button" role="tab" id="editor-tab-headers" data-editor="headers" aria-controls="editorContent" aria-selected="false" tabindex="-1">ヘッダー</button>
+            <button type="button" role="tab" id="editor-tab-authorization" data-editor="authorization" aria-controls="editorContent" aria-selected="false" tabindex="-1">認証</button>
+            <button type="button" role="tab" id="editor-tab-body" data-editor="body" aria-controls="editorContent" aria-selected="false" tabindex="-1">本文</button>
+            <button type="button" role="tab" id="editor-tab-settings" data-editor="settings" aria-controls="editorContent" aria-selected="false" tabindex="-1">通信設定</button>
+            <button type="button" role="tab" id="editor-tab-scripts" data-editor="scripts" aria-controls="editorContent" aria-selected="false" tabindex="-1">スクリプト</button>
+          </nav>
+          <div id="editorContent" class="editor-content" role="tabpanel" aria-labelledby="editor-tab-all" tabindex="0"></div>
+        </section>
+        <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
+        <section class="response-panel" aria-label="レスポンス">
+          <div class="response-heading"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
+          <div class="response-toolbar">
+            <nav id="responseTabs" class="content-tabs response-navigation" role="tablist" aria-label="レスポンス表示形式">
+              <button type="button" role="tab" id="response-tab-pretty" data-response="pretty" aria-controls="responseContent" aria-selected="true" tabindex="0">整形</button>
+              <button type="button" role="tab" id="response-tab-raw" data-response="raw" aria-controls="responseContent" aria-selected="false" tabindex="-1">生データ</button>
+              <button type="button" role="tab" id="response-tab-headers" data-response="headers" aria-controls="responseContent" aria-selected="false" tabindex="-1">ヘッダー</button>
+              <button type="button" role="tab" id="response-tab-cookies" data-response="cookies" aria-controls="responseContent" aria-selected="false" tabindex="-1">Cookie</button>
+              <button type="button" role="tab" id="response-tab-preview" data-response="preview" aria-controls="responseContent" aria-selected="false" tabindex="-1">HTMLプレビュー</button>
+            </nav>
+            <input id="responseSearch" type="search" placeholder="レスポンス内を検索" aria-label="レスポンス内検索">
+          </div>
+          <div id="automationError" class="warning" role="status" hidden></div>
+          <div id="responseContent" class="response-content" role="tabpanel" aria-labelledby="response-tab-pretty" tabindex="0" aria-label="受信データ"></div>
+        </section>
+      </div>
+      <footer class="statusbar"><span id="connectionStatus">接続中…</span><span id="requestInfo"></span><span class="top-spacer"></span><span id="saveState" role="status">ローカルに自動保存</span><span id="serverSaveState">サーバー未保存</span><span id="tlsStatus">TLS OFF</span></footer>
+    </main>
+  </div>
+  <dialog id="modal" aria-labelledby="modalTitle"><form id="modalForm"><div class="dialog-heading"><h2 id="modalTitle"></h2><button type="button" id="closeModal" class="icon-button" aria-label="閉じる">×</button></div><div id="modalBody"></div><div class="dialog-footer"><span id="modalMessage" role="status"></span><button type="button" id="cancelModal" class="button">キャンセル</button><button type="submit" id="modalSubmit" class="button primary">実行</button></div></form></dialog>
+  <div id="itemMenu" class="item-menu" role="menu" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input id="importFiles" type="file" accept=".json,application/json" multiple hidden>
+</body>
+</html>
