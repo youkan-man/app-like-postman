@@ -125,6 +125,8 @@ def send_http_request(payload, upload=None):
         # URL host is unchanged for TCP, HTTP Host and TLS verification.
         connection = http.client.HTTPConnection(target.hostname, port, timeout=timeout)
         phase = "connect"
+        if upload is not None:
+            upload.begin_send(len(body) if body is not None else 0)
         try:
             connection.sock = socket.create_connection((target.hostname, port), timeout)
             details["peer_ip"] = connection.sock.getpeername()[0]
@@ -149,6 +151,8 @@ def send_http_request(payload, upload=None):
             else:
                 connection.endheaders(body)
             phase = "receive"
+            if upload is not None:
+                upload.wait_response()
             response = connection.getresponse()
             response_headers = response.getheaders()
             raw_body = response.read()
@@ -260,8 +264,18 @@ class Handler(SimpleHTTPRequestHandler):
             pass  # The user stopped receiving this response.
 
     def do_GET(self):
+        progress = re.fullmatch(r"/api/uploads/([a-f0-9]{64})/progress", self.path)
+        if progress:
+            if not self.upload_origin_allowed():
+                self.send_json(403, {"ok": False, "error": "別オリジンからの転送状態取得は許可されていません。"})
+                return
+            try:
+                self.send_json(200, {"ok": True, "progress": UPLOADS.get(progress[1]).progress()})
+            except UploadError as error:
+                self.send_json(error.status, {"ok": False, "error": str(error)})
+            return
         if self.path == "/api/health":
-            self.send_json(200, {"ok": True, "runtime": runtime_info(), "uploads": {"protocol": 1, "chunk_bytes": CHUNK_BYTES}})
+            self.send_json(200, {"ok": True, "runtime": runtime_info(), "uploads": {"protocol": 1, "chunk_bytes": CHUNK_BYTES, "progress": True}})
         elif self.path == "/api/workspace":
             try:
                 saved = read_workspace()
@@ -315,7 +329,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     raise UploadError("転送情報の形式が不正です。")
                 token = UPLOADS.create(payload.get("sizes"))
-                self.send_json(201, {"ok": True, "upload_id": token, "chunk_bytes": CHUNK_BYTES})
+                self.send_json(201, {"ok": True, "upload_id": token, "chunk_bytes": CHUNK_BYTES, "progress": True})
             else:
                 match = re.fullmatch(r"/api/uploads/([a-f0-9]{64})/(\d+)", self.path)
                 if not match:

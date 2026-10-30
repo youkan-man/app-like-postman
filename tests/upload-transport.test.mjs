@@ -41,7 +41,8 @@ test('chunks stay bounded; acknowledgement and metadata refer to exact slices',a
       return {ok:true,offset:Number(options.headers['X-MiniPost-Offset'])+options.body.size};
     },row=>progress.push(row));
     assert.equal(calls.length,4);assert.equal(result.request.upload_id,token);
-    assert.equal(progress.at(-1).completed,file.size);assert.equal(progress.at(-1).phase,'send');
+    assert.equal(progress.at(-2).phase,'upload');assert.equal(progress.at(-2).completed,file.size);
+    assert.equal(progress.at(-1).phase,'send');assert.equal(progress.at(-1).completed,undefined);assert.equal(progress.at(-1).total,undefined);
     await result.release();await result.release();assert.deepEqual(cleanups,[['/api/uploads/'+token,'DELETE']]);
   }finally{globalThis.fetch=native;}
 });

@@ -1,0 +1,23 @@
+PASS zero bytes, all 256 byte values, 6 MiB, POST/PUT/PATCH match receiver SHA-256
+PASS request switches keep attachments separate and never reuse another request file
+PASS restoring another request invalidates only its attachments and preserves the selected request file
+PASS Send during replacement read waits and sends the new file, never the old one
+PASS file read completion updates its originating request even after switching selection
+PASS out-of-order completion cannot overwrite a newer file selection
+PASS read failure discards old bytes, blocks transmission, and recovers on reselection
+PASS Cancel interrupts a pending file send without sending or losing the file
+PASS asynchronous pre-request scripts use the attachment captured at Send
+PASS multipart insertion/deletion keep ready and pending file bytes on their original field
+PASS multiple multipart files preserve order, Unicode filenames, empty files and receiver hashes
+PASS deleting a pending multipart row cannot resurrect its file on a new row
+PASS all four sidebar categories remain visible on the fixed rail at desktop and phone widths
+PASS minimum sidebar width preserves the fixed category rail and keyboard navigation
+PASS reload explicitly requires file reselection, then sends the selected bytes correctly
+PASS cancelling the file chooser preserves the last selected file
+PASS request deletion uses the app dialog, cancel/Escape are non-destructive, and only accept deletes
+PASS environment deletion and primary-variable clearing use application confirmations
+PASS history clearing is confirmed inside the app at phone width with cancellation preserving history
+PASS revision restore confirmation stacks above the history drawer without closing it on cancellation
+PASS draft, folder and collection deletion all use application confirmations
+PASS primary context clear and relation deletion require in-app confirmation
+PASS no browser-native alert/confirm/prompt or uncaught JavaScript errors

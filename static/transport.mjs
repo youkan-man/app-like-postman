@@ -1,4 +1,5 @@
 import {uploadPlan, uploadFiles} from './upload-transport.mjs';
+import {watchTransferProgress} from './transfer-monitor.mjs';
 /** Distinguish a reverse-proxy HTML 502 from a MiniPost JSON failure. No retries. */
 async function callProxy(path, options) {
   let response;
@@ -29,8 +30,10 @@ async function callProxy(path, options) {
 
 export async function sendThroughProxy(payload, signal, onProgress) {
   const staged = await uploadFiles(uploadPlan(payload), signal, callProxy, onProgress);
+  onProgress?.({phase: 'send'});
+  const stop = watchTransferProgress(staged.progress, signal, onProgress);
   try {
     return await callProxy('/api/request', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(staged.request), signal});
-  } finally {await staged.release();}
+  } finally {stop(); await staged.release();}
 }

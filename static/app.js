@@ -12,6 +12,7 @@ import {confirmAction} from './confirm-dialog.mjs';
 import {moveCollectionItem} from './collection-move.mjs';
 import {bindCollectionDrag} from './collection-drag.mjs';
 import {bindUrlMenu} from './url-menu.mjs';
+import {TransferProgress, createTransferView, paintTransferView} from './transfer-progress.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio;
@@ -34,6 +35,7 @@ for (const draft of workspace.tabs) draft.settings = requestSettings(draft.setti
 workspace.relations ||= []; workspace.relationRuns ||= [];
 let revisionStore = new RevisionStore(workspace);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
+const transfers = new TransferProgress(id => {if (active().id === id) paintTransferView($('transferProgress'), transfers.get(id));});
 const navigationKey = 'minipost.navigation.v1';
 const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
@@ -934,7 +936,7 @@ function renderResponse() {
   }
   root.setAttribute('aria-labelledby', 'response-tab-' + responseView);
   $('responseStatus').className = 'response-status'; $('responseTime').textContent = ''; $('responseSize').textContent = '';
-  if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(emptyResponse('送信中…')); return;}
+  if (requests.has(active().id)) {$('responseStatus').textContent = 'Sending…'; root.append(createTransferView(transfers.get(active().id))); return;}
   if (!result) {$('responseStatus').textContent = '未送信'; return;}
   if (result.error) {$('responseStatus').textContent = result.cancelled ? 'CANCELLED' : result.errorTitle || 'ERROR'; $('responseStatus').classList.add('error'); root.append(codeView(result.error)); return;}
   $('responseStatus').textContent = `${result.status} ${result.status_text || ''}`;
@@ -955,11 +957,12 @@ function renderResponse() {
   } else root.append(codeView(responseText(result), responseView === 'pretty' && /json/i.test(result.content_type), search));
 }
 async function sendRequest() {
-  const tab = active(); if (requests.has(tab.id)) {requests.get(tab.id).abort(); return;}
+  const tab = active(); if (requests.has(tab.id)) {transfers.cancelling(tab.id); requests.get(tab.id).abort(); return;}
   const snapshot = clone(tab), environmentId = workspace.environmentId, controller = new AbortController(); requests.set(tab.id, controller);
+  const transfer = transfers.begin(tab.id);
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
-    const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal)});
+    const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal),onProgress:transfer.update});
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
     workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: result.status, elapsed_ms: result.elapsed_ms}); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
@@ -967,7 +970,7 @@ async function sendRequest() {
     const cancelled = error.name === 'AbortError';
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
     if (!cancelled) {workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: 'ERR'}); persist();}
-  } finally {requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
+  } finally {transfer.finish(); requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
 function showRevisions(key) {
   persist(true);

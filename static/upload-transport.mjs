@@ -46,7 +46,8 @@ export async function uploadFiles(plan, signal, call, onProgress = () => {}) {
         completed += end - offset;onProgress({phase: 'upload', completed, total});
       }
     }
-    onProgress({phase: 'send', completed, total});
-    return {request: {...plan.request, upload_id: created.upload_id}, release};
+    onProgress({phase: 'send'});
+    return {request: {...plan.request, upload_id: created.upload_id}, release,
+      progress: created.progress === true ? endpoint + '/progress' : null};
   } catch (error) {await release();throw error;}
 }

@@ -1,0 +1,56 @@
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] code 404, message File not found
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [30/Oct/2026 03:25:06] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [30/Oct/2026 03:25:07] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:07] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 03:25:07] code 404, message File not found
+127.0.0.1 - - [30/Oct/2026 03:25:07] "GET /favicon.ico HTTP/1.1" 404 -
+PASS saved disclosure preferences are restored without adding card wrappers
+PASS no request-tab strip or routing selector
+PASS long labels keep row height and position on select, focus and context menu
+PASS switching selection retains each draft; selection alone does not add revisions
+PASS per-request history can restore a previous version without sending
+127.0.0.1 - - [30/Oct/2026 03:25:11] "POST /api/request HTTP/1.1" 200 -
+PASS restored request body reaches the real HTTP server on explicit Send
+PASS environment revisions are independent; merely reopening does not create an edit
+127.0.0.1 - - [30/Oct/2026 03:25:14] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [30/Oct/2026 03:25:14] "GET /api/health HTTP/1.1" 200 -
+PASS drafts and revisions survive reload
+PASS unsaved work stays in the list and its history follows the first collection save
+PASS consecutive TLS redirect and timeout edits all persist
+PASS phone layout keeps single editor and history accessible
+PASS no uncaught JavaScript errors

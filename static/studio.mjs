@@ -28,8 +28,8 @@ export function initStudio(api) {
   function responseFor(tab){return snapshots.get(requestKey(w(),tab));}
   function transferResponse(before,after){if(snapshots.has(before)){snapshots.set(after,snapshots.get(before));snapshots.delete(before);}}
   function noteScript(tab,entry){scriptLogs.set(requestKey(w(),tab),entry);const log=$('scriptLog');if(log&&requestKey(w(),api.active())===requestKey(w(),tab))log.textContent=entry.error||entry.logs?.map(r=>r.message).join('\n')||'完了';}
-  async function execute(tab,{signal,environmentId=w().environmentId,files={}}={}) {
-    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
+  async function execute(tab,{signal,environmentId=w().environmentId,files={},onProgress}={}) {
+    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
     rememberResponse(tab,result);return result;
   }
   function scopeRows(){if(envSelection==='primary')return primary.rows;if(envSelection==='globals')return w().globals;return w().environments.find(e=>e.id===envSelection)?.values;}

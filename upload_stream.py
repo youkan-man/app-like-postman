@@ -44,6 +44,33 @@ class Upload:
         self.closed = False
         self.outgoing = None
         self.incoming = None
+        # Telemetry uses its own short lock, never the file/socket I/O lock.
+        self.progress_lock = threading.Lock()
+        self.progress_phase = "upload"
+        self.progress_sent = 0
+        self.progress_total = sum(sizes)
+        self.progress_attempt = 0
+
+    def begin_send(self, total):
+        with self.progress_lock:
+            self.progress_phase = "send"
+            self.progress_sent = 0
+            self.progress_total = total
+            self.progress_attempt += 1
+
+    def advance(self, length):
+        with self.progress_lock:
+            self.progress_sent += length
+
+    def wait_response(self):
+        with self.progress_lock:
+            self.progress_phase = "waiting"
+
+    def progress(self):
+        # Polling is read-only and does not prolong idle upload retention.
+        with self.progress_lock:
+            return {"phase": self.progress_phase, "completed": self.progress_sent,
+                    "total": self.progress_total, "attempt": self.progress_attempt}
 
     def check(self):
         if self.cancelled.is_set():
@@ -224,7 +251,9 @@ class StreamBody:
                 if isinstance(item, bytes):
                     for start in range(0, len(item), IO_BYTES):
                         self.upload.check()
-                        connection.send(item[start:start + IO_BYTES])
+                        chunk = item[start:start + IO_BYTES]
+                        connection.send(chunk)
+                        self.upload.advance(len(chunk))
                 else:
                     file = self.upload.file(item)
                     file.seek(0)
@@ -235,6 +264,7 @@ class StreamBody:
                         if not data:
                             raise UploadError('送信用の一時ファイルを読み込めません。')
                         connection.send(data)
+                        self.upload.advance(len(data))
                         remaining -= len(data)
         except Exception:
             self.upload.outgoing = None
