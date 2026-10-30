@@ -4,12 +4,13 @@ import {requestAutomation,responseMetadata,extractionWrites,upsertVariable,check
 import {throwIfAborted} from './relations.mjs';
 import {runScript} from './script-runner.mjs';
 import {sendThroughProxy} from './transport.mjs';
+import {copyAttachments} from './request-files.mjs';
 const valueMap=rows=>Object.fromEntries((rows||[]).filter(r=>r.key&&r.disabled!==true&&r.enabled!==false).map(r=>[r.key,r.value]));
 export async function executeRequest({workspace,tab,files={},primary,environmentId=workspace.environmentId,signal,
   send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{}}) {
   throwIfAborted(signal);
   const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request);
-  const attachments=typeof files?.then==='function'?clone(await files):clone(files);throwIfAborted(signal);
+  const attachments=copyAttachments(typeof files?.then==='function'?await files:files);throwIfAborted(signal);
   const environment=workspace.environments.find(e=>e.id===environmentId);
   async function run(source,result,phase) {
     if(!automation.enabled||!source.trim())return;

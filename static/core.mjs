@@ -272,13 +272,14 @@ export function compileRequest(workspace, tab, files = {}, primaryVariables = []
         if (p.type === 'file') {
           const chosen = files[`form-${index}`];
           if (!chosen?.length) throw new Error(`ファイル「${p.key}」を選択してください。Postmanのローカルパスからは自動取得できません。`);
-          for (const f of chosen) payload.multipart.push({key: resolve(p.key), filename: f.name, content_type: p.contentType ? resolve(p.contentType) : f.type || 'application/octet-stream', data: f.data});
+          for (const f of chosen) payload.multipart.push({key: resolve(p.key), filename: f.name, content_type: p.contentType ? resolve(p.contentType) : f.type || 'application/octet-stream', ...(f.blob ? {file: f.blob} : {data: f.data})});
         } else payload.multipart.push({key: resolve(p.key), value: resolve(p.value), content_type: p.contentType ? resolve(p.contentType) : undefined});
       });
     } else if (body.mode === 'file') {
       const f = files.binary?.[0];
       if (!f) throw new Error('送信するバイナリファイルを選択してください。');
-      payload.body_base64 = f.data;
+      if (f.blob) payload.body_file = f.blob;
+      else payload.body_base64 = f.data;
       defaultHeader('Content-Type', f.type || 'application/octet-stream');
     } else if (body.mode === 'graphql') {
       let variables = resolve(body.graphql?.variables || '{}');

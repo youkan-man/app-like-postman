@@ -1,0 +1,40 @@
+127.0.0.1 - - [29/Oct/2026 06:32:51] "GET /__relay_test_identity HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 06:32:51] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [29/Oct/2026 06:32:54] code 400, message Bad request version ('½5\\x11')
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 47916)
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/http/server.py", line 292, in parse_request
+    raise ValueError
+ValueError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/socketserver.py", line 692, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/usr/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/workspace/app.py", line 248, in __init__
+    super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
+  File "/usr/lib/python3.12/http/server.py", line 672, in __init__
+    super().__init__(*args, **kwargs)
+  File "/usr/lib/python3.12/socketserver.py", line 761, in __init__
+    self.handle()
+  File "/usr/lib/python3.12/http/server.py", line 436, in handle
+    self.handle_one_request()
+  File "/usr/lib/python3.12/http/server.py", line 414, in handle_one_request
+    if not self.parse_request():
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/http/server.py", line 309, in parse_request
+    self.send_error(
+  File "/usr/lib/python3.12/http/server.py", line 467, in send_error
+    self.send_response(code, message)
+  File "/usr/lib/python3.12/http/server.py", line 501, in send_response
+    self.log_request(code)
+  File "/workspace/app.py", line 283, in log_request
+    if self.path.startswith("/api/uploads/"):
+       ^^^^^^^^^
+AttributeError: 'TestHandler' object has no attribute 'path'
+----------------------------------------
+127.0.0.1 - - [29/Oct/2026 06:32:54] "HEAD / HTTP/1.0" 200 -

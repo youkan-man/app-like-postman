@@ -12,19 +12,14 @@ export function waitForFile(task, signal) {
 }
 export async function readSelectedFile(file, signal) {
   check(signal);
-  const bytes = new Uint8Array(await waitForFile(file.arrayBuffer(), signal));
+  if (!(file instanceof Blob)) throw new TypeError('ファイルを選び直してください。');
+  // A bounded readability probe, not a copy of the entire file. Keep the
+  // immutable File/Blob handle for native, slice-based upload at Send time.
+  const probe = file.size <= 65536 ? file : file.slice(0, 65536);
+  await waitForFile(probe.arrayBuffer(), signal);
   check(signal);
-  // Each non-final chunk is divisible by three: concatenated Base64 has no
-  // intermediate padding and does not allocate a second full binary string.
-  const parts = [], chunk = 49152;
-  for (let at = 0; at < bytes.length; at += chunk) {
-    parts.push(btoa(String.fromCharCode(...bytes.subarray(at, at + chunk))));
-    if (at && at % (chunk * 64) === 0) {
-      await new Promise(resolve => setTimeout(resolve, 0)); check(signal);
-    }
-  }
-  return {name: file.name, type: file.type || 'application/octet-stream', size: bytes.length,
-    lastModified: file.lastModified || 0, data: parts.join('')};
+  return {name: file.name || 'blob', type: file.type || 'application/octet-stream', size: file.size,
+    lastModified: file.lastModified || 0, blob: file};
 }
 function fileKeys(request) {
   const body = request?.body;
@@ -101,4 +96,9 @@ export class RequestFiles {
     }
     check(signal); return output;
   }
+}
+
+/** Snapshot descriptors without JSON-stringifying immutable Blob handles. */
+export function copyAttachments(files = {}) {
+  return Object.fromEntries(Object.entries(files).map(([key, entries]) => [key, entries.map(file => ({...file}))]));
 }
