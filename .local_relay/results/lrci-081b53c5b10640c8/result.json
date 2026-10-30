@@ -1,0 +1,45 @@
+{
+  "branch": "main",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-30T04:38:16.639417159Z",
+  "reason": "Sandbox API returned HTTP 409 (ttl_insufficient)",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-081b53c5b10640c8",
+  "source_sha": "ebd29305eae9c091830119431d2c3113f4f6af19",
+  "started_at": "2026-10-30T04:36:47.953286663Z",
+  "status": "failed",
+  "version": 1,
+  "vms": {
+    "app": {
+      "status": "failed",
+      "phase": "released",
+      "sandbox_id": "sb-13debc58fb54",
+      "environment_id": "lrce-c1ba95c41f2ff38f8735a12f",
+      "operation_id": "op-ff597c911e47",
+      "progress_percent": 100,
+      "expires_at": "2026-10-30T05:40:44.808801Z",
+      "reused": true,
+      "retained": true,
+      "release_verified": true,
+      "source_generation": 3,
+      "ip": "10.240.0.103",
+      "port": 8080
+    },
+    "browser": {
+      "status": "ready",
+      "phase": "released",
+      "sandbox_id": "sb-077197026239",
+      "environment_id": "lrce-808aa6bd4aabb30fb78bee82",
+      "operation_id": "op-6539408e1349",
+      "progress_percent": 100,
+      "expires_at": "2026-10-30T05:40:45.881258Z",
+      "reused": true,
+      "retained": true,
+      "release_verified": true,
+      "source_generation": 3,
+      "ip": "10.240.0.104",
+      "port": 18081
+    }
+  }
+}
