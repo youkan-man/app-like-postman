@@ -1,0 +1,45 @@
+{
+  "branch": "feat/transfer-progress-20261030",
+  "cleanup_verified": true,
+  "ended_at": "2026-10-30T03:08:22.152386497Z",
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-9e57e2ae08b44b3c",
+  "source_sha": "027616f3019b8b34634bae275ddebc182ab276e5",
+  "started_at": "2026-10-30T03:03:11.496600342Z",
+  "status": "cancelled",
+  "version": 1,
+  "vms": {
+    "app": {
+      "status": "failed",
+      "phase": "released",
+      "sandbox_id": "sb-f12a852d1e76",
+      "environment_id": "lrce-f48d77d4a6a9d049a4656a44",
+      "operation_id": "op-52976bd07706",
+      "progress_percent": 100,
+      "expires_at": "2026-10-30T06:03:14.675192Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "source_generation": 1,
+      "ip": "10.240.0.118",
+      "port": 8080
+    },
+    "browser": {
+      "status": "failed",
+      "phase": "released",
+      "sandbox_id": "sb-bb6a85a5b594",
+      "environment_id": "lrce-875ed6217e43946add53c601",
+      "operation_id": "op-f84ecf07feaa",
+      "progress_percent": 100,
+      "expires_at": "2026-10-30T06:03:14.66443Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "source_generation": 1,
+      "ip": "10.240.0.117",
+      "port": 18081
+    }
+  }
+}
