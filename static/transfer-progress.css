@@ -8,7 +8,7 @@
 .transfer-progress-heading {display:flex;align-items:center;gap:8px;min-width:0;}
 .transfer-progress-label {font-size:1.077rem;font-weight:600;overflow-wrap:anywhere;}
 .transfer-progress-indicator {width:8px;height:8px;flex:none;background:var(--accent);border-radius:50%;}
-.transfer-progress-percent {flex:none;min-width:5ch;text-align:right;font-size:1.692rem;line-height:1.35;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.transfer-progress-percent {flex:none;min-width:5ch;min-height:1.35em;text-align:right;font-size:1.692rem;line-height:1.35;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 .transfer-progress-track {position:relative;overflow:hidden;height:6px;margin-top:6px;border-radius:2px;background:var(--line);}
 .transfer-progress-bar {appearance:none;-webkit-appearance:none;display:block;width:100%;height:100%;margin:0;border:0;border-radius:inherit;background:transparent;color:var(--accent);}
 .transfer-progress-bar::-webkit-progress-bar {background:transparent;}
@@ -19,7 +19,7 @@
 .transfer-progress[data-determinate="false"] .transfer-progress-pulse {display:block;}
 .transfer-progress[data-visible="false"] .transfer-progress-pulse {animation-play-state:paused;}
 .transfer-progress-meta {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin-top:6px;min-width:0;min-height:1.5em;}
-.transfer-progress-detail {display:block;min-height:1.5em;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
+.transfer-progress-detail {display:block;min-width:17ch;min-height:1.5em;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
 .transfer-progress-route {margin-left:auto;color:var(--muted);white-space:nowrap;}
 .transfer-progress[data-phase="stopping"] .transfer-progress-indicator {background:var(--muted);}
 .transfer-progress[data-phase="stopping"] .transfer-progress-pulse {background:var(--muted);animation-play-state:paused;}
