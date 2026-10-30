@@ -54,6 +54,9 @@ def check_transfer_layout(page, out, name):
             page.emulate_media(reduced_motion='no-preference')
     path = out / 'presentation-checks.json'
     report = json.loads(path.read_text()) if path.exists() else {'mode':'live HTTP progress UI geometry','checks':[]}
+    if name == 'response-wait-desktop':
+        prior = next(row for row in report['checks'] if row['name'] == 'upload-desktop')
+        assert abs(prior['root']['height'] - box['height']) < .5, (prior, data)
     report['checks'].append({'name':name, **data})
     path.write_text(json.dumps(report,ensure_ascii=False,indent=2))
     print('PASS live progress layout: '+name, flush=True)
