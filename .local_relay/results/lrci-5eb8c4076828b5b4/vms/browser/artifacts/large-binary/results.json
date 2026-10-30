@@ -1,0 +1,80 @@
+{
+  "mode": "native Chromium HTTP; disk-backed files; two VM peers",
+  "checks": [
+    "384 MiB disk file PUT: receiver length and SHA-256 match",
+    "512 MiB disk file PUT: receiver length and SHA-256 match",
+    "384 MiB multipart plus empty file: complete wire length and SHA-256 match",
+    "Cancel during 512 MiB upload removes staging without sending to the target",
+    "explicit resend after cancellation uses the still-selected 512 MiB file",
+    "bounded file reads and JS/proxy memory; no full-file buffers or remaining uploads",
+    "UI stays usable; no native dialogs, page exceptions or renderer crashes"
+  ],
+  "records": [
+    {
+      "mode": "binary",
+      "mib": 384,
+      "receiver": {
+        "size": 402653184,
+        "sha256": "180719e5b014c9c015dbdeddd6039afeb8c5859ae881128db7d279a4f5c59bef",
+        "method": "PUT",
+        "path": "/digest",
+        "max_read": 65536,
+        "content_type": "application/octet-stream"
+      },
+      "proxy_resources": {
+        "ok": true,
+        "max_rss_kib": 24320,
+        "pending_uploads": 0
+      }
+    },
+    {
+      "mode": "binary",
+      "mib": 512,
+      "receiver": {
+        "size": 536870912,
+        "sha256": "c047731a3c134f3d34286d608e9c173027d50f43ab9d2064f3c360939977e908",
+        "method": "PUT",
+        "path": "/digest",
+        "max_read": 65536,
+        "content_type": "application/octet-stream"
+      },
+      "proxy_resources": {
+        "ok": true,
+        "max_rss_kib": 24448,
+        "pending_uploads": 0
+      }
+    },
+    {
+      "mode": "multipart",
+      "file_mib": 384,
+      "receiver": {
+        "size": 402653571,
+        "sha256": "5027d2648cc1caed549acb70327e5e3ed67259c803bdfaeab3ae3835d8a5839b",
+        "method": "PUT",
+        "path": "/digest",
+        "max_read": 65536,
+        "content_type": "multipart/form-data; boundary=----MiniPost985f534353c54c63a7714d08e18f15ac"
+      }
+    }
+  ],
+  "proxy_before": {
+    "ok": true,
+    "max_rss_kib": 24064,
+    "pending_uploads": 0
+  },
+  "proxy_after": {
+    "ok": true,
+    "max_rss_kib": 24576,
+    "pending_uploads": 0
+  },
+  "js_heap_baseline_bytes": 2739220,
+  "js_heap_peak_bytes": 3820676,
+  "largest_array_buffer_read": 65536,
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "screenshots": [
+    "binary-512MiB-desktop.png",
+    "binary-512MiB-phone.png"
+  ]
+}
