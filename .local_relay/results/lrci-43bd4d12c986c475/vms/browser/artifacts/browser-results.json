@@ -1,0 +1,25 @@
+{
+  "passed": 18,
+  "checks": [
+    "initial workspace and real proxy health",
+    "Postman JSON import, folder tree, disabled query preservation",
+    "environment precedence and inherited bearer round trip",
+    "bidirectional URL / Params editing and save",
+    "JSON body variables, keyboard save and reload persistence",
+    "response highlighting, search and lossless download",
+    "binary file upload through browser and Python proxy",
+    "multipart text variables and actual file bytes",
+    "separate duplicate Set-Cookie response rows",
+    "HTML preview sandbox and network-restricting CSP",
+    "concurrent request tabs keep their own responses",
+    "cancel receive and explicit target-side cancellation limitation",
+    "history persistence and reopen",
+    "invalid import leaves existing workspace unchanged",
+    "untrusted imported names remain text; scripts retained but never executed",
+    "responsive layout at desktop, tablet and phone widths",
+    "interactive sidebar drag resize",
+    "no uncaught browser JavaScript errors"
+  ],
+  "page_errors": [],
+  "gateway_integration": "NOT RUN: separate real-Gateway test required"
+}

@@ -1,0 +1,72 @@
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] code 404, message File not found
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [30/Oct/2026 02:48:36] "GET /api/health HTTP/1.1" 200 -
+PASS initial workspace and real proxy health
+PASS Postman JSON import, folder tree, disabled query preservation
+127.0.0.1 - - [30/Oct/2026 02:48:37] "POST /api/request HTTP/1.1" 200 -
+PASS environment precedence and inherited bearer round trip
+PASS bidirectional URL / Params editing and save
+127.0.0.1 - - [30/Oct/2026 02:48:37] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:37] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [30/Oct/2026 02:48:38] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:38] "POST /api/request HTTP/1.1" 200 -
+PASS JSON body variables, keyboard save and reload persistence
+PASS response highlighting, search and lossless download
+127.0.0.1 - - [30/Oct/2026 02:48:38] "POST /api/uploads HTTP/1.1" 201 -
+127.0.0.1 - - [30/Oct/2026 02:48:38] "POST /api/uploads/[session]" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:38] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:38] "DELETE /api/uploads/[session]" 200 -
+PASS binary file upload through browser and Python proxy
+127.0.0.1 - - [30/Oct/2026 02:48:39] "POST /api/uploads HTTP/1.1" 201 -
+127.0.0.1 - - [30/Oct/2026 02:48:39] "POST /api/uploads/[session]" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:39] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:39] "DELETE /api/uploads/[session]" 200 -
+PASS multipart text variables and actual file bytes
+127.0.0.1 - - [30/Oct/2026 02:48:39] "POST /api/request HTTP/1.1" 200 -
+PASS separate duplicate Set-Cookie response rows
+127.0.0.1 - - [30/Oct/2026 02:48:39] "POST /api/request HTTP/1.1" 200 -
+PASS HTML preview sandbox and network-restricting CSP
+127.0.0.1 - - [30/Oct/2026 02:48:40] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 02:48:40] "POST /api/request HTTP/1.1" 200 -
+PASS concurrent request tabs keep their own responses
+PASS cancel receive and explicit target-side cancellation limitation
+PASS history persistence and reopen
+PASS invalid import leaves existing workspace unchanged
+PASS untrusted imported names remain text; scripts retained but never executed
+127.0.0.1 - - [30/Oct/2026 02:48:41] "POST /api/request HTTP/1.1" 200 -
+PASS responsive layout at desktop, tablet and phone widths
+PASS interactive sidebar drag resize
+PASS no uncaught browser JavaScript errors
+127.0.0.1 - - [30/Oct/2026 02:48:42] "POST /api/request HTTP/1.1" 200 -
+{"passed": 18, "artifacts": ".local_relay/output"}
