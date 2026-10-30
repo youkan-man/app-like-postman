@@ -1,0 +1,28 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "slow native upload shows measured bytes, percentage and progress without shifting the request editor",
+    "320px progress text and bar remain readable without horizontal page overflow",
+    "backend-to-target bytes are distinct from completed browser upload and are not reported as overall completion",
+    "switching requests and sending B does not replace A progress or show it on B",
+    "fully sent bytes switch to indeterminate response waiting, with actual receiver size and SHA-256 verified",
+    "Cancel during response waiting removes progress and never displays success",
+    "an explicit resend starts fresh, completes and removes all progress UI",
+    "a target connection failure clears progress and restores Send without automatic resend",
+    "short requests do not flash a delayed progress bar after they finish",
+    "no browser-native dialogs or uncaught JavaScript errors"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "screenshots": [
+    "upload-desktop.png",
+    "upload-320.png",
+    "target-send-320.png",
+    "response-wait-desktop.png"
+  ],
+  "receiver": {
+    "size": 33554432,
+    "sha256": "e09320c5b00b34bb704802136c599a95b3996332ba84d7c7f21112b6231b6bd0",
+    "path": "/slow"
+  }
+}

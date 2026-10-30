@@ -1,0 +1,345 @@
+{
+  "mode": "live HTTP progress UI geometry",
+  "checks": [
+    {
+      "name": "upload-desktop",
+      "phase": "upload",
+      "root": {
+        "x": 265,
+        "y": 651,
+        "right": 1440,
+        "bottom": 735.1875,
+        "width": 1175,
+        "height": 84.1875
+      },
+      "parent": {
+        "x": 265,
+        "y": 651,
+        "right": 1440,
+        "bottom": 781,
+        "width": 1175,
+        "height": 130
+      },
+      "clientWidth": 1175,
+      "label": {
+        "rect": {
+          "x": 297,
+          "y": 663.34375,
+          "right": 396.640625,
+          "bottom": 684.34375,
+          "width": 99.640625,
+          "height": 21
+        },
+        "text": "アップロード中",
+        "visibility": "visible"
+      },
+      "percent": {
+        "rect": {
+          "x": 1362.875,
+          "y": 659,
+          "right": 1424,
+          "bottom": 688.6875,
+          "width": 61.125,
+          "height": 29.6875
+        },
+        "text": "9.3%",
+        "visibility": "visible"
+      },
+      "amount": {
+        "rect": {
+          "x": 281,
+          "y": 706.6875,
+          "right": 403.90625,
+          "bottom": 726.1875,
+          "width": 122.90625,
+          "height": 19.5
+        },
+        "text": "3 / 32 MiB",
+        "visibility": "visible"
+      },
+      "route": {
+        "rect": {
+          "x": 1300.703125,
+          "y": 706.6875,
+          "right": 1424,
+          "bottom": 726.1875,
+          "width": 123.296875,
+          "height": 19.5
+        },
+        "text": "ブラウザ → MiniPost",
+        "visibility": "visible"
+      },
+      "track": {
+        "x": 281,
+        "y": 694.6875,
+        "right": 1424,
+        "bottom": 700.6875,
+        "width": 1143,
+        "height": 6
+      },
+      "determinate": true,
+      "value": 3145728,
+      "max": 33554432,
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "pageOverflow": false
+    },
+    {
+      "name": "upload-320",
+      "phase": "upload",
+      "root": {
+        "x": 0,
+        "y": 826,
+        "right": 320,
+        "bottom": 908.5,
+        "width": 320,
+        "height": 82.5
+      },
+      "parent": {
+        "x": 0,
+        "y": 826,
+        "right": 320,
+        "bottom": 909,
+        "width": 320,
+        "height": 83
+      },
+      "clientWidth": 320,
+      "label": {
+        "rect": {
+          "x": 28,
+          "y": 837.5,
+          "right": 127.640625,
+          "bottom": 858.5,
+          "width": 99.640625,
+          "height": 21
+        },
+        "text": "アップロード中",
+        "visibility": "visible"
+      },
+      "percent": {
+        "rect": {
+          "x": 252.4375,
+          "y": 834.5,
+          "right": 308,
+          "bottom": 861.5,
+          "width": 55.5625,
+          "height": 27
+        },
+        "text": "12.5%",
+        "visibility": "visible"
+      },
+      "amount": {
+        "rect": {
+          "x": 12,
+          "y": 880,
+          "right": 134.90625,
+          "bottom": 899.5,
+          "width": 122.90625,
+          "height": 19.5
+        },
+        "text": "4 / 32 MiB",
+        "visibility": "visible"
+      },
+      "route": {
+        "rect": {
+          "x": 184.703125,
+          "y": 880,
+          "right": 308,
+          "bottom": 899.5,
+          "width": 123.296875,
+          "height": 19.5
+        },
+        "text": "ブラウザ → MiniPost",
+        "visibility": "visible"
+      },
+      "track": {
+        "x": 12,
+        "y": 868,
+        "right": 308,
+        "bottom": 874,
+        "width": 296,
+        "height": 6
+      },
+      "determinate": true,
+      "value": 4194304,
+      "max": 33554432,
+      "viewport": {
+        "width": 320,
+        "height": 720
+      },
+      "pageOverflow": false
+    },
+    {
+      "name": "target-send-320",
+      "phase": "send",
+      "root": {
+        "x": 0,
+        "y": 591,
+        "right": 320,
+        "bottom": 673.5,
+        "width": 320,
+        "height": 82.5
+      },
+      "parent": {
+        "x": 0,
+        "y": 591,
+        "right": 320,
+        "bottom": 674,
+        "width": 320,
+        "height": 83
+      },
+      "clientWidth": 320,
+      "label": {
+        "rect": {
+          "x": 28,
+          "y": 602.5,
+          "right": 126.328125,
+          "bottom": 623.5,
+          "width": 98.328125,
+          "height": 21
+        },
+        "text": "送信先へ転送中",
+        "visibility": "visible"
+      },
+      "percent": {
+        "rect": {
+          "x": 252.4375,
+          "y": 599.5,
+          "right": 308,
+          "bottom": 626.5,
+          "width": 55.5625,
+          "height": 27
+        },
+        "text": "2.3%",
+        "visibility": "visible"
+      },
+      "amount": {
+        "rect": {
+          "x": 12,
+          "y": 645,
+          "right": 134.90625,
+          "bottom": 664.5,
+          "width": 122.90625,
+          "height": 19.5
+        },
+        "text": "0.8 / 32 MiB",
+        "visibility": "visible"
+      },
+      "route": {
+        "rect": {
+          "x": 198.921875,
+          "y": 645,
+          "right": 308,
+          "bottom": 664.5,
+          "width": 109.078125,
+          "height": 19.5
+        },
+        "text": "MiniPost → 送信先",
+        "visibility": "visible"
+      },
+      "track": {
+        "x": 12,
+        "y": 633,
+        "right": 308,
+        "bottom": 639,
+        "width": 296,
+        "height": 6
+      },
+      "determinate": true,
+      "value": 786432,
+      "max": 33554432,
+      "viewport": {
+        "width": 320,
+        "height": 720
+      },
+      "pageOverflow": false
+    },
+    {
+      "name": "response-wait-desktop",
+      "phase": "waiting",
+      "root": {
+        "x": 265,
+        "y": 651,
+        "right": 1440,
+        "bottom": 735.1875,
+        "width": 1175,
+        "height": 84.1875
+      },
+      "parent": {
+        "x": 265,
+        "y": 651,
+        "right": 1440,
+        "bottom": 781,
+        "width": 1175,
+        "height": 130
+      },
+      "clientWidth": 1175,
+      "label": {
+        "rect": {
+          "x": 297,
+          "y": 663.34375,
+          "right": 353.328125,
+          "bottom": 684.34375,
+          "width": 56.328125,
+          "height": 21
+        },
+        "text": "応答待ち",
+        "visibility": "visible"
+      },
+      "percent": {
+        "rect": {
+          "x": 1362.875,
+          "y": 659,
+          "right": 1424,
+          "bottom": 688.6875,
+          "width": 61.125,
+          "height": 29.6875
+        },
+        "text": "",
+        "visibility": "hidden"
+      },
+      "amount": {
+        "rect": {
+          "x": 281,
+          "y": 706.6875,
+          "right": 403.90625,
+          "bottom": 726.1875,
+          "width": 122.90625,
+          "height": 19.5
+        },
+        "text": "",
+        "visibility": "visible"
+      },
+      "route": {
+        "rect": {
+          "x": 1314.921875,
+          "y": 706.6875,
+          "right": 1424,
+          "bottom": 726.1875,
+          "width": 109.078125,
+          "height": 19.5
+        },
+        "text": "送信先 → MiniPost",
+        "visibility": "visible"
+      },
+      "track": {
+        "x": 281,
+        "y": 694.6875,
+        "right": 1424,
+        "bottom": 700.6875,
+        "width": 1143,
+        "height": 6
+      },
+      "determinate": false,
+      "value": 0,
+      "max": 33554432,
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "pageOverflow": false
+    }
+  ]
+}

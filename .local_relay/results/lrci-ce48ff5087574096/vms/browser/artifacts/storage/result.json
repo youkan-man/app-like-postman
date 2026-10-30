@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "existing localStorage workspace migrates to native IndexedDB without losing drafts",
+    "6 MiB workspace is saved intact without a full localStorage duplicate",
+    "edits survive reload with every localStorage write denied; server stays opt-in",
+    "explicit server restore commits and survives reload despite full localStorage",
+    "aborting the second IndexedDB write preserves both live and durable workspace",
+    "a separate browser profile remains empty until explicit server import"
+  ],
+  "errors": [],
+  "native_indexeddb": true
+}
