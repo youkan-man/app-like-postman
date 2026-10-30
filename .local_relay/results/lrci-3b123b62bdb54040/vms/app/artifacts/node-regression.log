@@ -1,0 +1,979 @@
+TAP version 13
+# Subtest: primary variables override environment, collection and path values without changing persisted request
+ok 1 - primary variables override environment, collection and path values without changing persisted request
+  ---
+  duration_ms: 6.850114
+  ...
+# Subtest: false/null/object extraction produces template-compatible text
+ok 2 - false/null/object extraction produces template-compatible text
+  ---
+  duration_ms: 0.379846
+  ...
+# Subtest: script variable writes are atomic and preserve unrelated concurrent keys
+ok 3 - script variable writes are atomic and preserve unrelated concurrent keys
+  ---
+  duration_ms: 0.534768
+  ...
+# Subtest: variable set updates the effective last duplicate
+ok 4 - variable set updates the effective last duplicate
+  ---
+  duration_ms: 0.500673
+  ...
+# Subtest: placeholder extraction walks URL/header/auth/body nested objects and excludes dynamic variables
+ok 5 - placeholder extraction walks URL/header/auth/body nested objects and excludes dynamic variables
+  ---
+  duration_ms: 0.469004
+  ...
+# Subtest: response metadata retains duplicate cookies and JSON values
+ok 6 - response metadata retains duplicate cookies and JSON values
+  ---
+  duration_ms: 0.749653
+  ...
+# Subtest: paths do not walk prototypes or evaluate expressions
+ok 7 - paths do not walk prototypes or evaluate expressions
+  ---
+  duration_ms: 0.358455
+  ...
+# Subtest: metadata list includes selectable object and leaf paths
+ok 8 - metadata list includes selectable object and leaf paths
+  ---
+  duration_ms: 0.800259
+  ...
+# Subtest: manual extraction rejects a missing path, automatic extraction can keep or empty it
+ok 9 - manual extraction rejects a missing path, automatic extraction can keep or empty it
+  ---
+  duration_ms: 0.573021
+  ...
+# Subtest: JSON and HTML highlighting escapes hostile markup and keeps source intact
+ok 10 - JSON and HTML highlighting escapes hostile markup and keeps source intact
+  ---
+  duration_ms: 2.073108
+  ...
+# Subtest: condition comparisons preserve zero, null and missing semantics
+ok 11 - condition comparisons preserve zero, null and missing semantics
+  ---
+  duration_ms: 0.471249
+  ...
+# Subtest: relation executes saved requests in order, with per-step and whole-plan repeats
+ok 12 - relation executes saved requests in order, with per-step and whole-plan repeats
+  ---
+  duration_ms: 30.653879
+  ...
+# Subtest: relation branches on the latest response and skips the other request
+ok 13 - relation branches on the latest response and skips the other request
+  ---
+  duration_ms: 1.770998
+  ...
+# Subtest: relation cycle branches using evolving primary values and exits
+ok 14 - relation cycle branches using evolving primary values and exits
+  ---
+  duration_ms: 5.644871
+  ...
+# Subtest: relation validates all references before sending anything
+ok 15 - relation validates all references before sending anything
+  ---
+  duration_ms: 1.166118
+  ...
+# Subtest: relation accepts existing unsaved drafts
+ok 16 - relation accepts existing unsaved drafts
+  ---
+  duration_ms: 3.180426
+  ...
+# Subtest: stop aborts a relation during delay without sending
+ok 17 - stop aborts a relation during delay without sending
+  ---
+  duration_ms: 6.76899
+  ...
+# Subtest: explicit maximum prevents an accidental unbounded cycle
+ok 18 - explicit maximum prevents an accidental unbounded cycle
+  ---
+  duration_ms: 11.951971
+  ...
+# Subtest: HTTP failure policy can stop or continue without a silent successful run
+ok 19 - HTTP failure policy can stop or continue without a silent successful run
+  ---
+  duration_ms: 5.050181
+  ...
+# Subtest: pre-script failure performs no HTTP call
+ok 20 - pre-script failure performs no HTTP call
+  ---
+  duration_ms: 1.427662
+  ...
+# Subtest: pre-script variables are compiled and response extraction is available to the after-script
+ok 21 - pre-script variables are compiled and response extraction is available to the after-script
+  ---
+  duration_ms: 3.411661
+  ...
+# Subtest: after-script error keeps the real HTTP response available
+ok 22 - after-script error keeps the real HTTP response available
+  ---
+  duration_ms: 0.67345
+  ...
+# Subtest: script environment writes bind to the starting environment, not a later UI selection
+ok 23 - script environment writes bind to the starting environment, not a later UI selection
+  ---
+  duration_ms: 0.837289
+  ...
+# Subtest: relation settings have independent revision restore
+ok 24 - relation settings have independent revision restore
+  ---
+  duration_ms: 2.978625
+  ...
+# Subtest: full backup merges relations and remaps request, step, branch and revision references
+ok 25 - full backup merges relations and remaps request, step, branch and revision references
+  ---
+  duration_ms: 3.002782
+  ...
+# Subtest: reorder preserves the actual object and IDs
+ok 26 - reorder preserves the actual object and IDs
+  ---
+  duration_ms: 2.56223
+  ...
+# Subtest: folder move transfers descendant refs, active draft and per-setting history
+ok 27 - folder move transfers descendant refs, active draft and per-setting history
+  ---
+  duration_ms: 3.038819
+  ...
+# Subtest: invalid descendant, stale and non-folder drops are atomic
+ok 28 - invalid descendant, stale and non-folder drops are atomic
+  ---
+  duration_ms: 0.818282
+  ...
+# Subtest: drop inside folder then move to root preserves identity and ordering
+ok 29 - drop inside folder then move to root preserves identity and ordering
+  ---
+  duration_ms: 0.219334
+  ...
+# Subtest: adjacent reorder is a no-op, top-level collections can reorder
+ok 30 - adjacent reorder is a no-op, top-level collections can reorder
+  ---
+  duration_ms: 0.285919
+  ...
+# Subtest: ID collisions do not overwrite a target or its history
+ok 31 - ID collisions do not overwrite a target or its history
+  ---
+  duration_ms: 0.444418
+  ...
+# Subtest: Collection v2.0 and v2.1 including BOM
+ok 32 - Collection v2.0 and v2.1 including BOM
+  ---
+  duration_ms: 4.023935
+  ...
+# Subtest: request shorthand strings and nested folders
+ok 33 - request shorthand strings and nested folders
+  ---
+  duration_ms: 0.934331
+  ...
+# Subtest: Collection and Environment API wrappers
+ok 34 - Collection and Environment API wrappers
+  ---
+  duration_ms: 0.443597
+  ...
+# Subtest: Environment, Globals and data dump
+ok 35 - Environment, Globals and data dump
+  ---
+  duration_ms: 0.478943
+  ...
+# Subtest: separate imports never share IDs
+ok 36 - separate imports never share IDs
+  ---
+  duration_ms: 0.446181
+  ...
+# Subtest: reject invalid JSON, unknown formats, v1 and unknown variable scopes
+ok 37 - reject invalid JSON, unknown formats, v1 and unknown variable scopes
+  ---
+  duration_ms: 0.581126
+  ...
+# Subtest: query object overrides raw and preserves duplicate and disabled values
+ok 38 - query object overrides raw and preserves duplicate and disabled values
+  ---
+  duration_ms: 3.125482
+  ...
+# Subtest: query string is parsed without duplication and keeps hash separate
+ok 39 - query string is parsed without duplication and keeps hash separate
+  ---
+  duration_ms: 0.98172
+  ...
+# Subtest: URL editing and Params editing remain synchronized
+ok 40 - URL editing and Params editing remain synchronized
+  ---
+  duration_ms: 0.535028
+  ...
+# Subtest: construct structured URL with protocol, host, port, path
+ok 41 - construct structured URL with protocol, host, port, path
+  ---
+  duration_ms: 0.596966
+  ...
+# Subtest: environment wins over collection and global; disabled overrides skipped
+ok 42 - environment wins over collection and global; disabled overrides skipped
+  ---
+  duration_ms: 0.628955
+  ...
+# Subtest: variable recursion, false and zero values, cycles, missing and prototype keys
+ok 43 - variable recursion, false and zero values, cycles, missing and prototype keys
+  ---
+  duration_ms: 1.018359
+  ...
+# Subtest: dynamic variables stable within one request
+ok 44 - dynamic variables stable within one request
+  ---
+  duration_ms: 0.702535
+  ...
+# Subtest: path variables with slash and UTF-8 are passed as text to the backend
+ok 45 - path variables with slash and UTF-8 are passed as text to the backend
+  ---
+  duration_ms: 1.214058
+  ...
+# Subtest: dynamic full URL query retained and additional params appended once
+ok 46 - dynamic full URL query retained and additional params appended once
+  ---
+  duration_ms: 0.311687
+  ...
+# Subtest: URL query and header variables are escaped correctly
+ok 47 - URL query and header variables are escaped correctly
+  ---
+  duration_ms: 0.655376
+  ...
+# Subtest: raw header string supports colon in values and duplicate names
+ok 48 - raw header string supports colon in values and duplicate names
+  ---
+  duration_ms: 0.702385
+  ...
+# Subtest: inherited bearer and explicit noauth
+ok 49 - inherited bearer and explicit noauth
+  ---
+  duration_ms: 0.734975
+  ...
+# Subtest: folder auth overrides collection and request overrides folder
+ok 50 - folder auth overrides collection and request overrides folder
+  ---
+  duration_ms: 0.641729
+  ...
+# Subtest: Basic UTF-8 and single generated Authorization
+ok 51 - Basic UTF-8 and single generated Authorization
+  ---
+  duration_ms: 2.72118
+  ...
+# Subtest: API key header and query placement
+ok 52 - API key header and query placement
+  ---
+  duration_ms: 0.648833
+  ...
+# Subtest: OAuth access token only and unsupported auth errors
+ok 53 - OAuth access token only and unsupported auth errors
+  ---
+  duration_ms: 0.656418
+  ...
+# Subtest: raw JSON substitutes variables without forcing valid JSON
+ok 54 - raw JSON substitutes variables without forcing valid JSON
+  ---
+  duration_ms: 0.691592
+  ...
+# Subtest: all raw languages and explicit content type respected
+ok 55 - all raw languages and explicit content type respected
+  ---
+  duration_ms: 4.050046
+  ...
+# Subtest: urlencoded repeated keys and inactive entries
+ok 56 - urlencoded repeated keys and inactive entries
+  ---
+  duration_ms: 1.375152
+  ...
+# Subtest: binary and multipart require reselection and preserve chosen bytes
+ok 57 - binary and multipart require reselection and preserve chosen bytes
+  ---
+  duration_ms: 1.641394
+  ...
+# Subtest: GraphQL JSON variables and query
+ok 58 - GraphQL JSON variables and query
+  ---
+  duration_ms: 1.372388
+  ...
+# Subtest: none and disabled bodies do not send data; GET body is allowed
+ok 59 - none and disabled bodies do not send data; GET body is allowed
+  ---
+  duration_ms: 1.471425
+  ...
+# Subtest: settings preserve self-signed TLS default, infinite timeout, redirects
+ok 60 - settings preserve self-signed TLS default, infinite timeout, redirects
+  ---
+  duration_ms: 1.693954
+  ...
+# Subtest: unsupported scripts are preserved, visible in context and warned about
+ok 61 - unsupported scripts are preserved, visible in context and warned about
+  ---
+  duration_ms: 3.635995
+  ...
+# Subtest: unknown metadata and auth data survive re-export
+ok 62 - unknown metadata and auth data survive re-export
+  ---
+  duration_ms: 1.128027
+  ...
+# Subtest: Gateway sample imports with nested folders and no embedded token
+ok 63 - Gateway sample imports with nested folders and no embedded token
+  ---
+  duration_ms: 8.464779
+  ...
+# Subtest: copy name avoids repeated collisions
+ok 64 - copy name avoids repeated collisions
+  ---
+  duration_ms: 2.074141
+  ...
+# Subtest: subtree copies get distinct IDs at every level without modifying the original
+ok 65 - subtree copies get distinct IDs at every level without modifying the original
+  ---
+  duration_ms: 0.397849
+  ...
+# Subtest: collection copy preserves content but replaces export and UI identities
+ok 66 - collection copy preserves content but replaces export and UI identities
+  ---
+  duration_ms: 0.234422
+  ...
+# Subtest: environment duplication deep-copies disabled and secret metadata
+ok 67 - environment duplication deep-copies disabled and secret metadata
+  ---
+  duration_ms: 0.34989
+  ...
+# Subtest: environment settings paste preserves target name and id
+ok 68 - environment settings paste preserves target name and id
+  ---
+  duration_ms: 0.52523
+  ...
+# Subtest: scope paste replaces variables and auth but not child requests
+ok 69 - scope paste replaces variables and auth but not child requests
+  ---
+  duration_ms: 1.27359
+  ...
+# Subtest: request copy includes transport settings but preserves destination tab identity
+ok 70 - request copy includes transport settings but preserves destination tab identity
+  ---
+  duration_ms: 0.199557
+  ...
+# Subtest: incompatible clipboard types fail without changing target
+ok 71 - incompatible clipboard types fail without changing target
+  ---
+  duration_ms: 0.697125
+  ...
+# Subtest: v2.0 Basic object imports actual UTF-8 username and password
+ok 72 - v2.0 Basic object imports actual UTF-8 username and password
+  ---
+  duration_ms: 7.442942
+  ...
+# Subtest: v2.0 Bearer object is resolved at collection, folder and request scopes
+ok 73 - v2.0 Bearer object is resolved at collection, folder and request scopes
+  ---
+  duration_ms: 1.338323
+  ...
+# Subtest: v2.0 API Key object supports header and query placement
+ok 74 - v2.0 API Key object supports header and query placement
+  ---
+  duration_ms: 0.804286
+  ...
+# Subtest: v2.0 OAuth object supports header prefix and query token
+ok 75 - v2.0 OAuth object supports header prefix and query token
+  ---
+  duration_ms: 1.916834
+  ...
+# Subtest: explicit noauth still suppresses inherited v2.0 authentication
+ok 76 - explicit noauth still suppresses inherited v2.0 authentication
+  ---
+  duration_ms: 0.803735
+  ...
+# Subtest: object auth attributes work with the existing rows-based auth editor
+ok 77 - object auth attributes work with the existing rows-based auth editor
+  ---
+  duration_ms: 1.539151
+  ...
+# Subtest: v2.0 edited auth exports as objects at every supported scope
+ok 78 - v2.0 edited auth exports as objects at every supported scope
+  ---
+  duration_ms: 1.772952
+  ...
+# Subtest: v2.0 unchanged auth keeps additional metadata and value types
+ok 79 - v2.0 unchanged auth keeps additional metadata and value types
+  ---
+  duration_ms: 0.469245
+  ...
+# Subtest: v2.0 export omits disabled attributes from a converted editable array
+ok 80 - v2.0 export omits disabled attributes from a converted editable array
+  ---
+  duration_ms: 0.412498
+  ...
+# Subtest: v2.1 re-export retains array attribute metadata without mutating workspace
+ok 81 - v2.1 re-export retains array attribute metadata without mutating workspace
+  ---
+  duration_ms: 0.569614
+  ...
+# Subtest: v2.1 output converts legacy object attributes to the declared array schema
+ok 82 - v2.1 output converts legacy object attributes to the declared array schema
+  ---
+  duration_ms: 0.412077
+  ...
+# Subtest: v2.0 import, edit, export, re-import preserves the effective request
+ok 83 - v2.0 import, edit, export, re-import preserves the effective request
+  ---
+  duration_ms: 0.992422
+  ...
+# Subtest: data dump archive.json index does not abort sibling file imports
+ok 84 - data dump archive.json index does not abort sibling file imports
+  ---
+  duration_ms: 0.871603
+  ...
+# Subtest: empty and path-qualified archive indices are recognized
+ok 85 - empty and path-qualified archive indices are recognized
+  ---
+  duration_ms: 0.332717
+  ...
+# Subtest: index handling does not silently swallow malformed data or another file
+ok 86 - index handling does not silently swallow malformed data or another file
+  ---
+  duration_ms: 0.540289
+  ...
+# Subtest: a real embedded data dump named archive.json is imported, not skipped
+ok 87 - a real embedded data dump named archive.json is imported, not skipped
+  ---
+  duration_ms: 0.547543
+  ...
+# Subtest: unsupported legacy authentication is retained and still rejected on send
+ok 88 - unsupported legacy authentication is retained and still rejected on send
+  ---
+  duration_ms: 0.845213
+  ...
+# Subtest: application source never invokes browser alert, confirm or prompt
+ok 89 - application source never invokes browser alert, confirm or prompt
+  ---
+  duration_ms: 7.594387
+  ...
+# (node:14807) ExperimentalWarning: buffer.File is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: file-backed selection preserves every byte: 0 bytes
+ok 90 - file-backed selection preserves every byte: 0 bytes
+  ---
+  duration_ms: 5.557227
+  ...
+# Subtest: file-backed selection preserves every byte: 1 bytes
+ok 91 - file-backed selection preserves every byte: 1 bytes
+  ---
+  duration_ms: 0.552562
+  ...
+# Subtest: file-backed selection preserves every byte: 2 bytes
+ok 92 - file-backed selection preserves every byte: 2 bytes
+  ---
+  duration_ms: 0.51975
+  ...
+# Subtest: file-backed selection preserves every byte: 255 bytes
+ok 93 - file-backed selection preserves every byte: 255 bytes
+  ---
+  duration_ms: 0.571568
+  ...
+# Subtest: file-backed selection preserves every byte: 256 bytes
+ok 94 - file-backed selection preserves every byte: 256 bytes
+  ---
+  duration_ms: 0.271211
+  ...
+# Subtest: file-backed selection preserves every byte: 49151 bytes
+ok 95 - file-backed selection preserves every byte: 49151 bytes
+  ---
+  duration_ms: 28.145803
+  ...
+# Subtest: file-backed selection preserves every byte: 49152 bytes
+ok 96 - file-backed selection preserves every byte: 49152 bytes
+  ---
+  duration_ms: 7.723
+  ...
+# Subtest: file-backed selection preserves every byte: 49153 bytes
+ok 97 - file-backed selection preserves every byte: 49153 bytes
+  ---
+  duration_ms: 8.241749
+  ...
+# Subtest: file-backed selection preserves every byte: 6291456 bytes
+ok 98 - file-backed selection preserves every byte: 6291456 bytes
+  ---
+  duration_ms: 38.055945
+  ...
+# Subtest: send awaits the newly selected file, never the previous selection
+ok 99 - send awaits the newly selected file, never the previous selection
+  ---
+  duration_ms: 1.910833
+  ...
+# Subtest: an older slow read cannot replace a newer selection
+ok 100 - an older slow read cannot replace a newer selection
+  ---
+  duration_ms: 0.44524
+  ...
+# Subtest: failed replacement cannot send the previous file
+ok 101 - failed replacement cannot send the previous file
+  ---
+  duration_ms: 1.372597
+  ...
+# Subtest: empty chooser result preserves the existing file and cancellation leaves no data change
+ok 102 - empty chooser result preserves the existing file and cancellation leaves no data change
+  ---
+  duration_ms: 0.279627
+  ...
+# Subtest: multipart insertion and deletion move ready and pending files with their rows
+ok 103 - multipart insertion and deletion move ready and pending files with their rows
+  ---
+  duration_ms: 0.770163
+  ...
+# Subtest: deleted row and deleted request never reappear when their file reads finish
+ok 104 - deleted row and deleted request never reappear when their file reads finish
+  ---
+  duration_ms: 0.999124
+  ...
+# Subtest: Send snapshot cannot be changed by reselecting or removing a ready file
+ok 105 - Send snapshot cannot be changed by reselecting or removing a ready file
+  ---
+  duration_ms: 0.604239
+  ...
+# Subtest: changing rows while Send awaits a read fails instead of sending a different row
+ok 106 - changing rows while Send awaits a read fails instead of sending a different row
+  ---
+  duration_ms: 0.600472
+  ...
+# Subtest: Stop cancels waiting for a file without sending or destroying the selection
+ok 107 - Stop cancels waiting for a file without sending or destroying the selection
+  ---
+  duration_ms: 1.187439
+  ...
+# Subtest: disabled binary and multipart rows neither read nor wait for files
+ok 108 - disabled binary and multipart rows neither read nor wait for files
+  ---
+  duration_ms: 0.398161
+  ...
+# Subtest: binary compile preserves empty and all-byte files and user Content-Type
+ok 109 - binary compile preserves empty and all-byte files and user Content-Type
+  ---
+  duration_ms: 3.222897
+  ...
+# Subtest: file bytes are frozen before an asynchronous pre-request script
+ok 110 - file bytes are frozen before an asynchronous pre-request script
+  ---
+  duration_ms: 1.770778
+  ...
+# Subtest: opening and repeated persistence without edits never creates revisions
+ok 111 - opening and repeated persistence without edits never creates revisions
+  ---
+  duration_ms: 6.55576
+  ...
+# Subtest: environment changes have a baseline and remain separate from other settings
+ok 112 - environment changes have a baseline and remain separate from other settings
+  ---
+  duration_ms: 1.135821
+  ...
+# Subtest: restore appends a revision without changing identity, deleting history or sending
+ok 113 - restore appends a revision without changing identity, deleting history or sending
+  ---
+  duration_ms: 2.696945
+  ...
+# Subtest: legacy request drafts are indexed independently and normalized on selection
+ok 114 - legacy request drafts are indexed independently and normalized on selection
+  ---
+  duration_ms: 2.393693
+  ...
+# Subtest: saved request and live draft share one history identity
+ok 115 - saved request and live draft share one history identity
+  ---
+  duration_ms: 1.525486
+  ...
+# Subtest: draft history follows first collection save
+ok 116 - draft history follows first collection save
+  ---
+  duration_ms: 0.997291
+  ...
+# Subtest: all scope kinds have separate history without copying child snapshots
+ok 117 - all scope kinds have separate history without copying child snapshots
+  ---
+  duration_ms: 1.6282
+  ...
+# Subtest: new record and later mutation do not share snapshot references
+ok 118 - new record and later mutation do not share snapshot references
+  ---
+  duration_ms: 0.458764
+  ...
+# Subtest: request settings drop old routing options while preserving timeout and TLS
+ok 119 - request settings drop old routing options while preserving timeout and TLS
+  ---
+  duration_ms: 0.655376
+  ...
+# Subtest: reload keeps revisions, unchanged state does not append them
+ok 120 - reload keeps revisions, unchanged state does not append them
+  ---
+  duration_ms: 1.06137
+  ...
+# Subtest: restoring a saved revision updates collection export and every matching open draft
+ok 121 - restoring a saved revision updates collection export and every matching open draft
+  ---
+  duration_ms: 1.580459
+  ...
+# Subtest: root and partial member completion
+ok 122 - root and partial member completion
+  ---
+  duration_ms: 14.991444
+  ...
+# Subtest: nested and optional-chain API completion
+ok 123 - nested and optional-chain API completion
+  ---
+  duration_ms: 0.628855
+  ...
+# Subtest: unknown chains do not borrow known suffixes
+ok 124 - unknown chains do not borrow known suffixes
+  ---
+  duration_ms: 0.204636
+  ...
+# Subtest: whitespace around member dots
+ok 125 - whitespace around member dots
+  ---
+  duration_ms: 0.198944
+  ...
+# Subtest: no suggestion inside literal or comment // pm.
+ok 126 - no suggestion inside literal or comment // pm.
+  ---
+  duration_ms: 0.229393
+  ...
+# Subtest: no suggestion inside literal or comment /* pm.
+ok 127 - no suggestion inside literal or comment /* pm.
+  ---
+  duration_ms: 0.297832
+  ...
+# Subtest: no suggestion inside literal or comment "pm.
+ok 128 - no suggestion inside literal or comment "pm.
+  ---
+  duration_ms: 0.129985
+  ...
+# Subtest: no suggestion inside literal or comment 'pm.
+ok 129 - no suggestion inside literal or comment 'pm.
+  ---
+  duration_ms: 0.130246
+  ...
+# Subtest: no suggestion inside literal or comment `pm.
+ok 130 - no suggestion inside literal or comment `pm.
+  ---
+  duration_ms: 0.272614
+  ...
+# Subtest: no suggestion inside literal or comment const expression = /pm.
+ok 131 - no suggestion inside literal or comment const expression = /pm.
+  ---
+  duration_ms: 0.217961
+  ...
+# Subtest: closed comments and strings do not leak identifiers
+ok 132 - closed comments and strings do not leak identifiers
+  ---
+  duration_ms: 0.60465
+  ...
+# Subtest: local const let var function and parameter names
+ok 133 - local const let var function and parameter names
+  ---
+  duration_ms: 0.530289
+  ...
+# Subtest: unicode identifiers
+ok 134 - unicode identifiers
+  ---
+  duration_ms: 1.064688
+  ...
+# Subtest: replacement range includes right-hand identifier suffix
+ok 135 - replacement range includes right-hand identifier suffix
+  ---
+  duration_ms: 0.571797
+  ...
+# Subtest: explicit Ctrl-space at an empty position
+ok 136 - explicit Ctrl-space at an empty position
+  ---
+  duration_ms: 0.25473
+  ...
+# Subtest: signatures count only commas in the current call
+ok 137 - signatures count only commas in the current call
+  ---
+  duration_ms: 0.852176
+  ...
+# Subtest: nested call signature belongs to the inner callable
+ok 138 - nested call signature belongs to the inner callable
+  ---
+  duration_ms: 0.477219
+  ...
+# Subtest: comments never produce signature UI
+ok 139 - comments never produce signature UI
+  ---
+  duration_ms: 0.319923
+  ...
+# Subtest: syntax highlighting escapes HTML and styles actual keywords
+ok 140 - syntax highlighting escapes HTML and styles actual keywords
+  ---
+  duration_ms: 1.863924
+  ...
+# Subtest: source masks preserve offsets and line endings
+ok 141 - source masks preserve offsets and line endings
+  ---
+  duration_ms: 0.284376
+  ...
+# Subtest: signature help works without Array.prototype.toReversed
+ok 142 - signature help works without Array.prototype.toReversed
+  ---
+  duration_ms: 2.001243
+  ...
+# Subtest: migrates the existing workspace without removing content or history
+ok 143 - migrates the existing workspace without removing content or history
+  ---
+  duration_ms: 8.168249
+  ...
+# Subtest: workspace writes and reload work while localStorage is denied
+ok 144 - workspace writes and reload work while localStorage is denied
+  ---
+  duration_ms: 1.744238
+  ...
+# Subtest: large bodies are kept intact in IndexedDB, not duplicated in localStorage
+ok 145 - large bodies are kept intact in IndexedDB, not duplicated in localStorage
+  ---
+  duration_ms: 57.084896
+  ...
+# Subtest: large legacy data is removed only after migration commits
+ok 146 - large legacy data is removed only after migration commits
+  ---
+  duration_ms: 7.373462
+  ...
+# Subtest: atomic restore succeeds despite full localStorage and restores layout
+ok 147 - atomic restore succeeds despite full localStorage and restores layout
+  ---
+  duration_ms: 1.337411
+  ...
+# Subtest: failed transaction leaves both workspace and preferences unchanged
+ok 148 - failed transaction leaves both workspace and preferences unchanged
+  ---
+  duration_ms: 1.194221
+  ...
+# Subtest: a later save wins even when earlier saves are still in flight
+ok 149 - a later save wins even when earlier saves are still in flight
+  ---
+  duration_ms: 0.782977
+  ...
+# Subtest: corrupt data cannot be silently overwritten by an empty autosave
+ok 150 - corrupt data cannot be silently overwritten by an empty autosave
+  ---
+  duration_ms: 0.74284
+  ...
+# Subtest: a corrupt obsolete fallback does not hide a valid database workspace
+ok 151 - a corrupt obsolete fallback does not hide a valid database workspace
+  ---
+  duration_ms: 0.6303
+  ...
+# Subtest: fallback storage works without IndexedDB and later migrates
+ok 152 - fallback storage works without IndexedDB and later migrates
+  ---
+  duration_ms: 0.626171
+  ...
+# Subtest: fallback quota failure does not partially replace data or layout
+ok 153 - fallback quota failure does not partially replace data or layout
+  ---
+  duration_ms: 0.401206
+  ...
+# Subtest: presentation preferences persist independently from request revisions
+ok 154 - presentation preferences persist independently from request revisions
+  ---
+  duration_ms: 0.687246
+  ...
+# Subtest: version changes close the old connection without silently changing backend
+ok 155 - version changes close the old connection without silently changing backend
+  ---
+  duration_ms: 0.443907
+  ...
+# Subtest: preference-only changes survive before the first workspace save
+ok 156 - preference-only changes survive before the first workspace save
+  ---
+  duration_ms: 0.571478
+  ...
+# Subtest: fallback preference writes cannot overwrite a newer same-turn workspace save
+ok 157 - fallback preference writes cannot overwrite a newer same-turn workspace save
+  ---
+  duration_ms: 0.505163
+  ...
+# Subtest: same-turn preferences after fallback save cannot resurrect the previous workspace
+ok 158 - same-turn preferences after fallback save cannot resurrect the previous workspace
+  ---
+  duration_ms: 0.367774
+  ...
+# Subtest: temporary IndexedDB unavailability never replaces a previous large database with an empty workspace
+ok 159 - temporary IndexedDB unavailability never replaces a previous large database with an empty workspace
+  ---
+  duration_ms: 3.961638
+  ...
+# Subtest: explicit backup replacement still recovers when a previously used database is unavailable
+ok 160 - explicit backup replacement still recovers when a previously used database is unavailable
+  ---
+  duration_ms: 0.925605
+  ...
+# Subtest: fallback recovery stays newer when the wall clock is unchanged or moves backwards
+ok 161 - fallback recovery stays newer when the wall clock is unchanged or moves backwards
+  ---
+  duration_ms: 0.766986
+  ...
+# Subtest: a preference cache survives an interrupted IndexedDB write without altering workspace revisions
+ok 162 - a preference cache survives an interrupted IndexedDB write without altering workspace revisions
+  ---
+  duration_ms: 0.727541
+  ...
+# Subtest: a committed imported layout wins over an older synchronous preferences cache
+ok 163 - a committed imported layout wins over an older synchronous preferences cache
+  ---
+  duration_ms: 0.584131
+  ...
+# Subtest: editor text is never URI encoded during edit, normalization or save reload
+ok 164 - editor text is never URI encoded during edit, normalization or save reload
+  ---
+  duration_ms: 6.579886
+  ...
+# Subtest: plain params retain reserved characters, percent text, repeats, empty values and fragments
+ok 165 - plain params retain reserved characters, percent text, repeats, empty values and fragments
+  ---
+  duration_ms: 1.189382
+  ...
+# Subtest: legacy escaped URL becomes readable without treating decoded delimiters as structure
+ok 166 - legacy escaped URL becomes readable without treating decoded delimiters as structure
+  ---
+  duration_ms: 0.785651
+  ...
+# Subtest: explicit percent-encoded entry stays as typed and decodes only once into query fields
+ok 167 - explicit percent-encoded entry stays as typed and decodes only once into query fields
+  ---
+  duration_ms: 0.410775
+  ...
+# Subtest: front compiler has no automatic URL or form encoders
+ok 168 - front compiler has no automatic URL or form encoders
+  ---
+  duration_ms: 1.722036
+  ...
+# Subtest: progress polling is serial and stops without late updates
+ok 169 - progress polling is serial and stops without late updates
+  ---
+  duration_ms: 52.617787
+  ...
+# Subtest: a missing finished session stops polling and is not a transfer failure
+ok 170 - a missing finished session stops polling and is not a transfer failure
+  ---
+  duration_ms: 15.906551
+  ...
+# Subtest: poll failure becomes indeterminate and does not retry the upload or request
+ok 171 - poll failure becomes indeterminate and does not retry the upload or request
+  ---
+  duration_ms: 6.91588
+  ...
+# Subtest: abort cancels an outstanding progress fetch and removes its listener
+ok 172 - abort cancels an outstanding progress fetch and removes its listener
+  ---
+  duration_ms: 6.204458
+  ...
+# Subtest: old backend without progress support adds no requests
+ok 173 - old backend without progress support adds no requests
+  ---
+  duration_ms: 6.115089
+  ...
+# Subtest: short requests never reveal a progress bar and release their timer
+ok 174 - short requests never reveal a progress bar and release their timer
+  ---
+  duration_ms: 43.467033
+  ...
+# Subtest: long requests reveal live byte progress without modifying another request
+ok 175 - long requests reveal live byte progress without modifying another request
+  ---
+  duration_ms: 75.979914
+  ...
+# Subtest: callbacks from a completed attempt cannot change or finish the next send
+ok 176 - callbacks from a completed attempt cannot change or finish the next send
+  ---
+  duration_ms: 0.495925
+  ...
+# Subtest: cancel drops percentages and rejects late updates until completion
+ok 177 - cancel drops percentages and rejects late updates until completion
+  ---
+  duration_ms: 0.287101
+  ...
+# Subtest: response waiting is indeterminate, not a completed transfer
+ok 178 - response waiting is indeterminate, not a completed transfer
+  ---
+  duration_ms: 0.195388
+  ...
+# Subtest: empty files, unknown totals and invalid counters do not make NaN progress
+ok 179 - empty files, unknown totals and invalid counters do not make NaN progress
+  ---
+  duration_ms: 0.401337
+  ...
+# (node:14899) ExperimentalWarning: buffer.File is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: selection probes at most 64 KiB, keeps the Blob, and never creates Base64
+ok 180 - selection probes at most 64 KiB, keeps the Blob, and never creates Base64
+  ---
+  duration_ms: 9.022371
+  ...
+# Subtest: attachment copy preserves Blob identity but snapshots descriptor mutations
+ok 181 - attachment copy preserves Blob identity but snapshots descriptor mutations
+  ---
+  duration_ms: 1.10881
+  ...
+# Subtest: raw and multipart metadata never serialize file bytes
+ok 182 - raw and multipart metadata never serialize file bytes
+  ---
+  duration_ms: 1.747455
+  ...
+# Subtest: chunks stay bounded; acknowledgement and metadata refer to exact slices
+ok 183 - chunks stay bounded; acknowledgement and metadata refer to exact slices
+  ---
+  duration_ms: 3.571394
+  ...
+# Subtest: failed upload releases staging and never retries a chunk
+ok 184 - failed upload releases staging and never retries a chunk
+  ---
+  duration_ms: 1.89848
+  ...
+# Subtest: zero-byte files need no data chunk, and partial acknowledgement fails closed
+ok 185 - zero-byte files need no data chunk, and partial acknowledgement fails closed
+  ---
+  duration_ms: 0.898705
+  ...
+# Subtest: abort before upload does not create a server transfer
+ok 186 - abort before upload does not create a server transfer
+  ---
+  duration_ms: 0.797994
+  ...
+# Subtest: asynchronous scripts preserve the selected File in execution, not an empty JSON object
+ok 187 - asynchronous scripts preserve the selected File in execution, not an empty JSON object
+  ---
+  duration_ms: 3.648829
+  ...
+# Subtest: full archive retains environments, globals, history, drafts, layout and revisions
+ok 188 - full archive retains environments, globals, history, drafts, layout and revisions
+  ---
+  duration_ms: 12.711217
+  ...
+# Subtest: reject malformed bundles without mutating local state
+ok 189 - reject malformed bundles without mutating local state
+  ---
+  duration_ms: 0.537554
+  ...
+# Subtest: merging a full archive preserves existing items and remaps every foreign ID and revision key
+ok 190 - merging a full archive preserves existing items and remaps every foreign ID and revision key
+  ---
+  duration_ms: 1.342231
+  ...
+# Subtest: local request keys keep stable identity for stored entries
+ok 191 - local request keys keep stable identity for stored entries
+  ---
+  duration_ms: 0.3922
+  ...
+# Subtest: a broken nested full backup is rejected before current data can be replaced
+ok 192 - a broken nested full backup is rejected before current data can be replaced
+  ---
+  duration_ms: 3.566114
+  ...
+# Subtest: older before/after change histories remain importable
+ok 193 - older before/after change histories remain importable
+  ---
+  duration_ms: 0.364167
+  ...
+1..193
+# tests 193
+# suites 0
+# pass 193
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3705.351741

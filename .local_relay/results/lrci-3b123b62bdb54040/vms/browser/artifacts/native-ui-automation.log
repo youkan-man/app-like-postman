@@ -1,0 +1,61 @@
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /style.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] code 404, message File not found
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [30/Oct/2026 04:01:50] "GET /api/health HTTP/1.1" 200 -
+PASS no injected sample UI or accumulating request tabs
+PASS environment tab edits a full page, autosaves and scopes creation
+PASS right-click creation inserts after a request or under the clicked folder
+PASS request placeholder extraction creates a selected editable environment
+PASS large body editor highlights JSON/XML and retains editing DOM across categories
+PASS failed scripts do not commit partial variable writes
+PASS script workers have no application DOM and CSP blocks direct network calls
+PASS infinite script terminates at the configured timeout without freezing the UI
+PASS global Stop terminates an unlimited manual script
+127.0.0.1 - - [30/Oct/2026 04:01:55] "POST /api/request HTTP/1.1" 200 -
+PASS pre/post scripts execute and primary variables override environment values in HTTP
+127.0.0.1 - - [30/Oct/2026 04:01:56] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [30/Oct/2026 04:01:56] "GET /api/health HTTP/1.1" 200 -
+PASS post-hoc metadata extraction and automatic rule survive reload of the received response
+PASS primary variables have an editable session-scoped page
+127.0.0.1 - - [30/Oct/2026 04:01:58] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:58] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:58] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [30/Oct/2026 04:01:58] "POST /api/request HTTP/1.1" 200 -
+PASS relation sequential execution repeats the plan and branches on a response element
+PASS relation stop interrupts an outstanding wait without sending another request
+PASS whole backup includes relation references, scripts and run logs but not session primary values
+PASS phone creation, variable page, source editor and relation layout have no page overflow
+PASS no uncaught browser JavaScript errors
