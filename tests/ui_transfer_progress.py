@@ -74,7 +74,9 @@ def main():
             page.locator('#import').click();page.get_by_label('インポートJSON').fill(json.dumps(sample));page.locator('#modalSubmit').click()
             expect(page.locator('#modalTitle')).to_have_text('インポート完了');page.locator('#modalSubmit').click();page.locator('#editor-tab-body').click()
             def choose(name):
+                page.wait_for_function("document.getElementById('navClose').hidden === !matchMedia('(max-width: 820px)').matches")
                 if not page.locator('#sidebarContent').is_visible():page.locator('#toggleSidebar').click()
+                expect(page.locator('#sidebarContent')).to_be_visible()
                 page.locator('.tree-open').filter(has=page.locator('.tree-label',has_text=name)).first.click()
                 expect(page.locator('#requestName')).to_have_value(name)
             def capture(name):
