@@ -1,0 +1,12 @@
+{
+  "passed": 5,
+  "checks": [
+    "v2.0 object auth opens and edits in request editor with real HTTP",
+    "v2.0 collection auth edits in drawer and remains inherited",
+    "history retains the date as well as time and request URL",
+    "200 percent POST and DELETE labels do not overlap request names",
+    "no JavaScript errors in auth, history or typography checks"
+  ],
+  "page_errors": [],
+  "target": "real loopback HTTP echo"
+}

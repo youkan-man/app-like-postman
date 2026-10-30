@@ -1,10 +1,44 @@
-/* Progress replaces the existing response waiting message, not the editor layout. */
-.transfer-progress {width:min(100%,560px);margin:0 auto;padding:14px 12px;box-sizing:border-box;}
-.transfer-progress-line {display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;}
-.transfer-progress-label {font-weight:600;overflow-wrap:anywhere;}
-.transfer-progress-detail {font-variant-numeric:tabular-nums;white-space:nowrap;}
-.transfer-progress-bar {display:block;width:100%;height:6px;margin-top:8px;accent-color:var(--accent);}
+/* A compact, full-width status strip in the response pane. No floating card. */
+.transfer-progress {
+  box-sizing:border-box; width:100%; margin:0; padding:8px 16px;
+  color:var(--text); background:var(--surface); border-bottom:1px solid var(--line);
+  font-size:1rem; line-height:1.5;
+}
+.transfer-progress-line {display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;min-height:28px;}
+.transfer-progress-heading {display:flex;align-items:center;gap:8px;min-width:0;}
+.transfer-progress-label {font-size:1.077rem;font-weight:600;overflow-wrap:anywhere;}
+.transfer-progress-indicator {width:8px;height:8px;flex:none;background:var(--accent);border-radius:50%;}
+.transfer-progress-percent {flex:none;min-width:5ch;min-height:1.35em;text-align:right;font-size:1.692rem;line-height:1.35;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+.transfer-progress-track {position:relative;overflow:hidden;height:6px;margin-top:6px;border-radius:2px;background:var(--line);}
+.transfer-progress-bar {appearance:none;-webkit-appearance:none;display:block;width:100%;height:100%;margin:0;border:0;border-radius:inherit;background:transparent;color:var(--accent);}
+.transfer-progress-bar::-webkit-progress-bar {background:transparent;}
+.transfer-progress-bar::-webkit-progress-value {background:var(--accent);border-radius:2px;transition:width 150ms linear;}
+.transfer-progress-bar::-moz-progress-bar {background:var(--accent);border-radius:2px;}
+.transfer-progress-pulse {display:none;position:absolute;inset:0 auto 0 0;width:30%;background:var(--accent);border-radius:inherit;animation:transfer-progress-wait 1.6s ease-in-out infinite;}
+.transfer-progress[data-determinate="false"] .transfer-progress-bar {opacity:0;}
+.transfer-progress[data-determinate="false"] .transfer-progress-pulse {display:block;}
+.transfer-progress[data-visible="false"] .transfer-progress-pulse {animation-play-state:paused;}
+.transfer-progress-meta {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin-top:6px;min-width:0;min-height:1.5em;}
+.transfer-progress-detail {display:block;min-width:17ch;min-height:1.5em;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);}
+.transfer-progress-route {margin-left:auto;color:var(--muted);white-space:nowrap;}
+.transfer-progress[data-phase="stopping"] .transfer-progress-indicator {background:var(--muted);}
+.transfer-progress[data-phase="stopping"] .transfer-progress-pulse {background:var(--muted);animation-play-state:paused;}
+@keyframes transfer-progress-wait {0%{transform:translateX(-110%);}100%{transform:translateX(440%);}}
 @media(max-width:480px) {
-  .transfer-progress-line {flex-wrap:wrap;gap:4px;}
-  .transfer-progress {padding:10px 8px;}
+  .transfer-progress {padding:8px 12px;}
+  .transfer-progress-line {gap:8px;}
+  .transfer-progress-percent {font-size:1.538rem;}
+}
+@media(prefers-reduced-motion:reduce) {
+  .transfer-progress-bar::-webkit-progress-value {transition:none;}
+  .transfer-progress-pulse {animation:none;transform:translateX(110%);}
+}
+@media(forced-colors:active) {
+  .transfer-progress {background:Canvas;color:CanvasText;}
+  .transfer-progress-track {border:1px solid CanvasText;box-sizing:border-box;}
+  .transfer-progress-bar {forced-color-adjust:none;}
+  .transfer-progress-bar::-webkit-progress-value {background:Highlight;}
+  .transfer-progress-bar::-moz-progress-bar {background:Highlight;}
+  .transfer-progress-pulse {background:Highlight;}
+  .transfer-progress-indicator {background:Highlight;}
 }
