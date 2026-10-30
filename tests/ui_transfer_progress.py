@@ -11,6 +11,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from playwright.sync_api import sync_playwright, expect
 from test_upload_stream import QuietApp, server
+from transfer_visual_checks import check_transfer_layout
 
 
 class Receiver(BaseHTTPRequestHandler):
@@ -80,6 +81,7 @@ def main():
                 page.locator('.tree-open').filter(has=page.locator('.tree-label',has_text=name)).first.click()
                 expect(page.locator('#requestName')).to_have_value(name)
             def capture(name):
+                check_transfer_layout(page,out,name)
                 page.screenshot(path=str(out/(name+'.png')),full_page=True);shots.append(name+'.png')
             with page.expect_file_chooser() as picker:page.locator('[data-file-slot=binary] .file-pick').click()
             picker.value.set_files(str(file));expect(page.locator('[data-file-slot=binary] .file-pick')).to_have_attribute('aria-busy','false')

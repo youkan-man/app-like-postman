@@ -46,32 +46,57 @@ export function transferPresentation(state = {}) {
     const unit = Math.min(4, Math.floor(Math.log(value) / Math.log(1024)));
     return `${(value / 1024 ** unit).toLocaleString('ja-JP', {maximumFractionDigits: 1})} ${['B','KiB','MiB','GiB','TiB'][unit]}`;
   };
+  // Use one unit for the pair so its scale does not change as the transfer grows.
+  const unit = known && state.total >= 1024 ? Math.min(4, Math.floor(Math.log(state.total) / Math.log(1024))) : 0;
+  const quantity = value => (value / 1024 ** unit).toLocaleString('ja-JP', {maximumFractionDigits: 1});
+  const amount = known ? `${quantity(completed)} / ${quantity(state.total)} ${['B','KiB','MiB','GiB','TiB'][unit]}` : '';
+  const routes = {upload: 'ブラウザ → MiniPost', send: 'MiniPost → 送信先', waiting: '送信先 → MiniPost'};
   return {visible: Boolean(state.visible), label, known, completed, total: known ? state.total : 0,
+    amount, percent, route: routes[state.phase] || '',
     detail: known ? `${bytes(completed)} / ${bytes(state.total)} · ${percent}%` : ''};
 }
 export function createTransferView(state) {
-  const root = document.createElement('div'); root.id = 'transferProgress'; root.className = 'transfer-progress';
-  const line = document.createElement('div'); line.className = 'transfer-progress-line';
-  const label = document.createElement('span'); label.className = 'transfer-progress-label';
+  const node = (tag, className) => {const element = document.createElement(tag); element.className = className; return element;};
+  const root = node('div', 'transfer-progress'); root.id = 'transferProgress';
+  const line = node('div', 'transfer-progress-line');
+  const heading = node('div', 'transfer-progress-heading');
+  const indicator = node('span', 'transfer-progress-indicator'); indicator.setAttribute('aria-hidden', 'true');
+  const label = node('span', 'transfer-progress-label');
   label.setAttribute('role', 'status'); label.setAttribute('aria-live', 'polite');
-  const detail = document.createElement('span'); detail.className = 'transfer-progress-detail';
-  const bar = document.createElement('progress'); bar.className = 'transfer-progress-bar';
-  line.append(label, detail); root.append(line, bar); paintTransferView(root, state); return root;
+  const percent = node('span', 'transfer-progress-percent'); percent.setAttribute('aria-hidden', 'true');
+  heading.append(indicator, label); line.append(heading, percent);
+  const track = node('div', 'transfer-progress-track');
+  const bar = node('progress', 'transfer-progress-bar');
+  const pulse = node('span', 'transfer-progress-pulse'); pulse.setAttribute('aria-hidden', 'true');
+  track.append(bar, pulse);
+  const footer = node('div', 'transfer-progress-meta');
+  const detail = node('span', 'transfer-progress-detail');
+  const route = node('span', 'transfer-progress-route');
+  footer.append(detail, route); root.append(line, track, footer); paintTransferView(root, state); return root;
 }
 export function paintTransferView(root, state) {
   if (!root) return;
   const info = transferPresentation(state);
   const label = root.querySelector('.transfer-progress-label'), detail = root.querySelector('.transfer-progress-detail');
-  const bar = root.querySelector('progress');
+  const percent = root.querySelector('.transfer-progress-percent'), bar = root.querySelector('progress');
   root.dataset.phase = state?.phase || 'prepare'; root.dataset.visible = String(info.visible);
+  root.dataset.determinate = String(info.known);
   const caption = info.visible ? info.label : '送信中…';
-  // Do not re-announce the phase at every chunk or replace the focused controls.
+  // Keep the live status and progress elements mounted; announce phase, not every chunk.
   if (label.textContent !== caption) label.textContent = caption;
-  detail.textContent = info.detail; detail.hidden = !info.visible;
-  bar.style.visibility = info.visible ? 'visible' : 'hidden';
+  detail.textContent = info.amount;
+  percent.textContent = info.known ? `${info.percent}%` : '';
+  percent.style.visibility = info.visible && info.known ? 'visible' : 'hidden';
+  // Reserve the same rows for every phase. Waiting must never retain an old 100%.
+  for (const selector of ['.transfer-progress-track', '.transfer-progress-meta']) {
+    const element = root.querySelector(selector);
+    element.style.visibility = info.visible ? 'visible' : 'hidden';
+    element.setAttribute('aria-hidden', String(!info.visible));
+  }
   bar.setAttribute('aria-label', info.label); bar.setAttribute('aria-hidden', String(!info.visible));
   if (info.known) {
     bar.max = info.total || 1; bar.value = info.total ? info.completed : 1;
     bar.setAttribute('aria-valuetext', `${info.label}: ${info.detail}`);
   } else {bar.removeAttribute('value'); bar.removeAttribute('aria-valuetext');}
+  root.querySelector('.transfer-progress-route').textContent = info.route;
 }
