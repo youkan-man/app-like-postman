@@ -1,0 +1,16 @@
+{
+  "passed": 10,
+  "checks": [
+    "existing editor-page preference migrates without losing the selected page",
+    "opening twelve requests never adds request tabs or changes the category count",
+    "category switches and disclosure preserve the same input, flat spacing and revision state",
+    "switching individual categories preserves the all-settings collapse preference",
+    "keyboard paging does not change request values or append revisions",
+    "sidebar pages are independent and preserve each category search",
+    "response paging keeps actual response data and never resends a request",
+    "page choice and autosaved content survive reload",
+    "tablet and phone retain usable category controls without horizontal page overflow",
+    "no uncaught browser errors"
+  ],
+  "page_errors": []
+}
