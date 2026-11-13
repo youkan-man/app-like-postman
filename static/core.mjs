@@ -178,7 +178,8 @@ export function exportCollection(collection) {
 export function contextFor(workspace, tab, primaryVariables = []) {
   const collection = workspace.collections.find(c => c._mpId === tab.collectionId);
   const located = findItem(collection, tab.itemId);
-  const parents = located?.parents || [];
+  const pending = !located && tab.pendingFolderId ? findItem(collection, tab.pendingFolderId) : null;
+  const parents = located?.parents || (Array.isArray(pending?.item.item) ? [...pending.parents, pending.item] : []);
   const environment = workspace.environments.find(e => e.id === workspace.environmentId);
   const vars = Object.create(null);
   function apply(list) {for (const v of rows(list)) if (enabled(v) && v.key) vars[v.key] = text(v.value);}
@@ -280,6 +281,7 @@ export function compileRequest(workspace, tab, files = {}, primaryVariables = []
       if (!f) throw new Error('送信するバイナリファイルを選択してください。');
       if (f.blob) payload.body_file = f.blob;
       else payload.body_base64 = f.data;
+      payload.body_filename = f.name;
       defaultHeader('Content-Type', f.type || 'application/octet-stream');
     } else if (body.mode === 'graphql') {
       let variables = resolve(body.graphql?.variables || '{}');

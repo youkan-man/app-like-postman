@@ -1,0 +1,30 @@
+.history-entry[aria-current=true] {background:var(--hover);box-shadow:inset 3px 0 var(--accent);}
+.history-page {background:var(--bg);padding:12px 16px;}
+.sent-heading {display:flex;align-items:center;gap:12px;min-width:0;}
+.sent-heading h1 {margin:0;flex:1;min-width:0;overflow-wrap:anywhere;font-size:17px;line-height:1.5;}
+.sent-info {display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:6px 0 12px;color:var(--muted);}
+.sent-section {min-width:0;margin:0 0 16px;}
+.sent-section-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;}
+.sent-section-heading h2 {display:flex;align-items:center;gap:10px;margin:0;font-size:14px;font-weight:650;}
+.sent-value {white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;margin:0;padding:9px 10px;background:var(--surface);border:1px solid var(--line);border-radius:4px;min-width:0;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:4;}
+.sent-table {width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;}
+.sent-table th {font-weight:600;color:var(--muted);text-align:left;}
+.sent-table th,.sent-table td {padding:7px 10px;vertical-align:top;border-bottom:1px solid var(--subtle);white-space:pre-wrap;overflow-wrap:anywhere;}
+.sent-table th:first-child,.sent-table td:first-child {width:27%;}
+.sent-table td {font-family:ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5;}
+.sent-table thead {background:var(--surface);}
+.sent-notice {color:var(--muted);line-height:1.6;margin:6px 0;}
+.sent-error {color:var(--red);white-space:pre-wrap;overflow-wrap:anywhere;}
+.sent-body-size {font-weight:400;color:var(--muted);font-size:13px;}
+.sent-hop {display:flex;align-items:center;gap:10px;margin:0 0 12px;}
+.sent-hop span {flex-shrink:0;}
+.sent-hop select {flex:1;min-width:0;}
+@media (max-width:600px) {
+  .history-page {padding:10px;}
+  .sent-heading {gap:8px;flex-wrap:wrap;}
+  .sent-heading h1 {font-size:16px;flex-basis:160px;}
+  .sent-heading .button {padding:5px 8px;}
+  .sent-info {gap:5px 10px;}
+  .sent-table th,.sent-table td {padding:7px 6px;}
+  .sent-table th:first-child,.sent-table td:first-child {width:33%;}
+}

@@ -23,6 +23,8 @@ async function callProxy(path, options) {
   if (!response.ok || !result.ok) {
     const error = new Error(String(result.error || `MiniPost HTTP ${response.status}`));
     error.title = `ERROR · MiniPost ${response.status}${result.diagnostic?.code ? ' · ' + result.diagnostic.code : ''}`;
+    if (Array.isArray(result.sent_requests)) error.sent_requests = result.sent_requests;
+    else if (result.sent_request) error.sent_request = result.sent_request;
     throw error;
   }
   return result;

@@ -90,6 +90,7 @@ test('binary compile preserves empty and all-byte files and user Content-Type',a
     const request={...binary(),header:[{key:'Content-Type',value:'custom/binary'}]};
     const payload=compileRequest(workspace,{request},await attachments.snapshot('r',request)).payload;
     assert.equal(payload.body_base64,undefined);assert.deepEqual(Buffer.from(await payload.body_file.arrayBuffer()),Buffer.from(bytes));
+    assert.equal(payload.body_filename,'bytes.bin');
     assert.equal(payload.headers.find(row=>row.key==='Content-Type').value,'custom/binary');
   }
 });

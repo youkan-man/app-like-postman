@@ -85,7 +85,82 @@ def prepare_body(payload, headers):
     return None if body is None else str(body).encode("utf-8")
 
 
+class RecordedHTTPConnection(http.client.HTTPConnection):
+    """Observe the same headers and send calls used by the HTTP transport."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request_headers = []
+        self.request_snapshot = None
+
+    def putheader(self, header, *values):
+        super().putheader(header, *values)
+        # Capture the serializer's bytes, including its automatically generated
+        # Host, rather than independently reconstructing their wire spelling.
+        key, value = self._buffer[-1].split(b": ", 1)
+        self.request_headers.append({"key": key.decode("ascii"), "value": value.decode("latin-1")})
+
+    def send(self, data):
+        if self.request_snapshot is not None:
+            # A failed sendall can have sent a prefix. Only the caller, after
+            # the complete body send returns, can mark this request complete.
+            self.request_snapshot["transmission"] = "incomplete"
+        return super().send(data)
+
+
+def describe_request_body(payload, body, headers, upload=None):
+    """Retain exact text/form values without reading or copying file bytes."""
+    if body is None:
+        return {"body_mode": "none", "body_size": 0}
+    result = {"body_size": len(body)}
+    is_binary = "body_upload" in payload if upload is not None else (
+        "form_urlencoded" not in payload and "multipart" not in payload and "body_base64" in payload)
+    if is_binary:
+        file = {"size": len(body)}
+        if payload.get("body_filename") is not None:
+            file["filename"] = str(payload["body_filename"])
+        types = [value for key, value in headers if key.lower() == "content-type"]
+        if len(types) == 1:
+            file["content_type"] = types[0]
+        return {**result, "body_mode": "binary", "file": file}
+    if upload is None and "form_urlencoded" in payload:
+        values = [{"key": str(row.get("key", "")), "value": str(row.get("value", ""))}
+                  for row in payload["form_urlencoded"]
+                  if not row.get("disabled") and row.get("enabled") is not False]
+        return {**result, "body_mode": "urlencoded", "body": body.decode("ascii"), "form_urlencoded": values}
+    if "multipart" in payload:
+        values = []
+        for part in payload["multipart"]:
+            item = {"key": str(part["key"])}
+            if "upload" in part and upload is not None:
+                item.update(filename=str(part.get("filename", "blob")), size=upload.sizes[part["upload"]])
+            elif "filename" in part:
+                data = part.get("data", "")
+                # prepare_body already validated Base64; its length is known
+                # without allocating and decoding those file bytes again.
+                suffix = b"=" if isinstance(data, (bytes, bytearray)) else "="
+                padding = len(data) - len(data.rstrip(suffix))
+                item.update(filename=str(part["filename"]), size=len(data) // 4 * 3 - padding)
+            else:
+                item["value"] = str(part.get("value", ""))
+            if part.get("content_type"):
+                item["content_type"] = part["content_type"]
+            values.append(item)
+        return {**result, "body_mode": "multipart", "multipart": values}
+    return {**result, "body_mode": "text", "body": body.decode("utf-8")}
+
+
 def send_http_request(payload, upload=None):
+    sent_requests = []
+    try:
+        return _send_http_request(payload, upload, sent_requests)
+    except Exception as error:
+        # Keep completed redirect hops and any partial send even when receiving
+        # the response fails. No recorded request means no HTTP send occurred.
+        error.minipost_sent_requests = sent_requests
+        raise
+
+
+def _send_http_request(payload, upload, sent_requests):
     if not isinstance(payload, dict):
         raise ValueError("リクエストはJSONオブジェクトで指定してください。")
     url = request_url(payload)
@@ -106,6 +181,7 @@ def send_http_request(payload, upload=None):
         if key.lower() not in {"content-length", "transfer-encoding", "connection"}:
             headers.append((key, value))
     body = prepare_stream_body(payload, headers, upload) if upload is not None else prepare_body(payload, headers)
+    body_details = describe_request_body(payload, body, headers, upload)
     timeout_ms = float(payload.get("timeout_ms", 30000))
     if timeout_ms < 0 or not timeout_ms < float("inf"):
         raise ValueError("Timeoutは0以上の数値で指定してください。0は無制限です。")
@@ -123,7 +199,7 @@ def send_http_request(payload, upload=None):
         port = target.port or (443 if target.scheme == "https" else 80)
         details = connection_details(target)
         # URL host is unchanged for TCP, HTTP Host and TLS verification.
-        connection = http.client.HTTPConnection(target.hostname, port, timeout=timeout)
+        connection = RecordedHTTPConnection(target.hostname, port, timeout=timeout)
         phase = "connect"
         if upload is not None:
             upload.begin_send(len(body) if body is not None else 0)
@@ -146,14 +222,19 @@ def send_http_request(payload, upload=None):
                 connection.putheader("Content-Length", str(len(body)))
             elif method in {"POST", "PUT", "PATCH"}:
                 connection.putheader("Content-Length", "0")
+            connection.request_snapshot = {"method": method, "url": url, "request_target": path,
+                "headers": connection.request_headers, **body_details, "transmission": "not_sent"}
+            sent_requests.append(connection.request_snapshot)
             if isinstance(body, StreamBody):
                 body.send(connection)
             else:
                 connection.endheaders(body)
+            connection.request_snapshot["transmission"] = "sent"
             phase = "receive"
             if upload is not None:
                 upload.wait_response()
             response = connection.getresponse()
+            connection.request_snapshot["response_status"] = response.status
             response_headers = response.getheaders()
             raw_body = response.read()
             status, reason = response.status, response.reason
@@ -178,6 +259,7 @@ def send_http_request(payload, upload=None):
             redirects.append({"status": status, "url": url, "location": next_url})
             if (status == 303 and method != "HEAD") or (status in {301, 302} and method == "POST"):
                 method, body = "GET", None
+                body_details = {"body_mode": "none", "body_size": 0}
                 headers = [(k, v) for k, v in headers if k.lower() not in {"content-type", "content-encoding"}]
             url = next_url
             continue
@@ -209,6 +291,7 @@ def send_http_request(payload, upload=None):
             "content_type": content_type, "size": len(raw_body), "wire_size": wire_size,
             "elapsed_ms": round((time.perf_counter() - started) * 1000), "redirects": redirects,
             "network": details,
+            "sent_requests": sent_requests,
         }
     raise RuntimeError("リダイレクト処理に失敗しました。")
 
@@ -384,21 +467,23 @@ class Handler(SimpleHTTPRequestHandler):
                 if not self.upload_origin_allowed():
                     raise UploadError("別オリジンからのファイル送信は許可されていません。", 403)
                 with UPLOADS.claim(payload["upload_id"], self.connection) as upload:
-                    self.send_json(200, send_http_request(payload, upload))
+                    result = send_http_request(payload, upload)
+                self.send_json(200, result)
             else:
                 self.send_json(200, send_http_request(payload))
         except Exception as error:
+            request_details = {"sent_requests": getattr(error, "minipost_sent_requests", [])}
             if isinstance(error, UploadError):
-                self.send_json(error.status, {"ok": False, "error": str(error)})
+                self.send_json(error.status, {"ok": False, "error": str(error), **request_details})
                 return
             diagnostic = getattr(error, "minipost_network", None)
             # Certificate verification errors are ValueErrors too. Preserve TLS cause.
             if diagnostic is None and isinstance(error, (ValueError, UnicodeError, TypeError, KeyError)):
-                self.send_json(400, {"ok": False, "error": str(error)})
+                self.send_json(400, {"ok": False, "error": str(error), **request_details})
                 return
             self.send_json(502, {"ok": False, "error_origin": "minipost",
                 "error": format_network_error(error, diagnostic) if diagnostic else str(error),
-                "diagnostic": diagnostic})
+                "diagnostic": diagnostic, **request_details})
 
 
 if __name__ == "__main__":
