@@ -1,0 +1,104 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "target changes only toggle relevant fields and preserve actual controls, values and checks",
+    "candidate label toggles only its checkbox; editing its value does not toggle selection",
+    "narrow extraction forms remain usable and cancellation changes neither values nor environment count",
+    "environment page uses available name width and retains controls for long names on tablet and phone",
+    "environment, Globals and primary pages contain no redundant implementation notes",
+    "mouse and Enter selection preserve the actual metadata button, focus and list scroll",
+    "keyboard navigation selects rows, explicit variable names survive and manual paths synchronize highlighting",
+    "filtered rows support Home/End, keyboard context menus and a visible touch-accessible menu",
+    "empty search is explicit and clearing search retains nodes; escaped JSON Pointers remain exact",
+    "phone/tablet/enlarged text remain operable and extraction stores the selected false value losslessly",
+    "no uncaught browser exceptions"
+  ],
+  "screenshots": [
+    {
+      "file": "environment-existing-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "environment-existing-390.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "environment-existing-320.png",
+      "viewport": {
+        "width": 320,
+        "height": 720
+      }
+    },
+    {
+      "file": "environment-new-phone.png",
+      "viewport": {
+        "width": 320,
+        "height": 720
+      }
+    },
+    {
+      "file": "environment-page-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "environment-page-768.png",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      }
+    },
+    {
+      "file": "environment-page-390.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "response-selected-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      }
+    },
+    {
+      "file": "response-selected-768.png",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      }
+    },
+    {
+      "file": "response-selected-390.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "response-selected-320.png",
+      "viewport": {
+        "width": 320,
+        "height": 720
+      }
+    },
+    {
+      "file": "response-text-200-percent.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      }
+    }
+  ],
+  "page_errors": [],
+  "passed": 11
+}

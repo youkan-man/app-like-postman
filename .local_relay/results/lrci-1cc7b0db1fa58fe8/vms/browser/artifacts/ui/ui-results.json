@@ -1,0 +1,194 @@
+{
+  "passed": 22,
+  "checks": [
+    "formal corporate defaults with scoped setting/response tabs and no accumulating request tabs",
+    "existing Collection and Environment import through real HTTP",
+    "internal settings page navigation retains request data and avoids revisions",
+    "flat spacing is unchanged by pointer and keyboard disclosure; field nodes remain mounted",
+    "disclosure survives render and reload without changing request data or revisions",
+    "item context menu keyboard navigation and focus return",
+    "rename cancellation preserves the request",
+    "full-page variable autosave survives page switches and real auth round trip",
+    "side-by-side layout and keyboard horizontal separator",
+    "split position and wrapping preferences survive reload",
+    "response format tabs switch with pointer and keyboard",
+    "sidebar resize persists without altering workspace data",
+    "desktop sidebar collapse and restore",
+    "list selection opens one request without a tab strip",
+    "large request list search keeps its context",
+    "long request names and URLs remain editable and send intact",
+    "unresolved-variable error remains visible",
+    "desktop tablet and phone navigation, sending and response search",
+    "variable page remains inline across desktop and phone without losing values",
+    "200 percent root text enlargement keeps actions reachable",
+    "touch emulation opens item actions, sends and discloses flat fields",
+    "no uncaught UI JavaScript errors"
+  ],
+  "screenshots": [
+    {
+      "name": "empty-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "disclosure-desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "item-menu",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "environment-page",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "desktop-light",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "desktop-dark",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "dark",
+      "layout": "stack"
+    },
+    {
+      "name": "desktop-side-by-side",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "side"
+    },
+    {
+      "name": "long-values",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "request-error",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "workspace-1024",
+      "viewport": {
+        "width": 1024,
+        "height": 768
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "navigation-768",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "workspace-768",
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "navigation-390",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "workspace-390",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "mobile-variables",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "text-200-percent",
+      "viewport": {
+        "width": 1440,
+        "height": 920
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "disclosure-phone",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "layout": "stack"
+    },
+    {
+      "name": "phone-touch",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "layout": "stack"
+    }
+  ],
+  "page_errors": [],
+  "target": "real loopback HTTP echo",
+  "physical_devices": false
+}

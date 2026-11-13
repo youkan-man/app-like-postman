@@ -1,0 +1,108 @@
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/variable-hover.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/sent-history.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/list-selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/variable-hover.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/sent-history.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/request-session.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/list-selection.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /assets/script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:15] code 404, message File not found
+127.0.0.1 - - [13/Nov/2026 06:38:15] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [13/Nov/2026 06:38:16] "GET /api/health HTTP/1.1" 200 -
+PASS no injected sample UI or accumulating request tabs
+PASS environment tab edits a full page, autosaves and scopes creation
+PASS right-click creation inserts after a request or under the clicked folder
+PASS request placeholder extraction creates a selected editable environment
+PASS large body editor highlights JSON/XML and retains editing DOM across categories
+PASS failed scripts do not commit partial variable writes
+PASS script workers have no application DOM and CSP blocks direct network calls
+PASS infinite script terminates at the configured timeout without freezing the UI
+PASS global Stop terminates an unlimited manual script
+127.0.0.1 - - [13/Nov/2026 06:38:21] "POST /api/request HTTP/1.1" 200 -
+PASS pre/post scripts execute and primary variables override environment values in HTTP
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/variable-hover.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/sent-history.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/list-selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/variable-hover.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/sent-history.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/request-session.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/list-selection.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /assets/execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:22] "GET /api/health HTTP/1.1" 200 -
+PASS post-hoc metadata extraction and automatic rule survive reload of the received response
+PASS primary variables have an editable session-scoped page
+127.0.0.1 - - [13/Nov/2026 06:38:24] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:24] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:24] "POST /api/request HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 06:38:24] "POST /api/request HTTP/1.1" 200 -
+PASS relation sequential execution repeats the plan and branches on a response element
+PASS relation stop interrupts an outstanding wait without sending another request
+PASS whole backup includes relation references, scripts and run logs but not session primary values
+PASS phone creation, variable page, source editor and relation layout have no page overflow
+PASS no uncaught browser JavaScript errors
