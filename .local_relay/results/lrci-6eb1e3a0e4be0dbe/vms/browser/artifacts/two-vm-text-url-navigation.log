@@ -1,0 +1,13 @@
+PASS raw Unicode/space/plus/JSON URL stays readable across send, selection, save and reload; receiver matches
+PASS params with reserved delimiters remain one value; frontend never percent-encodes their display
+PASS keyboard context menu explicitly encodes/decodes selection; encoded URL sends without a second escape
+PASS invalid manual decoding reports an inline error without changing the URL or opening a browser dialog
+PASS mouse dragging supports inside-folder placement and before/after ordering with stable item IDs
+PASS self-descendant drops and Escape leave collections unchanged
+PASS cross-collection folder move preserves active editor, descendant IDs and existing revisions
+PASS moving a selected binary request keeps its bytes and relation references; actual receiver hash matches
+PASS keyboard grab/Home/Enter moves the same request and preserves its relation target
+PASS 320/390px category rail remains fixed, fully visible and keyboard operable without wrapping or horizontal scroll
+PASS touch drag on the grip moves a request without converting ordinary row scrolling into a drag
+PASS moved hierarchy, stable references, active request and revision history survive reload
+PASS no browser-native dialogs or uncaught page exceptions
