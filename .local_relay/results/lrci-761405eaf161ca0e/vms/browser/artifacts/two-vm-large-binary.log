@@ -1,0 +1,7 @@
+PASS 384 MiB disk file PUT: receiver length and SHA-256 match
+PASS 512 MiB disk file PUT: receiver length and SHA-256 match
+PASS 384 MiB multipart plus empty file: complete wire length and SHA-256 match
+PASS Cancel during 512 MiB upload removes staging without sending to the target
+PASS explicit resend after cancellation uses the still-selected 512 MiB file
+PASS bounded file reads and JS/proxy memory; no full-file buffers or remaining uploads
+PASS UI stays usable; no native dialogs, page exceptions or renderer crashes

@@ -4,6 +4,7 @@ MINIPOST_INLINE_TEST=1 is reported as DOM+Python bridge, never native HTTP.
 Remote mode uses the application VM plus a receiver on the browser VM.
 """
 import base64
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -35,9 +36,23 @@ def main():
         receiver,target=start_server(Receiver);app,app_url=start_server(proxy.Handler)
     out=Path(os.environ.get('ARTIFACT_DIR',tempfile.mkdtemp(prefix='minipost-text-url-')))/'text-url-navigation';out.mkdir(parents=True,exist_ok=True)
     fixture=BrowserApp(app_url);checks=[];errors=[];native_dialogs=[];shots=[]
+    page=None
     def passed(name):checks.append(name);print('PASS '+name,flush=True)
+
+    @contextmanager
+    def capture_failure():
+        try:
+            yield
+        except Exception:
+            try:
+                if page and not page.is_closed():
+                    page.screenshot(path=str(out/'failure.png'),full_page=True);shots.append('failure.png')
+            except Exception as error:
+                print('Could not capture failure screenshot: '+str(error),flush=True)
+            raise
+
     try:
-        with sync_playwright() as p:
+        with sync_playwright() as p,capture_failure():
             browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
             page=browser.new_page(viewport={'width':1440,'height':920},accept_downloads=True)
             page.on('pageerror',lambda e:errors.append(str(e)))
@@ -45,8 +60,8 @@ def main():
             fixture.open(page);expect(page.locator('#connectionStatus')).to_contain_text('connected')
             def saved():expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
             def state():saved();return page.evaluate("JSON.parse(localStorage.getItem('minipost.workspace.v2'))")
-            def capture(name):
-                expect(page.locator('#toast')).to_be_hidden(timeout=12000)
+            def capture(name,wait_for_toast=True):
+                if wait_for_toast:expect(page.locator('#toast')).to_be_hidden(timeout=12000)
                 page.screenshot(path=str(out/(name+'.png')),full_page=True);shots.append(name+'.png')
             def load(value):
                 page.locator('#import').click();page.get_by_label('インポートJSON',exact=True).fill(json.dumps(value));page.locator('#modalSubmit').click()
@@ -99,15 +114,75 @@ def main():
             area.fill(plain);saved();capture('text-url-desktop')
             passed('invalid manual decoding reports an inline error without changing the URL or opening a browser dialog')
             # Exercise actual pointer motion rather than directly invoking model functions.
-            def drag(source,target_name,position='inside',cancel=False):
-                grip=row(source).locator('.tree-drag-handle');box=grip.bounding_box();dest=row(target_name).bounding_box()
+            def begin_drag(source):
+                grip=row(source).locator('.tree-drag-handle');box=grip.bounding_box()
                 page.mouse.move(box['x']+box['width']/2,box['y']+box['height']/2);page.mouse.down()
+
+            def drag(source,target_name,position='inside',cancel=False,inspect_inside=False):
+                dest=row(target_name).bounding_box();begin_drag(source)
                 fraction={'inside':.5,'before':.1,'after':.9}[position]
                 page.mouse.move(dest['x']+dest['width']*.6,dest['y']+dest['height']*fraction,steps=12)
+                if inspect_inside:
+                    expect(row(target_name)).to_have_attribute('data-drop-position','inside')
+                    expect(page.locator('.tree-drop-line:visible')).to_have_count(0)
+                    expect(page.locator('.tree-drop-indicator')).to_have_count(0)
+                    capture('collection-folder-inside-desktop',wait_for_toast=False)
                 if cancel:page.keyboard.press('Escape')
                 page.mouse.up();saved()
+                expect(page.locator('.tree-drop-line:visible')).to_have_count(0)
+                expect(page.locator('.tree-row[data-drop-position]')).to_have_count(0)
+
             first=state();a,b=first['collections']
-            drag('Request two','Folder A');w=state();assert [i['name'] for i in w['collections'][0]['item'][0]['item']]==['Request one','Request two']
+            # Both row edges and the actual space between them are one target.
+            # Use a source outside this sibling list so its own removal cannot
+            # turn this move into a no-op or change the insertion index.
+            upper=row('Request two').bounding_box();lower=row('Upload').bounding_box()
+            x=upper['x']+upper['width']*.6
+            upper_bottom=upper['y']+upper['height'];gap_y=(upper_bottom+lower['y'])/2
+            assert lower['y']>=upper_bottom-.5,(upper,lower)
+            other_id=row('Other request').get_attribute('data-item-id')
+            begin_drag('Other request')
+            line=page.locator('.tree-drop-line:visible');targets=[]
+            for name,y in [('lower edge of A',upper_bottom-2),('actual gap',gap_y),('upper edge of B',lower['y']+2)]:
+                page.mouse.move(x,y,steps=5)
+                expect(line).to_have_count(1)
+                expect(line).to_have_attribute('data-drop-key',re.compile(r'.+'))
+                assert line.text_content()=='',name
+                expect(page.locator('.tree-drop-indicator')).to_have_count(0)
+                expect(page.locator('.tree-row[data-drop-position]')).to_have_count(0)
+                bounds=line.bounding_box();assert bounds and bounds['width']>0 and bounds['height']>0,name
+                targets.append((line.get_attribute('data-drop-key'),bounds))
+            shared_key,shared_bounds=targets[0]
+            for key,bounds in targets[1:]:
+                assert key==shared_key,targets
+                assert all(abs(bounds[axis]-shared_bounds[axis])<1 for axis in ['x','y','width']),targets
+            passed('lower sibling edge, physical gap and upper sibling edge share one empty insertion line, key and geometry')
+            page.mouse.move(x,gap_y,steps=3)
+            expect(line).to_have_attribute('data-drop-key',shared_key)
+            capture('collection-shared-gap-during-drag',wait_for_toast=False)
+            page.mouse.up();saved()
+            expect(page.locator('.tree-drop-line:visible')).to_have_count(0)
+            w=state()
+            expected_ids=[a['item'][0]['_mpId'],a['item'][1]['_mpId'],other_id,a['item'][2]['_mpId']]
+            assert [item['_mpId'] for item in w['collections'][0]['item']]==expected_ids
+            assert w['collections'][1]['item']==[]
+            drag('Other request','Collection B');w=state()
+            assert [item['_mpId'] for item in w['collections'][0]['item']]==[item['_mpId'] for item in a['item']]
+            assert [item['_mpId'] for item in w['collections'][1]['item']]==[other_id]
+            passed('releasing in the shared gap inserts the source exactly once at that position and preserves its ID')
+
+            drag('Request two','Folder A',inspect_inside=True);w=state();assert [i['name'] for i in w['collections'][0]['item'][0]['item']]==['Request one','Request two']
+            source_box=row('Request two').bounding_box();next_box=row('Upload').bounding_box()
+            expected_y=(source_box['y']+source_box['height']+next_box['y'])/2
+            begin_drag('Request two')
+            page.mouse.move(next_box['x']+next_box['width']*.6,next_box['y']+2,steps=8)
+            line=page.locator('.tree-drop-line:visible');expect(line).to_have_count(1)
+            bounds=line.bounding_box();assert abs(bounds['y']+bounds['height']/2-expected_y)<1
+            capture('collection-folder-exit-gap',wait_for_toast=False)
+            page.mouse.up();saved();w=state()
+            assert [item['name'] for item in w['collections'][0]['item']]==['Folder A','Request two','Upload']
+            drag('Request two','Folder A')
+            passed('moving a folder child out keeps the insertion line at the actual row gap while its source remains visible')
             drag('Request two','Request one','before');w=state();assert [i['name'] for i in w['collections'][0]['item'][0]['item']]==['Request two','Request one']
             passed('mouse dragging supports inside-folder placement and before/after ordering with stable item IDs')
             before=state();drag('Folder A','Request one','inside');assert state()==before
@@ -168,6 +243,24 @@ def main():
             assert restored['activeRequest']==before['activeRequest']
             expect(page.locator('#requestName')).to_have_value('Upload')
             passed('moved hierarchy, stable references, active request and revision history survive reload')
+            # A collection's final insertion gap follows its whole expanded
+            # subtree, which can be far below its header and the viewport.
+            page.set_viewport_size({'width':1440,'height':920})
+            load({'info':{'name':'Long collection','schema':schema},'item':[
+                {'name':f'Long request {index}','request':{'method':'GET','url':target+'/echo'}} for index in range(40)]})
+            if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
+            page.locator('[data-sidebar=collections]').click();before=state()
+            grip=row('Collection A').locator('.tree-drag-handle');grip.focus()
+            page.keyboard.press('Space');page.keyboard.press('End')
+            line=page.locator('.tree-drop-line:visible');expect(line).to_have_count(1)
+            bounds=line.bounding_box();sidebar=page.locator('#sidebarContent').bounding_box()
+            last=row('Long request 39').bounding_box()
+            assert bounds['y']>=sidebar['y'] and bounds['y']+bounds['height']<=sidebar['y']+sidebar['height']+1
+            assert abs(bounds['y']+bounds['height']/2-last['y']-last['height'])<1
+            capture('collection-keyboard-end',wait_for_toast=False)
+            page.keyboard.press('Escape');expect(page.locator('.tree-drop-line:visible')).to_have_count(0)
+            assert state()==before
+            passed('keyboard End scrolls the actual gap after an expanded collection into view; Escape preserves the order')
             assert not errors,errors;assert not native_dialogs,native_dialogs
             passed('no browser-native dialogs or uncaught page exceptions')
             browser.close()
