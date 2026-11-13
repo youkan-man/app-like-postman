@@ -13,6 +13,7 @@ python tests/ui_selection.py
 python tests/ui_sent_values.py
 python tests/ui_draft_lifecycle.py
 python tests/ui_asset_update.py
+python tests/ui_text_url_navigation.py
 python tests/docker_network.py
 ```
 
@@ -23,6 +24,8 @@ python tests/docker_network.py
 `tests/ui_draft_lifecycle.py` は履歴の一時編集・明示保存、行とキー操作による複数選択・範囲選択・削除、入力欄のキー操作保護、最後の下書きの削除後も空のままであることを実ブラウザで確認します。送信済みの下書きの一括削除では、キャンセル時の全データ保持と、確定時に選択分のレスポンス・変更履歴だけが消えることも検証します。`tests/request-session.test.mjs` は一時編集が下書き・変更履歴・全体バックアップへ混入しないこと、添付に使うIDの保持、選択復元・移動・保存後の再編集を検証します。
 
 `tests/ui_asset_update.py` は旧モジュールを実HTTPキャッシュに残した状態で新しい画面を開き、更新された依存モジュールが読み込まれて一括削除が完了することをnative Chromiumで検証します。静的ファイルのキャッシュ方針・同一更新時刻での内容差し替えは `tests/test_proxy.py` で確認します。変数ポップアップの上下両方向の配置と、値がカーソルに近い端に来ることは `tests/ui_sent_values.py` が実座標で確認します。
+
+`tests/collection-drop.test.mjs` はドラッグの挿入位置を、兄弟間の共通境界・フォルダー階層・絞り込み・自己位置について検証します。`tests/ui_text_url_navigation.py` では、同じドラッグ中に上の行の下端、実際の行間、下の行の上端を通過させ、挿入位置と1本の線が変わらないことを実座標で確認します。説明ラベルを表示しないこと、行間での実際の移動、タッチ・キー操作、添付ファイル・参照・変更履歴の保持も確認します。
 
 Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポートだけを分離します。host／subnetオーバーライドや接続先書換えは使いません。結果と画面は `ARTIFACT_DIR` へ保存します。GitHub Actionsも同じ試験を実行します。物理COM／USBや本番APIを操作する試験は含みません。
 
