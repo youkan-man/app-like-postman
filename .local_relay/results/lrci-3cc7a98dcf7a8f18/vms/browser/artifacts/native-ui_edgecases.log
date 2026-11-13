@@ -1,0 +1,52 @@
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/variable-hover.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/sent-history.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/list-selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/variable-hover.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/sent-history.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/request-session.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/list-selection.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /assets/collection-drop.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] code 404, message File not found
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "GET /api/health HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 09:39:18] "POST /api/request HTTP/1.1" 200 -
+PASS v2.0 object auth opens and edits in request editor with real HTTP
+127.0.0.1 - - [13/Nov/2026 09:39:19] "POST /api/request HTTP/1.1" 200 -
+PASS v2.0 collection auth edits in drawer and remains inherited
+PASS history retains the date as well as time and request URL
+PASS 200 percent POST and DELETE labels do not overlap request names
+PASS no JavaScript errors in auth, history or typography checks
