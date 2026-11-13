@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_asset_update.py >.local_relay/output/two-vm-asset-update.log 2>&1 || { cat .local_relay/output/two-vm-asset-update.log; exit 1; }
 python tests/ui_sent_values.py >.local_relay/output/two-vm-sent-values.log 2>&1 || { cat .local_relay/output/two-vm-sent-values.log; exit 1; }
 python tests/ui_draft_lifecycle.py >.local_relay/output/two-vm-draft-lifecycle.log 2>&1 || { cat .local_relay/output/two-vm-draft-lifecycle.log; exit 1; }
 python tests/ui_transfer_progress.py >.local_relay/output/two-vm-transfer-progress.log 2>&1 || { cat .local_relay/output/two-vm-transfer-progress.log; exit 1; }
@@ -46,6 +47,9 @@ extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
+asset_update=json.loads((root/'asset-update/results.json').read_text())
+assert asset_update['ok'] and asset_update['mode']=='native Chromium HTTP'
+assert not any(asset_update[key] for key in ['page_errors','native_dialogs','crashes'])
 sent_values=json.loads((root/'sent-values/results.json').read_text())
 assert sent_values['mode']=='native Chromium HTTP' and not sent_values['page_errors'] and not sent_values['native_dialogs']
 drafts=json.loads((root/'draft-lifecycle/results.json').read_text())
@@ -70,6 +74,8 @@ summary['sent_values_checks']=len(sent_values['checks'])
 summary['screenshots']+=len(sent_values['screenshots'])
 summary['draft_lifecycle_checks']=len(drafts['checks'])
 summary['screenshots']+=len(drafts['screenshots'])
+summary['asset_update_checks']=len(asset_update['checks'])
+summary['screenshots']+=len(asset_update['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

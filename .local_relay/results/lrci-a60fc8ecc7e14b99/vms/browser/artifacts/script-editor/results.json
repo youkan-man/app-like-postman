@@ -1,0 +1,28 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "Tab completes without indentation and native Undo restores the previous source",
+    "nested API completion accepts Enter without inserting a newline",
+    "completion replaces the entire identifier when the caret is inside it",
+    "comments and string/template literals do not show API completion",
+    "lexically declared local variable is offered and inserted",
+    "function signature displays the active argument",
+    "Shift+Tab leaves the editor without accepting a suggestion",
+    "IME composition input and Enter are not intercepted by completion",
+    "Ctrl+Enter is left available to the application command handler",
+    "Ctrl+Space, arrow selection and Escape keep accessible active-option state",
+    "pointer completion preserves textarea focus",
+    "syntax colors and completion popup remain visible without overflow at 320–1440px",
+    "edited pre-script executes in the isolated Worker and commits its successful variable write",
+    "a failing assertion keeps partial variable writes out of session state",
+    "post-script completion and IndexedDB autosave survive an HTTP reload",
+    "no uncaught browser JavaScript errors"
+  ],
+  "screenshots": [
+    "script-arguments.png",
+    "script-completion-desktop.png",
+    "script-completion-390.png",
+    "script-completion-320.png"
+  ],
+  "errors": []
+}

@@ -80,6 +80,9 @@ jobs:
           python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); print('CHROMIUM=' + p.chromium.executable_path); p.stop()" >> "$GITHUB_ENV"
       - name: Run real browser and loopback HTTP scenarios
         run: python tests/browser_smoke.py 2>&1 | tee artifacts/browser/e2e.log
+      - name: Upgrade with cached modules and bulk deletion
+        if: ${{ !cancelled() }}
+        run: python tests/ui_asset_update.py 2>&1 | tee artifacts/browser/ui-asset-update.log
       - name: Current variable hover values and immutable transmitted history
         if: ${{ !cancelled() }}
         run: python tests/ui_sent_values.py 2>&1 | tee artifacts/browser/ui-sent-values.log

@@ -1,19 +1,9 @@
-/* Checkboxes fit existing compact rows in both themes. */
-[data-select-id] > input[data-select-toggle] {
-  flex:0 0 14px;
-  width:14px;
-  min-width:14px;
-  height:14px;
-  min-height:14px;
-  padding:0;
-  margin:0 4px 0 6px;
-  accent-color:var(--accent);
-  cursor:pointer;
+/* Selection uses the existing row without adding controls or changing height. */
+[data-select-id][aria-selected="false"] {
+  background:transparent;
+  box-shadow:none;
 }
-[data-select-id] > input[data-select-toggle]:focus-visible {
-  outline:2px solid var(--accent);
-  outline-offset:2px;
-}
+[data-select-id][aria-selected="false"]:hover {background:var(--hover);}
 [data-select-id].list-selected,
 [data-select-id].list-selected:hover {
   background:var(--accent-bg);
@@ -35,20 +25,6 @@
 }
 .history-open:hover {background:transparent;}
 .history-open .tree-label {min-width:0;}
-.list-selection-toolbar {
-  display:flex;
-  align-items:center;
-  flex-wrap:wrap;
-  gap:5px 8px;
-  padding:6px 10px;
-  border-bottom:1px solid var(--line);
-  background:var(--surface);
-  font-size:12px;
-}
-.list-selection-toolbar[hidden] {display:none;}
-.list-selection-count {margin-right:auto;color:var(--text);white-space:nowrap;}
-.list-selection-toolbar button {padding:3px 7px;min-height:26px;font-size:12px;}
-.list-selection-hint {flex-basis:100%;color:var(--muted);font-size:11px;line-height:1.5;}
 @media (max-width:600px) {
   .request-title:has(#saveDraft:not([hidden])) {flex-wrap:wrap;}
   .request-title:has(#saveDraft:not([hidden])) #requestName {flex:1 1 calc(100% - 48px);min-width:0;order:0;}
@@ -58,6 +34,5 @@
   .request-title:has(#saveDraft:not([hidden])) #saveRequest {order:3;max-width:none;}
 }
 @media (pointer:coarse) {
-  [data-select-id] > input[data-select-toggle] {width:20px;min-width:20px;height:20px;min-height:20px;}
-  [data-select-id] {min-height:40px;}
+  .history-open {min-height:40px;}
 }

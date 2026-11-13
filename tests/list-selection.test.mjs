@@ -81,6 +81,19 @@ test('filtering and rerendering discard stale selections and stale anchors', () 
   assert.deepEqual(state.ids, ['draft:c', 'draft:e']);
 });
 
+test('rerendering after row actions preserves a disjoint selection and its keyboard anchor', () => {
+  const state = new SelectionState();
+  state.select('draft:a', order);
+  state.select('draft:d', order, {toggle: true});
+  state.focused = 'draft:a';
+  state.reconcile([...order]);
+  assert.deepEqual(state.ids, ['draft:a', 'draft:d']);
+  assert.equal(state.anchor, 'draft:d');
+  assert.equal(state.focused, 'draft:a');
+  state.select('draft:b', order, {range: true});
+  assert.deepEqual(state.ids, ['draft:b', 'draft:c', 'draft:d']);
+});
+
 test('select-all is restricted to the current view and preserves a visible anchor', () => {
   const state = new SelectionState();
   state.select('draft:c', order);

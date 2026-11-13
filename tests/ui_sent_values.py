@@ -157,6 +157,39 @@ def main():
                 if value is not None:expect(tooltip.locator('.variable-tooltip-value')).to_have_text(value)
                 return position
 
+            def value_nearest_field(expected_side, control=None, point=None):
+                geometry = tooltip.evaluate('''e=>{
+                  const value=e.querySelector('.variable-tooltip-value'),meta=e.querySelector('.variable-tooltip-heading');
+                  const rect=node=>{const r=node.getBoundingClientRect();return {top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+                  const style=getComputedStyle(value),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+                  ctx.font=style.font;
+                  return {side:e.dataset.side,popup:rect(e),value:rect(value),meta:rect(meta),
+                    valueSize:parseFloat(style.fontSize),metaSize:parseFloat(getComputedStyle(meta).fontSize),
+                    intrinsicValueWidth:Math.max(...value.textContent.split(/\\r?\\n/).map(line=>ctx.measureText(line).width)),
+                    metadata:[...meta.children].filter(node=>node.getClientRects().length).map(rect)};
+                }''')
+                assert geometry['side'] == expected_side, geometry
+                assert geometry['valueSize'] >= 15 and geometry['metaSize'] <= 10, geometry
+                assert geometry['meta']['height'] <= 14, geometry
+                # The known variable/scope cannot widen a short value's popup.
+                assert geometry['popup']['width'] <= max(120, geometry['intrinsicValueWidth']+22)+2, geometry
+                value, meta, popup = geometry['value'], geometry['meta'], geometry['popup']
+                assert popup['top'] >= 8 and popup['bottom'] <= page.viewport_size['height']-8, geometry
+                if expected_side == 'above':
+                    assert meta['bottom'] <= value['top'] and 0 <= value['top']-meta['bottom'] <= 4.5, geometry
+                    assert 0 <= popup['bottom']-value['bottom'] <= 10, geometry
+                    assert all(row['bottom'] <= value['top'] for row in geometry['metadata']), geometry
+                    if control is not None:assert popup['bottom'] <= control.bounding_box()['y']-5, geometry
+                    if point is not None:assert popup['bottom'] < point['y'], geometry
+                else:
+                    assert value['bottom'] <= meta['top'] and 0 <= meta['top']-value['bottom'] <= 4.5, geometry
+                    assert 0 <= value['top']-popup['top'] <= 10, geometry
+                    assert all(row['top'] >= value['bottom'] for row in geometry['metadata']), geometry
+                    if control is not None:
+                        field = control.bounding_box()
+                        assert popup['top'] >= field['y']+field['height']+5, geometry
+                    if point is not None:assert popup['top'] > point['y'], geometry
+
             template_url = '{{base}}/echo/:pathKey?q={{query}}&token={{token}}'
             template_body = '{\n  "token": "{{token}}",\n  "nested": "{{nested}}",\n  "empty": "{{empty}}"\n}'
             long_value = '<img src=x onerror="bad()">\n'+('https://example.test/'+('value-'*24)+'\n')*30+'last line: 完全な値'
@@ -175,6 +208,7 @@ def main():
                 {'key':'query','value':'日本語 & ? / +'}, {'key':'empty','value':''},
                 {'key':'nested','value':'{{token}}/suffix'}, {'key':'zero','value':'0'},
                 {'key':'longValue','value':long_value},
+                {'key':'longDynamic','value':'{{$timestamp}}\n'+long_value},
                 {'key':'disabled','value':'off','enabled':False}]})
             load({'name':'Other environment','_postman_variable_scope':'environment','values':[
                 {'key':'base','value':receiver_url}, {'key':'token','value':'other-token'}]})
@@ -185,13 +219,8 @@ def main():
             expect(tooltip.locator('.variable-tooltip-scope')).to_contain_text('Current environment')
             passed('each URL placeholder resolves the hovered token using the selected environment')
 
-            hierarchy = tooltip.evaluate('''e=>{
-              const value=e.querySelector('.variable-tooltip-value'),meta=e.querySelector('.variable-tooltip-heading');
-              return {valueSize:parseFloat(getComputedStyle(value).fontSize),metaSize:parseFloat(getComputedStyle(meta).fontSize),
-                valueBottom:value.getBoundingClientRect().bottom,metaTop:meta.getBoundingClientRect().top};
-            }''')
-            assert hierarchy['valueSize']>=15 and hierarchy['valueSize']>hierarchy['metaSize']
-            assert hierarchy['valueBottom']<=hierarchy['metaTop']
+            value_nearest_field('above',control=url)
+            capture('hover-value-above')
             url.evaluate("e=>{const n=e.value.indexOf('{{token}}')+3;e.focus();e.setSelectionRange(n,n)}")
             url.press('ArrowRight')
             tooltip.locator('.variable-tooltip-value').click(click_count=3)
@@ -199,7 +228,12 @@ def main():
             assert page.evaluate('getSelection().toString()').strip()=='environment-token'
             page.mouse.move(1,1)
             expect(tooltip).not_to_be_visible()
-            passed('resolved value is the first and largest text, and remains selectable for copying')
+            passed('above-field popup puts the large selectable value at its near edge and compact metadata at the far edge')
+            url.fill('{{$timestamp}}')
+            hover(url,'$timestamp')
+            expect(tooltip.locator('.variable-tooltip-note')).to_be_visible()
+            value_nearest_field('above',control=url)
+            url.fill(template_url)
 
             page.locator('#environment').select_option('')
             hover(url,'token','folder-token')
@@ -216,11 +250,24 @@ def main():
             hover(url,'longValue',long_value)
             assert tooltip.locator('.variable-tooltip-value').text_content()==long_value
             assert tooltip.locator('img').count()==0
-            tooltip.evaluate('e=>{e.scrollTop=e.scrollHeight}')
+            value_nearest_field('below',control=url)
+            value_box = tooltip.locator('.variable-tooltip-value')
+            scroll = value_box.evaluate('''e=>new Promise(resolve=>{
+              e.scrollTop=e.scrollHeight;const before=e.scrollTop;
+              setTimeout(()=>resolve({before,after:e.scrollTop,overflow:e.scrollWidth>e.clientWidth}),550);
+            })''')
             expect(tooltip).to_be_visible()
-            assert tooltip.evaluate('e=>e.scrollTop>0 && e.scrollWidth<=e.clientWidth')
+            assert scroll['before']>0 and scroll['after']==scroll['before'] and not scroll['overflow'], scroll
+            value_nearest_field('below',control=url)
             capture('hover-long-value')
-            passed('long multiline values remain complete, wrap within the popup and can be scrolled')
+            passed('below-field popup keeps the full value at its near edge, wraps and scrolls without moving metadata or resetting during live refresh')
+            url.fill('{{longDynamic}}')
+            hover(url,'longDynamic')
+            expect(tooltip.locator('.variable-tooltip-note')).to_be_visible()
+            timestamp, dynamic_value = tooltip.locator('.variable-tooltip-value').text_content().split('\n',1)
+            assert timestamp.isdigit() and dynamic_value==long_value
+            value_nearest_field('below',control=url)
+            passed('dynamic preview notes remain in the compact far-edge metadata line above and below')
             url.fill(template_url)
             expect(tooltip).not_to_be_visible()
             # Deliberately do not call editor(), which dismisses an open preview.
@@ -258,6 +305,14 @@ def main():
             url.fill(template_url)
             area.fill(('line without variable\n'*80)+'prefix {{token}}')
             hover(area,'token','environment-token',scroll=True)
+            area.fill(('line without variable\n'*80)+'prefix {{longValue}}')
+            point = hover(area,'longValue',long_value,scroll=True)
+            value_nearest_field('above',point=point)
+            value_box.evaluate('e=>{e.scrollTop=e.scrollHeight}')
+            expect(tooltip).to_be_visible()
+            assert value_box.evaluate('e=>e.scrollTop>0 && e.scrollWidth<=e.clientWidth')
+            value_nearest_field('above',point=point)
+            capture('hover-long-value-above')
             area.fill(template_body)
             passed('hover hit testing follows horizontal input scrolling and vertical textarea scrolling')
 

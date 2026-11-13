@@ -548,20 +548,8 @@ function renderEnvironments() {
   for (const env of workspace.environments) $('environment').append(new Option(env.name || '名前なしの環境', env.id));
   $('environment').value = workspace.environmentId || '';
 }
-function selectionCheckbox(id, name) {
-  const checkbox = element('input'); checkbox.type = 'checkbox'; checkbox.dataset.selectToggle = '';
-  checkbox.setAttribute('aria-label', `${name}を選択`); checkbox.checked = listSelection?.has(id) || false;
-  return checkbox;
-}
 function selectionFor(id) {return listSelection?.has(id) ? listSelection.ids : [id];}
-function renderSelectionToolbar(ids = listSelection?.ids || []) {
-  const count = $('sidebarContent').querySelectorAll('[data-select-id]').length;
-  $('selectionToolbar').hidden = !count;
-  $('selectionCount').textContent = ids.length ? `${ids.length}件選択` : side === 'history' ? '送信履歴を選択' : '下書きを選択';
-  $('deleteSelection').disabled = !ids.length;
-  $('clearSelection').hidden = !ids.length;
-  $('selectAllEntries').disabled = count === ids.length;
-}
+function announceSelection(ids = listSelection?.ids || []) {$('selectionCount').textContent = ids.length ? `${ids.length}件選択` : '';}
 function renderSidebarSection() {
   if (studio?.renderSidebarSection(side)) return;
   const title = {collections: 'Collections', environments: 'Environments', history: 'History'}[side];
@@ -597,8 +585,8 @@ function renderSidebarSection() {
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + historyUrl(entry)));
       const method = sentRequests(entry)?.[0]?.method || entry.tab.request.method;
       open.append(element('span', `method-label method-${method}`, method), label, element('span', 'history-code', entry.status || 'ERR'));
-      row.append(selectionCheckbox(row.dataset.selectId, entry.tab.name), open);
-      const menu = event => {event?.preventDefault(); openItemMenu(row, [
+      row.append(open);
+      const menu = event => {event?.preventDefault(); openItemMenu(open, [
         {label:'編集用に開く',run:()=>openHistoryForEdit(entry)},
         {label:'現在の値で再送信',run:()=>{openHistoryForEdit(entry); sendRequest();}},
         {label:selectionFor(row.dataset.selectId).length > 1 ? `選択した${selectionFor(row.dataset.selectId).length}件を削除` : '送信履歴を削除', danger:true, run:()=>discardEntries(selectionFor(row.dataset.selectId))}
@@ -639,7 +627,7 @@ function renderSidebarSection() {
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
           {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {applySettings(draft, 'request', settingsClipboard); draft.settings = requestSettings(draft.settings); draft.dirty = true; selectedFiles.delete(draft.id); persist(); renderAll();}},
           {label: selectionFor(row.dataset.selectId).length > 1 ? `選択した${selectionFor(row.dataset.selectId).length}件を削除` : '下書きを削除', danger: true, run: () => discardEntries(selectionFor(row.dataset.selectId))}
-        ], event)); row.append(selectionCheckbox(row.dataset.selectId, draft.name), open, more); root.append(row);
+        ], event)); row.append(open, more); root.append(row);
       }
     }
     for (const c of workspace.collections) {
@@ -665,7 +653,7 @@ function renderSidebar() {
   const scrollTop = previous === side ? root.scrollTop : sidebarScroll[side];
   renderSidebarSection();
   root.dataset.side = side;
-  listSelection?.refresh(); renderSelectionToolbar();
+  listSelection?.refresh(); announceSelection();
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
   $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション'}[side];
@@ -1055,9 +1043,6 @@ $('addTab').onclick = event => studio.creationMenu(event.currentTarget,event);
 $('duplicateRequest').onclick = () => addTab({...clone(active()), id: uid(), itemId: undefined, name: `${active().name} copy`, dirty: true});
 $('saveRequest').onclick = saveRequest;
 $('saveDraft').onclick = keepDraft;
-$('deleteSelection').onclick = () => discardEntries(listSelection.ids);
-$('selectAllEntries').onclick = () => listSelection.selectAll();
-$('clearSelection').onclick = () => listSelection.clear();
 $('requestName').oninput = () => {active().name = $('requestName').value; touch();};
 $('method').onchange = () => {active().request.method = $('method').value; $('method').className = `method-${$('method').value}`; touch();};
 $('url').oninput = () => {setUrlText(active().request, $('url').value); touch(); renderPane();};
@@ -1100,7 +1085,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(storage); bindItemMenu(); bindSurface();
-listSelection = bindListSelection($('sidebarContent'), {onDelete:discardEntries, onChange:renderSelectionToolbar});
+listSelection = bindListSelection($('sidebarContent'), {onDelete:discardEntries, onChange:announceSelection});
 historyView = createHistoryView($('historyPage'), {edit: openHistoryForEdit, copy: copyText});
 studio = initStudio({
   $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,

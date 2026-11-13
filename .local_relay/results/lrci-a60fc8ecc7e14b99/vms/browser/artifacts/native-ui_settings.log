@@ -1,0 +1,104 @@
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/variable-hover.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/sent-history.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/list-selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/variable-hover.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/sent-history.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/request-session.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/list-selection.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /assets/script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] code 404, message File not found
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [13/Nov/2026 05:36:23] "GET /api/health HTTP/1.1" 200 -
+PASS selected environment, highlighted row and main page agree; no Save/Cancel workflow
+127.0.0.1 - - [13/Nov/2026 05:36:24] "POST /api/request HTTP/1.1" 200 -
+PASS autosave preserves focus and open page; edited token immediately reaches real HTTP
+PASS header selector switches page without dropping either environment edits
+PASS No environment removes stale values; renaming updates selection and sidebar immediately
+PASS environment settings copy/paste preserves target identity and uses independent values
+PASS environment duplication and variable-row copy/duplicate/paste/disable/delete are independent
+PASS variable context menu keyboard/focus works without replacing native text-input menus
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/settings.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/redesign.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/corporate.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/content-tabs.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/studio.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/script-editor.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/navigation-ui.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/sent-history.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/variable-hover.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/list-selection.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/transfer-progress.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/app.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/workspace-data.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/workbench.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/revisions.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/core.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/editops.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/code-editor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/studio.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/storage.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/request-files.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/confirm-dialog.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/collection-move.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/collection-drag.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/url-menu.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/transfer-progress.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/sent-history.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/variable-hover.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/request-session.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/list-selection.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/transfer-monitor.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/execution.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/upload-transport.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/runtime.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/script-intelligence.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/relations.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /assets/script-runner.mjs HTTP/1.1" 200 -
+127.0.0.1 - - [13/Nov/2026 05:36:28] "GET /api/health HTTP/1.1" 200 -
+PASS close flushes pending autosave and reload restores selected environment and values
+PASS Ctrl+S leaves settings open; export includes automatically saved live values
+PASS Globals autosave is independent and never mislabeled as the selected environment
+127.0.0.1 - - [13/Nov/2026 05:36:30] "POST /api/request HTTP/1.1" 200 -
+PASS collection variables and inherited auth autosave without dismissing the drawer
+PASS scope settings paste and folder/collection duplication preserve independent hierarchy identities
+PASS storage errors keep the editor values and show a failed-save state, then recover
+PASS mobile inline-page menus work; resizing and Escape keep automatically saved edits
+PASS deleting the selected environment clears selection and stale settings together
+PASS no uncaught browser JavaScript errors

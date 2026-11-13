@@ -73,6 +73,16 @@ export function variableTokenRects(control) {
   } finally {mirror.remove();}
 }
 
+/** Choose a real side of the field, then scroll within that side's space. */
+export function variableTooltipPlacement(anchor, desiredHeight, {top = 0, height}, {margin = 8, gap = 6, maxHeight = 340} = {}) {
+  const start = top + margin, end = top + height - margin;
+  const aboveEdge = Math.min(end, anchor.top - gap), belowEdge = Math.max(start, anchor.bottom + gap);
+  const above = Math.max(0, aboveEdge - start), below = Math.max(0, end - belowEdge);
+  const wanted = Math.min(desiredHeight, maxHeight);
+  const side = wanted <= above ? 'above' : wanted <= below ? 'below' : above >= below ? 'above' : 'below';
+  return {side, edge:side === 'above' ? aboveEdge : belowEdge, maxHeight:Math.min(maxHeight, side === 'above' ? above : below)};
+}
+
 let tooltipSequence = 0;
 export function bindVariableHover({root = document, workspace, active, primary = () => [], selector = VARIABLE_HOVER_SELECTOR} = {}) {
   const document = root.ownerDocument || root, window = document.defaultView;
@@ -81,10 +91,10 @@ export function bindVariableHover({root = document, workspace, active, primary =
   const name = document.createElement('code'); name.className = 'variable-tooltip-name';
   const scope = document.createElement('span'); scope.className = 'variable-tooltip-scope';
   const value = document.createElement('pre'); value.className = 'variable-tooltip-value';
-  const note = document.createElement('div'); note.className = 'variable-tooltip-note'; note.textContent = 'プレビュー · 送信時に再生成'; note.hidden = true;
-  // The resolved value is the reason for inspecting a variable. Keep metadata
-  // after it in both the visual order and the accessible description.
-  heading.append(name, scope); tip.append(value, heading, note); document.body.append(tip);
+  const note = document.createElement('span'); note.className = 'variable-tooltip-note'; note.textContent = '送信時に再生成'; note.hidden = true;
+  // Keep the accessible description value-first. Visually, the compact metadata
+  // line moves to the far edge so the value always touches the field-facing edge.
+  heading.append(name, scope, note); tip.append(value, heading); document.body.append(tip);
   let state = null, dismissed = null, animation = null, hideTimer = null, refreshTimer = null, pending = null, pointerInTip = false;
   const geometries = new WeakMap();
   const listeners = [];
@@ -127,15 +137,23 @@ export function bindVariableHover({root = document, workspace, active, primary =
     if (!state) return;
     const view = window.visualViewport, margin = 8, leftEdge = view?.offsetLeft || 0, topEdge = view?.offsetTop || 0;
     const width = view?.width || document.documentElement.clientWidth, height = view?.height || document.documentElement.clientHeight;
-    tip.style.maxWidth = `${Math.max(1, Math.min(520, width - 2 * margin))}px`; tip.style.maxHeight = `${Math.max(1, Math.min(340, height - 2 * margin))}px`;
-    const box = state.anchor, tipBox = tip.getBoundingClientRect();
+    const scrollTop = value.scrollTop, scrollLeft = value.scrollLeft;
+    const maxWidth = Math.max(1, Math.min(520, width - 2 * margin));
+    tip.style.maxWidth = `${maxWidth}px`; tip.style.minWidth = `${Math.min(120, maxWidth)}px`;
+    tip.style.maxHeight = `${Math.max(1, Math.min(340, height - 2 * margin))}px`;
+    tip.dataset.compact = 'false';
+    const box = state.anchor, placement = variableTooltipPlacement(box, tip.getBoundingClientRect().height, {top:topEdge, height});
+    if (placement.maxHeight < 42) {hide(); return;}
+    tip.dataset.side = placement.side;
+    tip.dataset.compact = String(placement.maxHeight < 56);
+    tip.style.maxHeight = `${placement.maxHeight}px`;
+    const tipBox = tip.getBoundingClientRect();
     const left = Math.max(leftEdge + margin, Math.min(state.x ?? box.left, leftEdge + width - tipBox.width - margin));
-    // Prefer the space above the field so URL previews leave the editor tabs
-    // immediately below it available for the next action.
-    let top = box.top - tipBox.height - 6;
-    if (top < topEdge + margin) top = box.bottom + 6;
-    top = Math.max(topEdge + margin, Math.min(top, topEdge + height - tipBox.height - margin));
+    const top = placement.side === 'above' ? placement.edge - tipBox.height : placement.edge;
     tip.style.left = `${left}px`; tip.style.top = `${top}px`;
+    // Measuring an unconstrained preview must not move a reader's scroll on the
+    // periodic live-value refresh, especially in a short visual viewport.
+    value.scrollTop = scrollTop; value.scrollLeft = scrollLeft;
   }
   function render() {
     if (!state || !state.control.isConnected || state.control.closest('[hidden]') || !variableTokens(state.control.value).some(token => token.key === state.key && token.start === state.start)) {hide(); return;}
