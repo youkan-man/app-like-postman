@@ -19,8 +19,8 @@
 :root:not([data-workspace-view=request]) #layoutToggle {visibility:hidden;}
 .variables-page .kv-editor {width:100%;}
 .variables-page .kv-table {width:100%;table-layout:fixed;}
-.variables-page .kv-table .kv-key {width:24%;}
-.variables-page .kv-table .kv-value {width:43%;}
+.variables-page .kv-table th:nth-child(2) {width:24%;}
+.variables-page .kv-table th:nth-child(3) {width:43%;}
 .variables-page .kv-table input:not([type=checkbox]) {width:100%;}
 .variables-page .table-add {margin-top:8px;}
 .source-editor {position:relative;display:grid;grid-template-rows:minmax(0,1fr)22px;min-width:0;width:100%;height:clamp(280px,38vh,580px);min-height:260px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;tab-size:2;}
@@ -31,16 +31,37 @@
 .source-editor .source-input::placeholder {color:var(--muted);-webkit-text-fill-color:var(--muted);}
 .source-status {grid-row:2;padding:2px 9px;font-family:inherit;font-size:10.5px;line-height:17px;color:var(--muted);border-top:1px solid var(--subtle);background:var(--raised);text-align:right;}
 .syntax-key {color:var(--syntax-key);}.syntax-string {color:var(--syntax-string);}.syntax-number {color:var(--syntax-number);}.syntax-keyword {color:var(--syntax-keyword);font-weight:600;}.syntax-comment {color:var(--syntax-comment);}.syntax-tag {color:var(--syntax-tag);}.syntax-variable {color:var(--syntax-variable);font-weight:600;}.syntax-punctuation {color:var(--muted);}
-:root[data-editor-page=body] #editorContent {display:flex;flex-direction:column;}
-:root[data-editor-page=body] .editor-section[data-pane=body] {flex:1;display:flex;flex-direction:column;min-height:0;}
-:root[data-editor-page=body] .editor-section-body {display:flex;flex-direction:column;flex:1;min-height:0;}
-:root[data-editor-page=body] .source-editor {flex:1 0 auto;height:260px;}
+/* A single editor page fills its pane. Long settings and code scroll inside it,
+   rather than increasing the height of the request/response workbench. */
+:root[data-workspace-view=request] .main {overflow:hidden;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) #editorContent {display:flex;flex-direction:column;overflow:hidden;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section:not([hidden]) {flex:1;display:flex;flex-direction:column;min-height:0;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section-heading {flex-shrink:0;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section-body {display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section-body > :not(.source-editor):not(.script-phase-panel) {flex-shrink:0;}
+:root[data-editor-page=scripts] .script-phase-panel {display:flex;flex-direction:column;flex:1 0 auto;min-width:0;min-height:0;}
+:root[data-editor-page=scripts] .script-phase-panel .section-tools {flex-shrink:0;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .source-editor {flex:1 0 104px;height:auto;min-height:104px;resize:none;}
 .body-toolbar {flex-shrink:0;gap:7px 12px;}
 .section-tools,.script-tools {display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;margin:8px 0;}
 .section-tools h2,.section-tools h3 {font-size:13px;font-weight:650;margin:0 auto 0 0;}
 .script-tools .form-field {max-width:220px;margin:0 0 0 auto;}
 .script-tools .form-field label {font-size:11px;}
 .script-tools .settings-line {margin:0;}
+:root[data-editor-page=scripts] .script-tools {margin:4px 0;gap:4px 12px;}
+:root[data-editor-page=scripts] .script-tools .form-field {display:flex;flex-direction:row;align-items:center;gap:6px;max-width:none;min-width:0;}
+:root[data-editor-page=scripts] .script-tools .form-field label {margin:0;white-space:nowrap;}
+:root[data-editor-page=scripts] .script-tools .form-field input {width:80px;min-width:0;min-height:30px;padding:5px 6px;}
+:root[data-editor-page=scripts] .script-phase-tabs {margin-top:4px;}
+:root[data-editor-page=scripts] .script-phase-panel .section-tools {margin:4px 0;}
+/* Very short windows keep each pane scrollable when its controls alone are
+   taller than the available split. The workspace and footer stay on screen. */
+@media (max-height:560px) {
+  :root[data-workspace-view=request] .request-editor,
+  :root[data-workspace-view=request] .response-panel {overflow:auto;}
+  .request-editor > .editor-content {flex:1 0 160px;min-height:160px;}
+  .response-panel > .response-content {flex:1 0 80px;min-height:80px;}
+}
 .script-api {margin:8px 0;color:var(--muted);line-height:1.6;font-size:12px;}
 .script-api code {display:block;padding:8px 0;white-space:normal;overflow-wrap:anywhere;}
 .script-log {margin:6px 0;max-height:150px;overflow:auto;white-space:pre-wrap;color:var(--text);}
@@ -130,18 +151,6 @@
  #stopRelationGlobal {font-size:11px;padding:5px;}
 }
 @media(forced-colors:active) {.source-highlight {display:none;}.source-editor .source-input {color:CanvasText;-webkit-text-fill-color:CanvasText;}}
-/* Never allocate less than an editable body to the request half after a send.
-   Small displays scroll the workbench instead of clipping a 260px textarea to 40px. */
-:root[data-layout=stack][data-response-empty=false]:is([data-editor-page=body],[data-editor-page=scripts]) .exchange {
-  min-height:740px;
-  grid-template-rows:minmax(500px,var(--request-fr)) 5px minmax(220px,var(--response-fr));
-}
-@media(max-width:650px) {
- :root[data-layout=stack][data-response-empty=false]:is([data-editor-page=body],[data-editor-page=scripts]) .exchange {
-   min-height:815px;
-   grid-template-rows:minmax(575px,var(--request-fr)) 5px minmax(235px,var(--response-fr));
- }
-}
 .script-phase-tabs {border-bottom:1px solid var(--line);margin-top:8px;}
 .script-phase-panel .section-tools {justify-content:flex-end;}
 .script-phase-panel .section-tools h3 {display:none;}

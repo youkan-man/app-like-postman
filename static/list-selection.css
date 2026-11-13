@@ -12,27 +12,35 @@
 .history-entry[data-select-id] {padding:0;gap:3px;}
 .history-open {
   display:flex;
-  align-items:center;
+  align-items:baseline;
   flex:1;
   gap:6px;
   min-width:0;
-  min-height:34px;
-  padding:7px 4px;
+  min-height:42px;
+  padding:4px;
   border:0;
   border-radius:0;
   background:transparent;
   text-align:left;
 }
 .history-open:hover {background:transparent;}
-.history-open .tree-label {min-width:0;}
-@media (max-width:600px) {
-  .request-title:has(#saveDraft:not([hidden])) {flex-wrap:wrap;}
-  .request-title:has(#saveDraft:not([hidden])) #requestName {flex:1 1 calc(100% - 48px);min-width:0;order:0;}
-  .request-title:has(#saveDraft:not([hidden])) #duplicateRequest {order:1;}
-  .request-title:has(#saveDraft:not([hidden])) #requestDirty {order:2;flex:1;font-size:11px;}
-  .request-title:has(#saveDraft:not([hidden])) #saveDraft,
-  .request-title:has(#saveDraft:not([hidden])) #saveRequest {order:3;max-width:none;}
+.history-open .method-label {width:auto;flex:0 0 auto;white-space:nowrap;}
+.history-open .history-code {flex:0 0 auto;white-space:nowrap;}
+.history-open .tree-label {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:1px;
+  min-width:0;
+  line-height:1.35;
 }
+.history-open .tree-label > span {
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.history-open .history-detail {font-size:11px;}
 @media (pointer:coarse) {
   .history-open {min-height:40px;}
 }

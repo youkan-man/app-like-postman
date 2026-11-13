@@ -28,8 +28,8 @@
       <button id="addTab" class="button" title="表示中のカテゴリに追加" aria-haspopup="menu">＋ 新規 ▾</button>
       <button id="import" class="button" title="全体または個別のインポート">インポート</button>
       <button id="dataActions" class="button" title="全体バックアップ・サーバー保存・復元" aria-haspopup="menu">データ管理 ▾</button>
+      <button id="stopRelationGlobal" class="button" hidden>実行を停止</button>
     </div>
-    <button id="stopRelationGlobal" class="button" hidden>実行を停止</button>
     <span class="top-spacer"></span>
     <div class="env-picker"><label for="environment">環境</label><select id="environment" aria-label="適用中の環境"></select></div>
     <button id="layoutToggle" class="icon-button" aria-label="リクエストとレスポンスのレイアウト" aria-pressed="false" title="左右／上下に配置">◫</button>
@@ -63,7 +63,10 @@
       <section id="historyPage" class="workspace-page history-page" aria-label="送信履歴" hidden></section>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
-          <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveDraft" class="button" title="この一時編集を下書きに保存" hidden>下書きに保存</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+          <div class="request-title">
+            <div class="request-identity"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span></div>
+            <div class="request-actions"><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveDraft" class="button" title="この一時編集を下書きに保存" hidden>下書きに保存</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+          </div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
           <div id="requestWarning" class="warning" role="status" hidden></div>
           <nav id="editorTabs" class="content-tabs editor-navigation" role="tablist" aria-label="リクエスト設定のページ">
@@ -79,7 +82,10 @@
         </section>
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
         <section class="response-panel" aria-label="レスポンス">
-          <div class="response-heading"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span><span class="top-spacer"></span><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
+          <div class="response-heading">
+            <div class="response-meta"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span></div>
+            <div class="response-actions"><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
+          </div>
           <div class="response-toolbar">
             <nav id="responseTabs" class="content-tabs response-navigation" role="tablist" aria-label="レスポンス表示形式">
               <button type="button" role="tab" id="response-tab-pretty" data-response="pretty" aria-controls="responseContent" aria-selected="true" tabindex="0">整形</button>
