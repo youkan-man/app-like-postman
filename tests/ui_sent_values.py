@@ -6,6 +6,7 @@ transport, or inline app is used. Screenshots and results go to ARTIFACT_DIR.
 from __future__ import annotations
 
 import copy
+from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
 import json
 import os
@@ -75,14 +76,37 @@ def main():
         checks.append(name)
         print('PASS '+name, flush=True)
 
+    @contextmanager
+    def capture_failure():
+        try:
+            yield
+        except Exception:
+            # This context exits before sync_playwright so the browser is still
+            # available. Screenshot failures must not replace the test failure.
+            try:
+                if page and not page.is_closed():
+                    page.screenshot(path=str(out/'failure.png'),full_page=True)
+                    screenshots.append('failure.png')
+            except Exception as error:
+                print('Could not capture failure screenshot: '+str(error), flush=True)
+            raise
+
     try:
-        with sync_playwright() as playwright:
+        with sync_playwright() as playwright, capture_failure():
             browser = playwright.chromium.launch(executable_path=os.environ.get('CHROMIUM') or shutil.which('chromium'), headless=True, args=['--no-sandbox'])
             page = browser.new_page(viewport={'width':1440,'height':1000}, accept_downloads=True)
             page.on('pageerror', lambda error: errors.append(str(error)))
             page.on('dialog', lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
             page.goto(app_url, wait_until='domcontentloaded')
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
+            tooltip = page.locator('.variable-tooltip')
+
+            def dismiss_tooltip():
+                # A deliberate inspection can remain open for text selection.
+                # Dismiss it before unrelated test setup and navigation.
+                if tooltip.is_visible():
+                    page.keyboard.press('Escape')
+                    expect(tooltip).not_to_be_visible()
 
             def state():
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
@@ -94,6 +118,7 @@ def main():
                 screenshots.append(name+'.png')
 
             def load(value, workspace=False):
+                dismiss_tooltip()
                 page.locator('#import').click()
                 page.get_by_label('インポートJSON',exact=True).fill(json.dumps(value,ensure_ascii=False))
                 page.locator('#modalSubmit').click()
@@ -107,6 +132,7 @@ def main():
                     page.locator('#modalSubmit').click()
 
             def side(name):
+                dismiss_tooltip()
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 page.locator(f'#sidebarTabs [data-sidebar={name}]').click()
 
@@ -116,9 +142,8 @@ def main():
                 expect(page.locator('#requestName')).to_have_value('Snapshot request')
 
             def editor(name):
+                dismiss_tooltip()
                 page.locator(f'#editorTabs [data-editor={name}]').click()
-
-            tooltip = page.locator('.variable-tooltip')
 
             def hover(control, key, value=None, *, status='resolved', scroll=False):
                 control.scroll_into_view_if_needed()
@@ -134,6 +159,7 @@ def main():
 
             template_url = '{{base}}/echo/:pathKey?q={{query}}&token={{token}}'
             template_body = '{\n  "token": "{{token}}",\n  "nested": "{{nested}}",\n  "empty": "{{empty}}"\n}'
+            long_value = '<img src=x onerror="bad()">\n'+('https://example.test/'+('value-'*24)+'\n')*30+'last line: 完全な値'
             load({'info':{'name':'Sent values','schema':'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'},
                 'variable':[{'key':'token','value':'collection-token'}],
                 'item':[{'name':'Folder','variable':[{'key':'token','value':'folder-token'}],'item':[
@@ -148,6 +174,7 @@ def main():
                 {'key':'base','value':receiver_url}, {'key':'token','value':'environment-token'},
                 {'key':'query','value':'日本語 & ? / +'}, {'key':'empty','value':''},
                 {'key':'nested','value':'{{token}}/suffix'}, {'key':'zero','value':'0'},
+                {'key':'longValue','value':long_value},
                 {'key':'disabled','value':'off','enabled':False}]})
             load({'name':'Other environment','_postman_variable_scope':'environment','values':[
                 {'key':'base','value':receiver_url}, {'key':'token','value':'other-token'}]})
@@ -157,6 +184,22 @@ def main():
             hover(url,'token','environment-token')
             expect(tooltip.locator('.variable-tooltip-scope')).to_contain_text('Current environment')
             passed('each URL placeholder resolves the hovered token using the selected environment')
+
+            hierarchy = tooltip.evaluate('''e=>{
+              const value=e.querySelector('.variable-tooltip-value'),meta=e.querySelector('.variable-tooltip-heading');
+              return {valueSize:parseFloat(getComputedStyle(value).fontSize),metaSize:parseFloat(getComputedStyle(meta).fontSize),
+                valueBottom:value.getBoundingClientRect().bottom,metaTop:meta.getBoundingClientRect().top};
+            }''')
+            assert hierarchy['valueSize']>=15 and hierarchy['valueSize']>hierarchy['metaSize']
+            assert hierarchy['valueBottom']<=hierarchy['metaTop']
+            url.evaluate("e=>{const n=e.value.indexOf('{{token}}')+3;e.focus();e.setSelectionRange(n,n)}")
+            url.press('ArrowRight')
+            tooltip.locator('.variable-tooltip-value').click(click_count=3)
+            expect(tooltip).to_be_visible()
+            assert page.evaluate('getSelection().toString()').strip()=='environment-token'
+            page.mouse.move(1,1)
+            expect(tooltip).not_to_be_visible()
+            passed('resolved value is the first and largest text, and remains selectable for copying')
 
             page.locator('#environment').select_option('')
             hover(url,'token','folder-token')
@@ -169,7 +212,22 @@ def main():
             hover(url,'missing',status='missing')
             hover(url,'zero','0')
             hover(url,'disabled',status='missing')
+            url.fill('{{longValue}}')
+            hover(url,'longValue',long_value)
+            assert tooltip.locator('.variable-tooltip-value').text_content()==long_value
+            assert tooltip.locator('img').count()==0
+            tooltip.evaluate('e=>{e.scrollTop=e.scrollHeight}')
+            expect(tooltip).to_be_visible()
+            assert tooltip.evaluate('e=>e.scrollTop>0 && e.scrollWidth<=e.clientWidth')
+            capture('hover-long-value')
+            passed('long multiline values remain complete, wrap within the popup and can be scrolled')
             url.fill(template_url)
+            expect(tooltip).not_to_be_visible()
+            # Deliberately do not call editor(), which dismisses an open preview.
+            # Filling the URL must leave the next editor action clickable.
+            page.locator('#editorTabs [data-editor=headers]').click()
+            expect(page.locator('#request-fields-headers')).to_be_visible()
+            passed('filling a template does not reopen a popup or block the next editor tab')
             passed('empty, zero, missing and disabled variables have distinct correct hover states')
 
             editor('headers')
@@ -188,8 +246,12 @@ def main():
             area.press('ArrowRight')
             expect(tooltip).to_be_visible()
             expect(tooltip.locator('.variable-tooltip-value')).to_have_text('environment-token')
+            page.mouse.move(1,1)
+            expect(tooltip).not_to_be_visible()
+            area.press('ArrowLeft')
+            expect(tooltip).to_be_visible()
             area.press('Escape');expect(tooltip).not_to_be_visible()
-            passed('keyboard caret reveals a variable and Escape dismisses its value')
+            passed('keyboard caret reveals a variable; leaving for another control or Escape dismisses it')
 
             url.fill('http://'+('long-path/'*30)+'{{token}}')
             hover(url,'token','environment-token',scroll=True)
@@ -228,7 +290,7 @@ def main():
 
             page.locator('#environment').select_option(label='Other environment')
             before = state()
-            side('history');page.locator('.history-entry').first.click()
+            side('history');page.locator('.history-entry').first.locator('.history-open').click()
             history_page=page.locator('#historyPage')
             expect(history_page).to_be_visible()
             expect(history_page.locator('[data-sent-url]')).to_have_text(sent['url'])
@@ -242,7 +304,7 @@ def main():
 
             page.reload(wait_until='domcontentloaded')
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
-            side('history');page.locator('.history-entry').first.click()
+            side('history');page.locator('.history-entry').first.locator('.history-open').click()
             expect(history_page.locator('[data-sent-body]')).to_have_text(sent['body'])
             assert state()['history'][-1]['sent_requests'][0]==sent
             passed('history retains the original transmitted values after environment changes and reload')
@@ -262,13 +324,14 @@ def main():
             assert '{{token}}' in page.locator('#url').input_value()
             passed('explicit edit action reopens the original variable template')
 
-            page.set_viewport_size({'width':390,'height':844})
-            hover(page.locator('#url'),'base',receiver_url,scroll=True)
-            bounds=tooltip.bounding_box()
-            assert bounds and bounds['x']>=0 and bounds['y']>=0
-            assert bounds['x']+bounds['width']<=391 and bounds['y']+bounds['height']<=845
-            capture('hover-phone')
-            passed('tooltip stays inside the phone viewport')
+            for width,height in [(390,844),(320,720)]:
+                page.set_viewport_size({'width':width,'height':height})
+                hover(page.locator('#url'),'base',receiver_url,scroll=True)
+                bounds=tooltip.bounding_box()
+                assert bounds and bounds['x']>=0 and bounds['y']>=0
+                assert bounds['x']+bounds['width']<=width+1 and bounds['y']+bounds['height']<=height+1
+                capture('hover-phone-'+str(width))
+            passed('tooltip stays inside the phone viewport at 390px and 320px')
 
             page.set_viewport_size({'width':1440,'height':1000})
             legacy = copy.deepcopy(state())
@@ -277,7 +340,7 @@ def main():
             legacy_entry['tab']['name']='Legacy request'
             legacy['history'].append(legacy_entry)
             load({'kind':'minipost.workspace','version':1,'workspace':legacy},workspace=True)
-            side('history');page.locator('.history-entry').filter(has_text='Legacy request').click()
+            side('history');page.locator('.history-entry').filter(has_text='Legacy request').locator('.history-open').click()
             expect(history_page.locator('[data-sent-legacy]')).to_contain_text('この履歴には送信時の実値が保存されていません。')
             expect(history_page.locator('[data-sent-url]')).to_have_count(0)
             expect(history_page.locator('[data-sent-body]')).to_have_count(0)
@@ -288,11 +351,6 @@ def main():
             assert not dialogs,dialogs
             passed('no uncaught browser errors or native dialogs')
             browser.close();page=None
-    except Exception:
-        if page and not page.is_closed():
-            page.screenshot(path=str(out/'failure.png'),full_page=True)
-            screenshots.append('failure.png')
-        raise
     finally:
         (out/'results.json').write_text(json.dumps({'mode':'native Chromium HTTP','checks':checks,'page_errors':errors,'native_dialogs':dialogs,'screenshots':screenshots},ensure_ascii=False,indent=2))
         if app:app.shutdown();app.server_close()

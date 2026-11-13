@@ -40,7 +40,7 @@ export function planCollectionMove(workspace, intent) {
     into: parent.item, parent, anchor: destination?.item, position, nodes, ids};
 }
 
-export function moveCollectionItem(workspace, intent, {transfer} = {}) {
+export function moveCollectionItem(workspace, intent, {transfer, editors = workspace.tabs || []} = {}) {
   const plan = planCollectionMove(workspace, intent);
   const {item, from, into, position, anchor, nodes, source, target, ids} = plan;
   const oldIndex = from.indexOf(item);
@@ -54,9 +54,10 @@ export function moveCollectionItem(workspace, intent, {transfer} = {}) {
   from.splice(oldIndex, 1); into.splice(index, 0, item);
   if (transfers.length) {
     const updateReference = ref => {
-      if (ref?.collectionId === source._mpId && ids.has(ref.itemId)) ref.collectionId = target._mpId;
+      if (ref?.collectionId === source._mpId && (ids.has(ref.itemId) || ids.has(ref.pendingFolderId))) ref.collectionId = target._mpId;
     };
-    for (const tab of workspace.tabs || []) updateReference(tab);
+    for (const tab of editors) updateReference(tab);
+    updateReference(workspace.activeRequest);
     for (const relation of workspace.relations || []) for (const step of relation.steps || []) updateReference(step);
     // History contains a snapshot, but its request identity should follow a move.
     for (const entry of workspace.history || []) updateReference(entry.tab);

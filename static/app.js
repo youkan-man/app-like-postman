@@ -15,12 +15,14 @@ import {bindUrlMenu} from './url-menu.mjs';
 import {TransferProgress, createTransferView, paintTransferView} from './transfer-progress.mjs';
 import {bindVariableHover} from './variable-hover.mjs';
 import {historyEntry, historyUrl, sentRequests, createHistoryView} from './sent-history.mjs';
+import {RequestSession} from './request-session.mjs';
+import {bindListSelection} from './list-selection.mjs';
 
 const $ = id => document.getElementById(id);
-let workbench, studio, historyView, selectedHistoryEntry = null;
+let workbench, studio, historyView, listSelection, selectedHistoryEntry = null;
 const storage = new WorkspaceStorage();
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
-const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
+const initial = () => ({version: 2, collections: [], environments: [], globals: [], tabs: [], activeId: '', environmentId: '', history: [], collapsed: [], theme: 'light'});
 let workspace;
 let recoveryMessage = '';
 $('saveState').textContent = 'ローカルデータを読込中…';
@@ -28,14 +30,14 @@ try {
   workspace = await storage.load(saved => {
     readWorkspaceBundle({kind: 'minipost.workspace', version: 1, workspace: saved});
   }) || initial();
-  if (!workspace.tabs.length) workspace.tabs.push(freshTab());
-  if (!workspace.tabs.some(t => t.id === workspace.activeId)) workspace.activeId = workspace.tabs[0].id;
+  if (!workspace.tabs.some(t => t.id === workspace.activeId)) workspace.activeId = workspace.tabs[0]?.id || '';
 } catch (error) {
   workspace = initial(); recoveryMessage = `保存データを読み込めませんでした。元データは上書きせず保持しています。${error.message}`;
 }
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 workspace.relations ||= []; workspace.relationRuns ||= [];
 let revisionStore = new RevisionStore(workspace);
+const requestSession = new RequestSession(workspace, freshTab);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
 const transfers = new TransferProgress(id => {if (active().id === id) paintTransferView($('transferProgress'), transfers.get(id));});
 const navigationKey = 'minipost.navigation.v1';
@@ -70,7 +72,7 @@ let saveTimer, toastTimer, responseSearchTimer;
 let localChangeGeneration = 0, saveSequence = 0, importInProgress = false;
 let settingsDrawer = null, settingsClipboard = null, rowClipboard = null;
 let saveStatus = 'ローカルに保存済み';
-const active = () => workspace.tabs.find(t => t.id === workspace.activeId) || workspace.tabs[0];
+const active = () => requestSession.active;
 const describe = value => typeof value === 'string' ? value : value?.content || '';
 const element = (tag, className, text) => {const e = document.createElement(tag); if (className) e.className = className; if (text != null) e.textContent = text; return e;};
 function button(text, fn, className = 'button') {const e = element('button', className, text); e.type = 'button'; e.onclick = fn; return e;}
@@ -113,13 +115,15 @@ function persist(now = false) {
 }
 // Saved requests are updated in the browser collection automatically. Server writes remain opt-in.
 function touchTab(tab) {
+  if (requestSession.isBlank(tab)) requestSession.addDraft(tab);
   const collection = workspace.collections.find(c => c._mpId === tab.collectionId);
   const item = findItem(collection, tab.itemId)?.item;
   if (item?.request) {
     item.name = tab.name; item.request = clone(tab.request); item.settings = clone(tab.settings);
     tab.dirty = false;
   } else tab.dirty = true;
-  persist(); if (active().id === tab.id) {renderSelection(); updateCounts();} renderSidebar();
+  if (item?.request || !requestSession.isTemporary(tab)) persist();
+  if (active().id === tab.id) {renderSelection(); updateCounts();} renderSidebar();
 }
 function touch() {touchTab(active());}
 function download(name, content, type = 'application/json') {
@@ -418,7 +422,7 @@ function filePicker(tabId, key, source, multiple) {
   if (slot?.state === 'error') wrap.append(element('span', 'file-read-error', `読込失敗: ${slot.error.message}`));
   if (slot || previous) wrap.append(button('選択を解除', () => {
     selectedFiles.remove(tabId, key);
-    const tab = workspace.tabs.find(tab => tab.id === tabId); if (!tab) return;
+    const tab = requestSession.get(tabId); if (!tab) return;
     if (key === 'binary') delete tab.request.body.file;
     else {const row = tab.request.body.formdata?.[Number(key.slice(5))]; if (row) delete row.src;}
     touchTab(tab); refreshFileFields(tabId);
@@ -433,10 +437,10 @@ function chooseFiles(tabId, key, multiple) {
   const cleanup = () => chooser.remove(); chooser.addEventListener('cancel', cleanup, {once:true});
   chooser.onchange = async () => {
     const files = [...chooser.files]; cleanup(); if (!files.length) return;
-    if (!workspace.tabs.some(tab => tab.id === tabId)) return;
+    if (!requestSession.get(tabId)) return;
     const pending = selectedFiles.read(tabId, key, files); refreshFileFields(tabId);
     const slot = await pending; if (!slot) return;
-    const currentKey = selectedFiles.keyOf(tabId, slot), tab = workspace.tabs.find(tab => tab.id === tabId);
+    const currentKey = selectedFiles.keyOf(tabId, slot), tab = requestSession.get(tabId);
     if (!tab || currentKey === undefined) return;
     if (slot.state === 'ready') {
       const names = slot.files.map(file => file.name);
@@ -477,36 +481,49 @@ function renderBody(root, tab) {
   }
 }
 
-// The legacy tabs array is a draft cache only; the DOM contains one editor.
+// Browsing history and saved requests never adds persistent drafts.
 function renderSelection() {
   const draft = active(), collection = workspace.collections.find(c => c._mpId === draft.collectionId);
   const inCollection = Boolean(findItem(collection, draft.itemId)?.item.request);
-  $('requestDirty').textContent = draft.dirty ? '自動保存済み · 未登録' : '';
+  const temporary = requestSession.isTemporary(draft) && !inCollection;
+  $('requestDirty').textContent = temporary ? (requestSession.isBlank(draft) ? '' : draft.dirty ? '一時編集 · 未保存' : '一時編集') : draft.dirty ? '自動保存済み · 未登録' : '';
+  $('saveDraft').hidden = !temporary || requestSession.isBlank(draft);
+  $('requestHistory').hidden = temporary;
   $('saveRequest').hidden = inCollection;
 }
 function selectRequest(id) {
-  if (!workspace.tabs.some(t => t.id === id)) return;
-  persist(true); workspace.activeId = id; workbench?.closeNavigation();
+  if (!requestSession.get(id)) return;
+  persist(true); requestSession.select(id); workbench?.closeNavigation();
   if ($('modal').open) closeModal();
   persist(); renderAll();
 }
-async function discardDraft(id) {
-  const draft = workspace.tabs.find(t => t.id === id);
-  if (!draft || !await confirmAction('この下書きを削除しますか？')) return;
-  if (!workspace.tabs.includes(draft)) return;
-  persist(true); requests.get(id)?.abort(); requests.delete(id); responses.delete(id); selectedFiles.delete(id);
-  workspace.tabs = workspace.tabs.filter(t => t.id !== id);
-  if (!workspace.tabs.length) workspace.tabs.push(freshTab());
-  if (workspace.activeId === id) workspace.activeId = workspace.tabs[0].id;
+function isDraft(tab) {return !requestSession.savedItem(tab);}
+async function discardEntries(ids) {
+  const wanted = new Set(ids);
+  const drafts = workspace.tabs.filter(tab => isDraft(tab) && wanted.has(`draft:${tab.id}`));
+  const history = workspace.history.filter(entry => wanted.has(`history:${entry.id}`));
+  if (!drafts.length && !history.length) return;
+  const label = [drafts.length && `下書き ${drafts.length}件`, history.length && `送信履歴 ${history.length}件`].filter(Boolean).join('と');
+  if (!await confirmAction(`${label}を削除しますか？`, {title:'選択項目を削除'})) return;
+  const draftIds = drafts.filter(tab => workspace.tabs.includes(tab) && isDraft(tab)).map(tab => tab.id);
+  for (const id of draftIds) {
+    requests.get(id)?.abort(); requests.delete(id); responses.delete(id); selectedFiles.delete(id);
+    revisionStore.remove(`draft:${id}`); studio?.forgetResponse(`draft:${id}`);
+  }
+  requestSession.remove(draftIds);
+  workspace.history = workspace.history.filter(entry => !history.includes(entry));
   persist(); renderAll();
+  toast(`${label}を削除しました。`);
 }
-function addTab(tab = freshTab()) {persist(true); tab.settings = requestSettings(tab.settings); workspace.tabs.push(tab); selectRequest(tab.id);}
+function addTab(tab = freshTab()) {persist(true); requestSession.addDraft(tab); selectRequest(tab.id);}
+function keepDraft() {
+  const tab = active(); if (!requestSession.isTemporary(tab) || requestSession.savedItem(tab)) return;
+  tab.dirty = true; requestSession.addDraft(tab); persist(); renderAll(); toast('下書きに保存しました。');
+}
 function openRequest(collection, item) {
   workbench?.closeNavigation(); selectedCollectionId = collection._mpId;
   studio?.captureContext({collectionId:collection._mpId,parentId:findItem(collection,item._mpId)?.parents.at(-1)?._mpId});
-  const existing = workspace.tabs.find(t => t.collectionId === collection._mpId && t.itemId === item._mpId);
-  if (existing) {selectRequest(existing.id); return;}
-  addTab({...freshTab(), name: item.name, request: normalizeRequest(item.request), settings: requestSettings(item.settings), collectionId: collection._mpId, itemId: item._mpId});
+  const tab = requestSession.openSaved(collection, item); selectRequest(tab.id);
 }
 function renderEditor() {
   const tab = active(), ctx = contextFor(workspace, tab);
@@ -526,6 +543,20 @@ function renderEnvironments() {
   $('environment').replaceChildren(new Option('No environment', ''));
   for (const env of workspace.environments) $('environment').append(new Option(env.name || '名前なしの環境', env.id));
   $('environment').value = workspace.environmentId || '';
+}
+function selectionCheckbox(id, name) {
+  const checkbox = element('input'); checkbox.type = 'checkbox'; checkbox.dataset.selectToggle = '';
+  checkbox.setAttribute('aria-label', `${name}を選択`); checkbox.checked = listSelection?.has(id) || false;
+  return checkbox;
+}
+function selectionFor(id) {return listSelection?.has(id) ? listSelection.ids : [id];}
+function renderSelectionToolbar(ids = listSelection?.ids || []) {
+  const count = $('sidebarContent').querySelectorAll('[data-select-id]').length;
+  $('selectionToolbar').hidden = !count;
+  $('selectionCount').textContent = ids.length ? `${ids.length}件選択` : side === 'history' ? '送信履歴を選択' : '下書きを選択';
+  $('deleteSelection').disabled = !ids.length;
+  $('clearSelection').hidden = !ids.length;
+  $('selectAllEntries').disabled = count === ids.length;
 }
 function renderSidebarSection() {
   if (studio?.renderSidebarSection(side)) return;
@@ -551,18 +582,22 @@ function renderSidebarSection() {
   } else if (side === 'history') {
     if (!workspace.history.includes(selectedHistoryEntry)) selectedHistoryEntry = workspace.history.at(-1) || null;
     for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${historyUrl(h)} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
-      const row = button('', () => {
+      entry.id ||= uid();
+      const row = element('div', 'history-entry'); row.dataset.selectId = `history:${entry.id}`;
+      const open = button('', () => {
         selectedHistoryEntry = entry;
         for (const item of root.querySelectorAll('.history-entry')) item.setAttribute('aria-current', String(item === row));
         renderHistoryPage(); workbench.closeNavigation();
-      }, 'history-entry');
+      }, 'history-open'); open.dataset.selectOpen = '';
       row.dataset.historyId = entry.id || ''; row.setAttribute('aria-current', String(selectedHistoryEntry === entry));
       const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + historyUrl(entry)));
       const method = sentRequests(entry)?.[0]?.method || entry.tab.request.method;
-      row.append(element('span', `method-label method-${method}`, method), label, element('span', 'history-code', entry.status || 'ERR'));
+      open.append(element('span', `method-label method-${method}`, method), label, element('span', 'history-code', entry.status || 'ERR'));
+      row.append(selectionCheckbox(row.dataset.selectId, entry.tab.name), open);
       const menu = event => {event?.preventDefault(); openItemMenu(row, [
         {label:'編集用に開く',run:()=>openHistoryForEdit(entry)},
-        {label:'現在の値で再送信',run:()=>{openHistoryForEdit(entry); sendRequest();}}
+        {label:'現在の値で再送信',run:()=>{openHistoryForEdit(entry); sendRequest();}},
+        {label:selectionFor(row.dataset.selectId).length > 1 ? `選択した${selectionFor(row.dataset.selectId).length}件を削除` : '送信履歴を削除', danger:true, run:()=>discardEntries(selectionFor(row.dataset.selectId))}
       ],event);};
       row.oncontextmenu = menu;
       row.onkeydown = event => {
@@ -584,12 +619,12 @@ function renderSidebarSection() {
       const more = button('⋯', () => {}, 'icon-button'); bindContext(row, more, (anchor, event) => isFolder ? collectionMenu(collection, item, anchor, event) : editRequestItem(collection, item, anchor, event)); more.title = `${item.name}の操作`; more.setAttribute('aria-label', `${item.name}の操作`); row.append(more); root.append(row);
       if (isFolder && expanded) item.item.forEach(child => paintItem(collection, child, level + 1, force || item.name.toLowerCase().includes(search)));
     }
-    const drafts = workspace.tabs.filter(t => !workspace.collections.some(c => c._mpId === t.collectionId && findItem(c, t.itemId)?.item.request));
+    const drafts = workspace.tabs.filter(isDraft);
     if (drafts.length) {
       root.append(element('div', 'section-caption', '下書き'));
       for (const draft of drafts.filter(t => !search || `${t.name} ${displayUrl(t.request.url)}`.toLowerCase().includes(search))) {
-        const row = element('div', `tree-row${active().id === draft.id ? ' selected' : ''}`); row.dataset.draftId = draft.id;
-        const open = button('', () => selectRequest(draft.id), 'tree-open');
+        const row = element('div', `tree-row${active().id === draft.id ? ' selected' : ''}`); row.dataset.draftId = draft.id; row.dataset.selectId = `draft:${draft.id}`;
+        const open = button('', () => selectRequest(draft.id), 'tree-open'); open.dataset.selectOpen = '';
         open.append(element('span', `method-label method-${draft.request.method}`, draft.request.method), element('span', 'tree-label', draft.name)); open.title = draft.name;
         const more = button('⋯', () => {}, 'icon-button'); more.setAttribute('aria-label', `${draft.name}の下書き操作`);
         bindContext(row, more, (anchor, event) => openItemMenu(anchor, [
@@ -599,8 +634,8 @@ function renderSidebarSection() {
           {label: '複製', run: () => addTab({...clone(draft), id: uid(), name: copyName(draft.name, workspace.tabs.map(t => t.name)), dirty: true})},
           {label: '設定をコピー', run: () => copyConfiguration(draft, 'request')},
           {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {applySettings(draft, 'request', settingsClipboard); draft.settings = requestSettings(draft.settings); draft.dirty = true; selectedFiles.delete(draft.id); persist(); renderAll();}},
-          {label: '下書きを削除', danger: true, run: () => discardDraft(draft.id)}
-        ], event)); row.append(open, more); root.append(row);
+          {label: selectionFor(row.dataset.selectId).length > 1 ? `選択した${selectionFor(row.dataset.selectId).length}件を削除` : '下書きを削除', danger: true, run: () => discardEntries(selectionFor(row.dataset.selectId))}
+        ], event)); row.append(selectionCheckbox(row.dataset.selectId, draft.name), open, more); root.append(row);
       }
     }
     for (const c of workspace.collections) {
@@ -626,6 +661,7 @@ function renderSidebar() {
   const scrollTop = previous === side ? root.scrollTop : sidebarScroll[side];
   renderSidebarSection();
   root.dataset.side = side;
+  listSelection?.refresh(); renderSelectionToolbar();
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
   $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション'}[side];
@@ -642,10 +678,8 @@ function renderHistoryPage() {
   historyView?.render(selectedHistoryEntry);
 }
 function openHistoryForEdit(entry) {
-  const collection = workspace.collections.find(value => value._mpId === entry.tab.collectionId);
-  const pendingFolderId = findItem(collection, entry.tab.itemId)?.parents.at(-1)?._mpId || entry.tab.pendingFolderId;
   side = 'collections'; chooseEnvironment(entry.environmentId);
-  addTab({...clone(entry.tab), id: uid(), itemId: undefined, pendingFolderId, dirty: true}); saveNavigation();
+  const tab = requestSession.openHistory(entry); selectRequest(tab.id); saveNavigation();
 }
 function focusTreeItem(collectionId, itemId) {
   const line = [...$('sidebarContent').querySelectorAll('.tree-row')].find(row =>
@@ -657,7 +691,7 @@ function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); 
 
 function moveTreeItem(intent) {
   revisionStore.capture();
-  const result = moveCollectionItem(workspace, intent, {transfer:(from,to)=>{
+  const result = moveCollectionItem(workspace, intent, {editors:requestSession.all(), transfer:(from,to)=>{
     revisionStore.transfer(from,to); studio.transferResponse(from,to);
   }});
   if (!result.changed) return;
@@ -668,7 +702,7 @@ function moveTreeItem(intent) {
     workspace.collapsed = (workspace.collapsed || []).filter(id=>!reveal.has(id));
     studio.captureContext({collectionId:result.target._mpId,parentId:result.parent===result.target?undefined:result.parent?._mpId});
   }
-  persist(true); renderAll();
+  requestSession.rememberSelection(); persist(true); renderAll();
   focusTreeItem(result.collection?result.item._mpId:result.target._mpId,result.collection?undefined:result.item._mpId);
 }
 
@@ -700,6 +734,7 @@ async function saveRequest() {
     const parent = findItem(collection, folderId)?.item || collection;
     const item = {_mpId: uid(), name: name.trim(), request: clone(tab.request), settings: requestSettings(tab.settings)};
     parent.item.push(item); Object.assign(tab, {name: item.name, collectionId: collection._mpId, itemId: item._mpId, dirty: false}); delete tab.pendingFolderId;
+    requestSession.markSaved(tab);
     revisionStore.transfer(priorKey, requestKey(workspace, tab)); studio?.transferResponse(priorKey, requestKey(workspace, tab));
     side = 'collections'; closeModal(); const saved = persist(true); renderAll(); if (await saved) toast('コレクションに保存しました。');
   });
@@ -723,10 +758,10 @@ function collectionMenu(collection, folder, anchor, event) {
   ];
   if (!folder) actions.push({label: 'エクスポート', run: () => exportFile(`${name}.postman_collection.json`, exportCollection(collection))});
   actions.push(null, {label: '削除', danger: true, run: async () => {
-    if (!await confirmAction(`「${name}」と配下の保存済みリクエストを削除しますか？編集中の内容は下書きとして残ります。`)) return;
+    if (!await confirmAction(`「${name}」と配下の保存済みリクエストを削除しますか？`)) return;
     if (folder) {const parent = findItem(collection, folder._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(item => item._mpId !== folder._mpId);}
     else workspace.collections = workspace.collections.filter(c => c !== collection);
-    persist(); renderAll(); refreshSettingsDrawer();
+    requestSession.syncSaved(); persist(); renderAll(); refreshSettingsDrawer();
   }}); openItemMenu(anchor, actions, event);
 }
 function editCollection(collection, folder = null) {
@@ -749,7 +784,7 @@ function editRequestItem(collection, item, anchor, event) {
       let value = item.name; const box = field('Name', input(value, 'Name', text => value = text));
       showModal('リクエスト名', box, () => {
         if (!value.trim()) throw new Error('名前を入力してください。'); item.name = value.trim();
-        for (const tab of workspace.tabs) if (tab.itemId === item._mpId && tab.collectionId === collection._mpId && !tab.dirty) tab.name = item.name;
+        for (const tab of requestSession.all()) if (tab.itemId === item._mpId && tab.collectionId === collection._mpId && !tab.dirty) tab.name = item.name;
         closeModal(); persist(); renderAll();
       });
     }},
@@ -757,7 +792,7 @@ function editRequestItem(collection, item, anchor, event) {
     {label: '設定をコピー', run: () => copyConfiguration({request: item.request, settings: item.settings}, 'request')},
     {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== 'request', run: () => {openRequest(collection, item); const tab = active(); applySettings(tab, 'request', settingsClipboard); tab.settings = requestSettings(tab.settings); selectedFiles.delete(tab.id); touch(); renderEditor();}},
     {label: 'URLをコピー', run: () => copyText(displayUrl(item.request.url))},
-    {label: '削除', danger: true, run: async () => {if (!await confirmAction(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); persist(); renderAll();}}
+    {label: '削除', danger: true, run: async () => {if (!await confirmAction(`「${item.name}」を削除しますか？`)) return; const parent = findItem(collection, item._mpId)?.parents.at(-1) || collection; parent.item = parent.item.filter(i => i._mpId !== item._mpId); requestSession.syncSaved(); persist(); renderAll();}}
   ], event);
 }
 function environmentActions(env, globals) {
@@ -805,8 +840,7 @@ function showArchiveImport(bundle, source = 'ファイル') {
     if (studio?.isRunning()) throw new Error('実行中のリレーションを停止してから取り込んでください。');
     if (mode.value === 'merge') revisionStore.capture();
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
-    if (!next.tabs.length) next.tabs.push(freshTab());
-    if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0].id;
+    if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0]?.id || '';
     // Restore must not depend on saving the old (possibly quota-exhausted) data.
     // Suppress delayed saves and response callbacks until the atomic replacement ends.
     clearTimeout(saveTimer); ++saveSequence; importInProgress = true;
@@ -983,12 +1017,12 @@ async function sendRequest() {
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
     const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal),onProgress:transfer.update});
-    if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
+    if (requestSession.get(tab.id)) responses.set(tab.id, result);
     workspace.history.push(historyEntry(snapshot, result, historyContext)); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
   } catch (error) {
     const cancelled = error.name === 'AbortError';
-    if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
+    if (requestSession.get(tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
     if (!cancelled) {workspace.history.push(historyEntry(snapshot, error, historyContext)); persist();}
   } finally {transfer.finish(); requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
@@ -1006,7 +1040,7 @@ function showRevisions(key) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
     details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', async () => {
       if (!await confirmAction('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。', {title:'変更履歴を復元', accept:'復元', danger:false})) return;
-      revisionStore.restore(key, entry); for (const draft of workspace.tabs) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
+      revisionStore.restore(key, entry); requestSession.syncSaved(); for (const draft of requestSession.all()) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
@@ -1016,6 +1050,10 @@ $('send').onclick = sendRequest;
 $('addTab').onclick = event => studio.creationMenu(event.currentTarget,event);
 $('duplicateRequest').onclick = () => addTab({...clone(active()), id: uid(), itemId: undefined, name: `${active().name} copy`, dirty: true});
 $('saveRequest').onclick = saveRequest;
+$('saveDraft').onclick = keepDraft;
+$('deleteSelection').onclick = () => discardEntries(listSelection.ids);
+$('selectAllEntries').onclick = () => listSelection.selectAll();
+$('clearSelection').onclick = () => listSelection.clear();
 $('requestName').oninput = () => {active().name = $('requestName').value; touch();};
 $('method').onchange = () => {active().request.method = $('method').value; $('method').className = `method-${$('method').value}`; touch();};
 $('url').oninput = () => {setUrlText(active().request, $('url').value); touch(); renderPane();};
@@ -1058,6 +1096,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(storage); bindItemMenu(); bindSurface();
+listSelection = bindListSelection($('sidebarContent'), {onDelete:discardEntries, onChange:renderSelectionToolbar});
 historyView = createHistoryView($('historyPage'), {edit: openHistoryForEdit, copy: copyText});
 studio = initStudio({
   $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,
@@ -1065,15 +1104,16 @@ studio = initStudio({
   renderSidebar,renderAll,renderEditor,renderEnvironments,renderHistoryPage,closeNavigation:()=>workbench.closeNavigation(),
   chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
   addDraft:()=>{side='collections';addTab();$('url').focus();},
-  findDraft:(collectionId,itemId)=>workspace.tabs.find(t=>t.collectionId===collectionId&&t.itemId===itemId),
-  filesFor:(tab,signal)=>selectedFiles.snapshot(workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
+  findDraft:(collectionId,itemId)=>requestSession.all().find(t=>t.collectionId===collectionId&&t.itemId===itemId),
+  filesFor:(tab,signal)=>selectedFiles.snapshot(requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
   saveTab:tab=>{
     const collection=workspace.collections.find(c=>c._mpId===tab.collectionId),item=findItem(collection,tab.itemId)?.item;
-    if(item){item.request=clone(tab.request);for(const draft of workspace.tabs)if(draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId)draft.request=clone(tab.request);}
-    persist();if(active().id===tab.id)renderEditor();
+    if(item){item.request=clone(tab.request);for(const draft of requestSession.all())if(draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId)draft.request=clone(tab.request);}
+    const editor = requestSession.get(tab.id); if (editor) {editor.request = clone(tab.request); touchTab(editor);} else persist();
+    if(active().id===tab.id)renderEditor();
   },
   recordBackground:(tab,response,environmentId)=>{
-    const draft=workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId));
+    const draft=requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId));
     if(draft)responses.set(draft.id,response);
     workspace.history.push(historyEntry(tab,response,{environmentId,environmentName:workspace.environments.find(env=>env.id===environmentId)?.name || ''}));persist();renderSidebar();renderResponse();
   }

@@ -80,6 +80,14 @@ test('secret and HTML-like values remain exact strings', () => {
   assert.equal(variablePreview(workspace,tab,'token').value,value);
 });
 
+test('long multiline values remain complete for inspection and copying', () => {
+  const {workspace,tab} = fixture();
+  const value = '  leading spaces\n'+('https://example.test/'+('very-long-value/'.repeat(40))+'\n').repeat(30)+'\t最後の行  ';
+  workspace.globals.push({key:'longValue',value});
+  assert.equal(variablePreview(workspace,tab,'longValue').value,value);
+  assert.equal(variablePreview(workspace,tab,'longValue').state,'resolved');
+});
+
 test('prototype-like names use only actual configured values', () => {
   const {workspace,tab} = fixture();
   assert.equal(variablePreview(workspace,tab,'constructor').state,'missing');
