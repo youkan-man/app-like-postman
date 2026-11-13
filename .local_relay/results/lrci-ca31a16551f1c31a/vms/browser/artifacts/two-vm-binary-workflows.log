@@ -1,0 +1,45 @@
+PASS zero bytes, all 256 byte values, 6 MiB, POST/PUT/PATCH match receiver SHA-256
+PASS request switches keep attachments separate and never reuse another request file
+PASS restoring another request invalidates only its attachments and preserves the selected request file
+PASS Send during replacement read waits and sends the new file, never the old one
+PASS file read completion updates its originating request even after switching selection
+PASS out-of-order completion cannot overwrite a newer file selection
+PASS read failure discards old bytes, blocks transmission, and recovers on reselection
+PASS Cancel interrupts a pending file send without sending or losing the file
+PASS asynchronous pre-request scripts use the attachment captured at Send
+PASS multipart insertion/deletion keep ready and pending file bytes on their original field
+PASS multiple multipart files preserve order, Unicode filenames, empty files and receiver hashes
+PASS deleting a pending multipart row cannot resurrect its file on a new row
+PASS all four sidebar categories remain visible on the fixed rail at desktop and phone widths
+PASS minimum sidebar width preserves the fixed category rail and keyboard navigation
+PASS reload explicitly requires file reselection, then sends the selected bytes correctly
+PASS cancelling the file chooser preserves the last selected file
+PASS request deletion uses the app dialog, cancel/Escape are non-destructive, and only accept deletes
+PASS environment deletion and primary-variable clearing use application confirmations
+PASS history clearing is confirmed inside the app at phone width with cancellation preserving history
+PASS revision restore confirmation stacks above the history drawer without closing it on cancellation
+Traceback (most recent call last):
+  File "/workspace/tests/ui_binary_workflows.py", line 303, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/workspace/tests/ui_binary_workflows.py", line 271, in main
+    page.get_by_role('button',name='Untitled requestの下書き操作',exact=True).click()
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 15637, in click
+    self._sync(
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_locator.py", line 162, in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_frame.py", line 566, in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Locator.click: Timeout 12000ms exceeded.
+Call log:
+  - waiting for get_by_role("button", name="Untitled requestの下書き操作", exact=True)
+
