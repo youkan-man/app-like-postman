@@ -10,10 +10,13 @@ python tests/ui_workbench.py
 python tests/ui_edgecases.py
 python tests/ui_settings.py
 python tests/ui_selection.py
+python tests/ui_sent_values.py
 python tests/docker_network.py
 ```
 
 ブラウザ試験は実HTTPのテストサーバーを使います。設定同期、自動保存、コピー操作、単一選択、表示高さ、設定別履歴、復元、リロード、モバイル表示を確認します。保存失敗の試験だけブラウザストレージに意図的なエラーを注入します。
+
+`tests/ui_sent_values.py` は変数ホバーの優先順位・文字位置・スクロールと、実HTTPで受信したURL・ヘッダー・本文が送信履歴に一致することを確認します。送信前後のスクリプト、環境切替、再読込、旧履歴、320/390px幅を含み、`sent-values/` に結果と画面を保存します。`tests/test_sent_request.py` はリダイレクト・送信失敗・本文の全文保持・ファイルのメタ情報を検証します。
 
 Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポートだけを分離します。host／subnetオーバーライドや接続先書換えは使いません。結果と画面は `ARTIFACT_DIR` へ保存します。GitHub Actionsも同じ試験を実行します。物理COM／USBや本番APIを操作する試験は含みません。
 

@@ -13,9 +13,11 @@ import {moveCollectionItem} from './collection-move.mjs';
 import {bindCollectionDrag} from './collection-drag.mjs';
 import {bindUrlMenu} from './url-menu.mjs';
 import {TransferProgress, createTransferView, paintTransferView} from './transfer-progress.mjs';
+import {bindVariableHover} from './variable-hover.mjs';
+import {historyEntry, historyUrl, sentRequests, createHistoryView} from './sent-history.mjs';
 
 const $ = id => document.getElementById(id);
-let workbench, studio;
+let workbench, studio, historyView, selectedHistoryEntry = null;
 const storage = new WorkspaceStorage();
 const freshTab = () => ({id: uid(), name: 'Untitled request', request: newRequest(), settings: {verify_tls: false, follow_redirects: true, timeout_ms: 30000}, dirty: false});
 const initial = () => {const tab = freshTab(); return {version: 2, collections: [], environments: [], globals: [], tabs: [tab], activeId: tab.id, environmentId: '', history: [], collapsed: [], theme: 'light'};};
@@ -547,13 +549,20 @@ function renderSidebarSection() {
       row.append(edit, more); root.append(row); bindContext(row, more, (anchor, event) => environmentMenu(env, false, anchor, event));
     });
   } else if (side === 'history') {
-    for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
-      const row = button('', () => {chooseEnvironment(entry.environmentId); addTab({...clone(entry.tab), id: uid(), itemId: undefined, dirty: true});}, 'history-entry');
-      const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + displayUrl(entry.tab.request.url)));
-      row.append(element('span', `method-label method-${entry.tab.request.method}`, entry.tab.request.method), label, element('span', 'history-code', entry.status || 'ERR'));
+    if (!workspace.history.includes(selectedHistoryEntry)) selectedHistoryEntry = workspace.history.at(-1) || null;
+    for (const entry of [...workspace.history].reverse().filter(h => `${h.tab.name} ${historyUrl(h)} ${displayUrl(h.tab.request.url)}`.toLowerCase().includes(search))) {
+      const row = button('', () => {
+        selectedHistoryEntry = entry;
+        for (const item of root.querySelectorAll('.history-entry')) item.setAttribute('aria-current', String(item === row));
+        renderHistoryPage(); workbench.closeNavigation();
+      }, 'history-entry');
+      row.dataset.historyId = entry.id || ''; row.setAttribute('aria-current', String(selectedHistoryEntry === entry));
+      const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + historyUrl(entry)));
+      const method = sentRequests(entry)?.[0]?.method || entry.tab.request.method;
+      row.append(element('span', `method-label method-${method}`, method), label, element('span', 'history-code', entry.status || 'ERR'));
       const menu = event => {event?.preventDefault(); openItemMenu(row, [
-        {label:'編集用に開く',run:()=>row.click()},
-        {label:'もう一度送信',run:()=>{row.click(); sendRequest();}}
+        {label:'編集用に開く',run:()=>openHistoryForEdit(entry)},
+        {label:'現在の値で再送信',run:()=>{openHistoryForEdit(entry); sendRequest();}}
       ],event);};
       row.oncontextmenu = menu;
       row.onkeydown = event => {
@@ -627,6 +636,16 @@ function chooseSidebar(name) {
   renderSidebar();
   studio?.syncView(side);
   saveNavigation();
+}
+function renderHistoryPage() {
+  if (!workspace.history.includes(selectedHistoryEntry)) selectedHistoryEntry = workspace.history.at(-1) || null;
+  historyView?.render(selectedHistoryEntry);
+}
+function openHistoryForEdit(entry) {
+  const collection = workspace.collections.find(value => value._mpId === entry.tab.collectionId);
+  const pendingFolderId = findItem(collection, entry.tab.itemId)?.parents.at(-1)?._mpId || entry.tab.pendingFolderId;
+  side = 'collections'; chooseEnvironment(entry.environmentId);
+  addTab({...clone(entry.tab), id: uid(), itemId: undefined, pendingFolderId, dirty: true}); saveNavigation();
 }
 function focusTreeItem(collectionId, itemId) {
   const line = [...$('sidebarContent').querySelectorAll('.tree-row')].find(row =>
@@ -959,17 +978,18 @@ function renderResponse() {
 async function sendRequest() {
   const tab = active(); if (requests.has(tab.id)) {transfers.cancelling(tab.id); requests.get(tab.id).abort(); return;}
   const snapshot = clone(tab), environmentId = workspace.environmentId, controller = new AbortController(); requests.set(tab.id, controller);
+  const historyContext = {environmentId, environmentName: workspace.environments.find(env => env.id === environmentId)?.name || '', at: new Date().toISOString()};
   const transfer = transfers.begin(tab.id);
   responses.delete(tab.id); renderRequestFooter(); renderResponse();
   try {
     const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal),onProgress:transfer.update});
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, result);
-    workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: result.status, elapsed_ms: result.elapsed_ms}); persist();
+    workspace.history.push(historyEntry(snapshot, result, historyContext)); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
   } catch (error) {
     const cancelled = error.name === 'AbortError';
     if (workspace.tabs.some(t => t.id === tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
-    if (!cancelled) {workspace.history.push({id: uid(), at: new Date().toISOString(), tab: snapshot, environmentId, status: 'ERR'}); persist();}
+    if (!cancelled) {workspace.history.push(historyEntry(snapshot, error, historyContext)); persist();}
   } finally {transfer.finish(); requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
 function showRevisions(key) {
@@ -1030,18 +1050,19 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
-  if (['environments','relations'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
+  if (['environments','relations','history'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
   if ($('modal').open && ($('modal').matches(':modal') || $('modal').contains(document.activeElement))) return;
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations'].includes(side)) {event.preventDefault(); sendRequest();}
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations','history'].includes(side)) {event.preventDefault(); sendRequest();}
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });
 workbench = initWorkbench(storage); bindItemMenu(); bindSurface();
+historyView = createHistoryView($('historyPage'), {edit: openHistoryForEdit, copy: copyText});
 studio = initStudio({
   $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,
   workspace:()=>workspace,active,side:()=>side,setSide:value=>{side=value;saveNavigation();},
-  renderSidebar,renderAll,renderEditor,renderEnvironments,closeNavigation:()=>workbench.closeNavigation(),
+  renderSidebar,renderAll,renderEditor,renderEnvironments,renderHistoryPage,closeNavigation:()=>workbench.closeNavigation(),
   chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
   addDraft:()=>{side='collections';addTab();$('url').focus();},
   findDraft:(collectionId,itemId)=>workspace.tabs.find(t=>t.collectionId===collectionId&&t.itemId===itemId),
@@ -1054,13 +1075,14 @@ studio = initStudio({
   recordBackground:(tab,response,environmentId)=>{
     const draft=workspace.tabs.find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId));
     if(draft)responses.set(draft.id,response);
-    workspace.history.push({id:uid(),at:new Date().toISOString(),tab:clone(tab),environmentId,status:response.status,elapsed_ms:response.elapsed_ms});persist();renderSidebar();renderResponse();
+    workspace.history.push(historyEntry(tab,response,{environmentId,environmentName:workspace.environments.find(env=>env.id===environmentId)?.name || ''}));persist();renderSidebar();renderResponse();
   }
 });
 // Internal editor/response pages are tabbed; only request selection itself stays tab-free.
 // All-settings view retains flat spacing and heading disclosure.
 setTheme(); bindCollectionDrag($('sidebarContent'),{workspace:()=>workspace,move:moveTreeItem,error:toast});
 bindUrlMenu($('url'),{openMenu:openItemMenu,notify:toast,identity:()=>active().id});
+bindVariableHover({workspace:()=>workspace,active,primary:()=>studio.primary.rows});
 renderAll();
 setSaveStatus(recoveryMessage ? '保存データの復元が必要です。' : 'ローカルに保存済み', !!recoveryMessage);
 $('saveState').title = storage.backend === 'indexedDB' ? 'このブラウザのIndexedDBへ保存します。サーバーへの自動送信は行いません。' : '従来のブラウザ保存を使用しています。';

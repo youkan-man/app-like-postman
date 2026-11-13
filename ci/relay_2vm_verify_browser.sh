@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_sent_values.py >.local_relay/output/two-vm-sent-values.log 2>&1 || { cat .local_relay/output/two-vm-sent-values.log; exit 1; }
 python tests/ui_transfer_progress.py >.local_relay/output/two-vm-transfer-progress.log 2>&1 || { cat .local_relay/output/two-vm-transfer-progress.log; exit 1; }
 python tests/ui_large_binary.py >.local_relay/output/two-vm-large-binary.log 2>&1 || { cat .local_relay/output/two-vm-large-binary.log; exit 1; }
 python tests/ui_text_url_navigation.py >.local_relay/output/two-vm-text-url-navigation.log 2>&1 || { cat .local_relay/output/two-vm-text-url-navigation.log; exit 1; }
@@ -44,6 +45,8 @@ extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
+sent_values=json.loads((root/'sent-values/results.json').read_text())
+assert sent_values['mode']=='native Chromium HTTP' and not sent_values['page_errors'] and not sent_values['native_dialogs']
 progress=json.loads((root/'transfer-progress/results.json').read_text())
 assert progress['mode']=='native Chromium HTTP' and not progress['page_errors'] and not progress['native_dialogs']
 large=json.loads((root/'large-binary/results.json').read_text())
@@ -59,6 +62,8 @@ regressions={path:json.loads((root/path).read_text()) for path in regression_pat
 assert not any(result.get('page_errors') or result.get('errors') for result in regressions.values())
 assert regressions['storage/result.json']['native_indexeddb'] is True
 summary={'transfer_progress_checks':len(progress['checks']),'large_binary_checks':len(large['checks']),'text_url_navigation_checks':len(text_url['checks']),'native_regression_checks':{path:len(result['checks']) for path,result in regressions.items()},'mode':'two-vm Chromium HTTP','source_identity_verified':True,'focus_checks':len(focus['checks']),'extraction_checks':len(extract['checks']),'script_checks':len(script['checks']),'binary_workflow_checks':len(binary['checks']),'native_automation_checks':len(automation['checks']),'network':network,'screenshots':sum(len(result['screenshots']) for result in [focus,extract,script,automation,binary,large])}
+summary['sent_values_checks']=len(sent_values['checks'])
+summary['screenshots']+=len(sent_values['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

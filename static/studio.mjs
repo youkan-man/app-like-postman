@@ -92,8 +92,10 @@ export function initStudio(api) {
   }
   function syncView(side,force=false){
     $('addTab').disabled=side==='history';$('addTab').title=side==='history'?'送信履歴はリクエスト送信時に追加されます':'選択中のカテゴリに追加';
-    const kind=['environments','relations'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
-    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=kind==='request';
+    const kind=['environments','relations','history'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
+    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations'].includes(kind);
+    $('historyPage').hidden=kind!=='history';
+    if(kind==='history'){surfaceKey='';api.renderHistoryPage();return;}
     if(kind==='request'){surfaceKey='';return;}
     if(kind==='environments'&&!['globals','primary'].includes(envSelection)&&!w().environments.some(e=>e.id===envSelection))envSelection=w().environmentId||'';
     if(kind==='relations'&&!w().relations?.some(r=>r.id===relationId))relationId=w().relations?.[0]?.id||'';

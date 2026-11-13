@@ -134,8 +134,10 @@ def main():
 
             page.locator('#sidebarTabs [data-sidebar=history]').click(); expect(page.locator('.history-entry').first).to_be_visible()
             assert page.locator('.history-entry').count() >= 7
-            page.locator('.history-entry').first.click(); expect(page.locator('#requestName')).not_to_have_value('Untitled request')
-            passed('history persistence and reopen')
+            page.locator('.history-entry').first.click(); expect(page.locator('#historyPage')).to_be_visible()
+            expect(page.locator('#historyPage [data-sent-url]')).to_contain_text('/delay')
+            page.locator('#historyPage [data-history-edit]').click(); expect(page.locator('#requestName')).not_to_have_value('Untitled request')
+            passed('history transport values and explicit reopen')
             page.locator('#sidebarTabs [data-sidebar=collections]').click()
 
             before = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2")).collections.length')

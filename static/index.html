@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="/studio.css">
   <link rel="stylesheet" href="/script-editor.css">
   <link rel="stylesheet" href="/navigation-ui.css">
+  <link rel="stylesheet" href="/variable-hover.css">
+  <link rel="stylesheet" href="/sent-history.css">
   <script type="module" src="/app.js"></script>
   <link rel="stylesheet" href="transfer-progress.css">
 </head>
@@ -56,6 +58,7 @@
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
       <section id="workspacePage" class="workspace-page" aria-label="ワークスペース編集" hidden></section>
+      <section id="historyPage" class="workspace-page history-page" aria-label="送信履歴" hidden></section>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
           <div class="request-title"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
