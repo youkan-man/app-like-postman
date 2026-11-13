@@ -128,6 +128,54 @@ test('folder append remains available through its center when the outer boundary
   assert.deepEqual(workspace.collections[0].item.map(item => item._mpId), ['folder', 'next']);
 });
 
+test('moving a folder child before the next root sibling keeps the line at the rendered boundary', () => {
+  const workspace = {collections: [collection('a', [folder('folder', [request('source')]), request('next')])]};
+  const rows = [row('a', '', 0, 30), row('a', 'folder', 30, 60),
+    row('a', 'source', 60, 90, 33), row('a', 'next', 90, 120)];
+  const targets = buildCollectionDropTargets(workspace, {collectionId: 'a', itemId: 'source'}, rows);
+  const boundary = resolve(targets, 92);
+  assert.equal(boundary.kind, 'gap');
+  assert.equal(boundary.parentId, 'a');
+  assert.equal(boundary.index, 1);
+  assert.equal(boundary.noop, false);
+  assert.equal(boundary.y, 90);
+  assert.equal(resolve(targets, 75), null);
+  moveCollectionItem(workspace, boundary.intent);
+  assert.deepEqual(workspace.collections[0].item.map(item => item._mpId), ['folder', 'source', 'next']);
+});
+
+test('after a folder before the next collection includes the source child in its physical block', () => {
+  const workspace = {collections: [collection('a', [folder('folder', [request('source')])]), collection('b', [])]};
+  const rows = [row('a', '', 0, 30), row('a', 'folder', 30, 60),
+    row('a', 'source', 60, 90, 33), row('b', '', 94, 124)];
+  const targets = buildCollectionDropTargets(workspace, {collectionId: 'a', itemId: 'source'}, rows);
+  const boundary = resolve(targets, 92);
+  assert.equal(boundary.intent.targetId, 'folder');
+  assert.equal(boundary.intent.position, 'after');
+  assert.equal(boundary.noop, false);
+  assert.equal(boundary.y, 92);
+  assert.equal(resolve(targets, 75), null);
+  moveCollectionItem(workspace, boundary.intent);
+  assert.deepEqual(workspace.collections[0].item.map(item => item._mpId), ['folder', 'source']);
+});
+
+test('the final after-folder line stays below its rendered source subtree', () => {
+  const workspace = {collections: [collection('a', [folder('folder', [folder('source', [request('child')])])])]};
+  const rows = [row('a', '', 0, 30), row('a', 'folder', 30, 60),
+    row('a', 'source', 60, 90, 33), row('a', 'child', 90, 120, 46)];
+  const targets = buildCollectionDropTargets(workspace, {collectionId: 'a', itemId: 'source'}, rows);
+  const boundary = resolve(targets, 122);
+  assert.equal(boundary.kind, 'gap');
+  assert.equal(boundary.intent.targetId, 'folder');
+  assert.equal(boundary.intent.position, 'after');
+  assert.equal(boundary.y, 120);
+  assert.equal(boundary.noop, false);
+  assert.equal(resolve(targets, 75), null);
+  assert.equal(resolve(targets, 105), null);
+  moveCollectionItem(workspace, boundary.intent);
+  assert.deepEqual(workspace.collections[0].item.map(item => item._mpId), ['folder', 'source']);
+});
+
 test('end of a visible collection uses the last row parent, root append stays on its header', () => {
   const workspace = nestedFixture();
   workspace.collections[0].item.pop();

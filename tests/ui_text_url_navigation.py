@@ -172,6 +172,17 @@ def main():
             passed('releasing in the shared gap inserts the source exactly once at that position and preserves its ID')
 
             drag('Request two','Folder A',inspect_inside=True);w=state();assert [i['name'] for i in w['collections'][0]['item'][0]['item']]==['Request one','Request two']
+            source_box=row('Request two').bounding_box();next_box=row('Upload').bounding_box()
+            expected_y=(source_box['y']+source_box['height']+next_box['y'])/2
+            begin_drag('Request two')
+            page.mouse.move(next_box['x']+next_box['width']*.6,next_box['y']+2,steps=8)
+            line=page.locator('.tree-drop-line:visible');expect(line).to_have_count(1)
+            bounds=line.bounding_box();assert abs(bounds['y']+bounds['height']/2-expected_y)<1
+            capture('collection-folder-exit-gap',wait_for_toast=False)
+            page.mouse.up();saved();w=state()
+            assert [item['name'] for item in w['collections'][0]['item']]==['Folder A','Request two','Upload']
+            drag('Request two','Folder A')
+            passed('moving a folder child out keeps the insertion line at the actual row gap while its source remains visible')
             drag('Request two','Request one','before');w=state();assert [i['name'] for i in w['collections'][0]['item'][0]['item']]==['Request two','Request one']
             passed('mouse dragging supports inside-folder placement and before/after ordering with stable item IDs')
             before=state();drag('Folder A','Request one','inside');assert state()==before
@@ -232,6 +243,24 @@ def main():
             assert restored['activeRequest']==before['activeRequest']
             expect(page.locator('#requestName')).to_have_value('Upload')
             passed('moved hierarchy, stable references, active request and revision history survive reload')
+            # A collection's final insertion gap follows its whole expanded
+            # subtree, which can be far below its header and the viewport.
+            page.set_viewport_size({'width':1440,'height':920})
+            load({'info':{'name':'Long collection','schema':schema},'item':[
+                {'name':f'Long request {index}','request':{'method':'GET','url':target+'/echo'}} for index in range(40)]})
+            if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
+            page.locator('[data-sidebar=collections]').click();before=state()
+            grip=row('Collection A').locator('.tree-drag-handle');grip.focus()
+            page.keyboard.press('Space');page.keyboard.press('End')
+            line=page.locator('.tree-drop-line:visible');expect(line).to_have_count(1)
+            bounds=line.bounding_box();sidebar=page.locator('#sidebarContent').bounding_box()
+            last=row('Long request 39').bounding_box()
+            assert bounds['y']>=sidebar['y'] and bounds['y']+bounds['height']<=sidebar['y']+sidebar['height']+1
+            assert abs(bounds['y']+bounds['height']/2-last['y']-last['height'])<1
+            capture('collection-keyboard-end',wait_for_toast=False)
+            page.keyboard.press('Escape');expect(page.locator('.tree-drop-line:visible')).to_have_count(0)
+            assert state()==before
+            passed('keyboard End scrolls the actual gap after an expanded collection into view; Escape preserves the order')
             assert not errors,errors;assert not native_dialogs,native_dialogs
             passed('no browser-native dialogs or uncaught page exceptions')
             browser.close()

@@ -59,6 +59,12 @@ export function buildCollectionDropTargets(workspace, source, rows) {
     bottom: Math.max(...sourceRows.map(entry => entry.row.bottom)),
   } : null;
   const available = visible.filter(entry => !inSource(entry));
+  const visibleIndex = new Map(), visibleBlockEnd = new Map();
+  visible.forEach((entry, index) => {
+    visibleIndex.set(entry.row, index);
+    visibleBlockEnd.set(entry.meta.node, index);
+    for (const ancestor of entry.meta.ancestors) visibleBlockEnd.set(ancestor, index);
+  });
   const targets = [], seenTargets = new Set();
 
   function add(kind, anchor, position, geometry) {
@@ -89,7 +95,15 @@ export function buildCollectionDropTargets(workspace, source, rows) {
   }
 
   function gap(anchor, position, before, after, {top, bottom} = {}) {
-    const y = before && after ? (before.bottom + after.top) / 2 : before ? before.bottom : after.top;
+    // Logical source removal merges equivalent destinations, but its rendered
+    // rows still occupy space. Draw at the original visible boundary, never
+    // halfway across the removed source's (or its descendants') row geometry.
+    const anchorIndex = visibleIndex.get(anchor);
+    const edge = position === 'before' ? anchorIndex
+      : visibleBlockEnd.get(visible[anchorIndex].meta.node) + 1;
+    const physicalBefore = visible[edge - 1]?.row, physicalAfter = visible[edge]?.row;
+    const y = physicalBefore && physicalAfter ? (physicalBefore.bottom + physicalAfter.top) / 2
+      : physicalBefore ? physicalBefore.bottom : physicalAfter.top;
     const hitTop = top ?? (before ? middle(before) : y - (after.bottom - after.top) / 2);
     const hitBottom = bottom ?? (after ? middle(after) : y + (before.bottom - before.top) / 2);
     add('gap', anchor, position, {

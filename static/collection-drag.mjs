@@ -173,7 +173,13 @@ export function bindCollectionDrag(root, {workspace, move, error = () => {}}) {
         && item.intent.targetCollectionId === current?.intent.targetCollectionId);
     }
     if (!target) return;
-    target.anchor.element.scrollIntoView({block:'nearest'});
+    if (target.kind === 'inside') target.anchor.element.scrollIntoView({block:'nearest'});
+    else {
+      const box = root.getBoundingClientRect(), margin = Math.min(8, box.height / 2);
+      const top = box.top + margin, bottom = box.bottom - margin;
+      if (target.y < top) root.scrollTop += target.y - top;
+      else if (target.y > bottom) root.scrollTop += target.y - bottom;
+    }
     const key = target.key; drag.geometry = null;
     setTarget(targets().find(item => item.key === key));
   }, true);
