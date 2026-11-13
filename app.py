@@ -334,6 +334,30 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(STATIC_DIR), **kwargs)
 
+    def translate_path(self, path):
+        # A new namespace also changes every relative ESM import URL, so an
+        # updated app cannot reuse modules cached at the old root URLs.
+        if path.startswith("/assets/"):
+            path = path[len("/assets"):]
+        # Keep the standard percent-decoding and traversal normalization.
+        return super().translate_path(path)
+
+    def send_head(self):
+        # Legacy validators can describe different bytes with the same
+        # second-resolution mtime. Always send the current static resource.
+        for header in ("If-Modified-Since", "If-None-Match"):
+            del self.headers[header]
+        self._static_response = True
+        try:
+            return super().send_head()
+        finally:
+            self._static_response = False
+
+    def end_headers(self):
+        if getattr(self, "_static_response", False):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def send_json(self, status, value):
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
         self.send_response(status)

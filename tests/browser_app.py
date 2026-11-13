@@ -58,8 +58,8 @@ class BrowserApp:
             code=code.replace('window.location.reload()', 'window.__testReloadRequested = true')
             modules[prefix+path.name] = 'data:text/javascript;base64,' + base64.b64encode(code.encode()).decode()
         html = (ROOT/'static/index.html').read_text()
-        html = re.sub(r'<link rel="stylesheet" href="/([^"]+)">', lambda m:'<style>'+ (ROOT/'static'/m[1]).read_text()+'</style>', html)
-        html = html.replace('<script type="module" src="/app.js"></script>', '')
+        html = re.sub(r'<link rel="stylesheet" href="assets/([^"]+)">', lambda m:'<style>'+ (ROOT/'static'/m[1]).read_text()+'</style>', html)
+        html = html.replace('<script type="module" src="assets/app.js"></script>', '')
         boot = r'''
 const storage = initial => {
  const data = {...initial};

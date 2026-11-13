@@ -182,17 +182,12 @@ def main():
                 rows = page.locator('#sidebarContent [data-select-id][aria-selected="true"]')
                 expect(rows).to_have_count(len(identifiers))
                 assert set(rows.evaluate_all('(rows)=>rows.map(row=>row.dataset.selectId)')) == set(identifiers)
-                expect(page.locator('#sidebarContent input[data-select-toggle]:checked')).to_have_count(len(identifiers))
-                if identifiers:
-                    expect(page.locator('#selectionCount')).to_have_text(f'{len(identifiers)}件選択')
-                    expect(page.locator('#deleteSelection')).to_be_enabled()
-                else:
-                    expect(page.locator('#deleteSelection')).to_be_disabled()
-                    expect(page.locator('#clearSelection')).to_be_hidden()
+                expect(page.locator('#sidebarContent [data-select-id].list-selected')).to_have_count(len(identifiers))
 
             def clear_selection():
-                if page.locator('#clearSelection').is_visible():
-                    page.locator('#clearSelection').click()
+                rows = page.locator('#sidebarContent [data-select-id][aria-selected="true"]')
+                if rows.count():
+                    rows.first.locator('[data-select-open]').press('Escape')
                 selected([])
 
             def confirmation(accept=True):
@@ -312,11 +307,73 @@ def main():
             capture('explicit-drafts-desktop')
             passed('full backup contains only durable drafts and no orphan revisions from temporary editors')
 
+            # Reproduce response cleanup with actual sends, including an
+            # untouched response that must survive deleting the other drafts.
+            load_workspace(fixture)
+            def response_snapshots():
+                return page.evaluate("Object.fromEntries(JSON.parse(sessionStorage.getItem('minipost.responses.v1') || '[]'))")
+
+            for index, identifier in enumerate(DRAFT_IDS[:3], 1):
+                draft(identifier).locator('[data-select-open]').click()
+                with page.expect_response(lambda response: response.url.endswith('/api/request')) as sent_response:
+                    page.locator('#send').click()
+                response = sent_response.value.json()
+                assert response['ok'], response
+                expect(page.locator('#responseStatus')).to_contain_text('200')
+                expect(page.locator('#send')).to_contain_text('Send')
+                received = json.loads(response['body'])
+                assert received['method'] == 'POST' and received['path'] == '/echo'
+                assert received['body'] == f'legacy-{index}'
+            before_delete = state()
+            before_responses = response_snapshots()
+            assert len(before_delete['history']) == len(HISTORY_IDS)+3
+            for index, identifier in enumerate(DRAFT_IDS[:3], 1):
+                snapshot = before_responses['draft:'+identifier]
+                assert snapshot['status'] == 200 and json.loads(snapshot['body'])['body'] == f'legacy-{index}'
+
+            clear_selection()
+            for identifier in DRAFT_IDS[:2]:
+                draft(identifier).locator('[data-select-open]').click(modifiers=['Control'])
+            selected(['draft:'+identifier for identifier in DRAFT_IDS[:2]])
+            draft(DRAFT_IDS[0]).locator('[data-select-open]').click(button='right')
+            page.get_by_role('menuitem', name='選択した2件を削除', exact=True).click()
+            confirmation(accept=False)
+            cancelled = state()
+            assert_drafts_equal(cancelled['tabs'], before_delete['tabs'], 'cancel sent-draft deletion')
+            assert cancelled['revisions'] == before_delete['revisions']
+            assert cancelled['history'] == before_delete['history']
+            assert response_snapshots() == before_responses
+            selected(['draft:'+identifier for identifier in DRAFT_IDS[:2]])
+
+            draft(DRAFT_IDS[0]).locator('[data-select-open]').click(button='right')
+            page.get_by_role('menuitem', name='選択した2件を削除', exact=True).click()
+            confirmation()
+            deleted = state()
+            removed_keys = {'draft:'+identifier for identifier in DRAFT_IDS[:2]}
+            assert [tab['id'] for tab in deleted['tabs']] == DRAFT_IDS[2:]
+            assert all(key not in deleted['revisions'] for key in removed_keys)
+            assert deleted['revisions']['draft:'+DRAFT_IDS[2]] == before_delete['revisions']['draft:'+DRAFT_IDS[2]]
+            assert deleted['history'] == before_delete['history']
+            retained_responses = {key: value for key, value in before_responses.items() if key not in removed_keys}
+            assert response_snapshots() == retained_responses
+            expect(page.locator('#requestName')).to_have_value('Legacy draft 3')
+            expect(page.locator('#responseStatus')).to_contain_text('200')
+            assert json.loads(page.locator('.response-code').inner_text())['body'] == 'legacy-3'
+            reload()
+            assert [tab['id'] for tab in state()['tabs']] == DRAFT_IDS[2:]
+            assert response_snapshots() == retained_responses
+            expect(page.locator('#requestName')).to_have_value('Legacy draft 3')
+            expect(page.locator('#responseStatus')).to_contain_text('200')
+            assert json.loads(page.locator('.response-code').inner_text())['body'] == 'legacy-3'
+            assert not errors, errors
+            passed('deleting two real sent drafts removes only their response snapshots and revisions; cancellation and the third response remain intact after reload')
+
             # Restore a controlled set before testing destructive list actions.
             load_workspace(fixture)
+            expect(page.locator('input[data-select-toggle], #selectionToolbar, #deleteSelection, #selectAllEntries, #clearSelection')).to_have_count(0)
             draft(DRAFT_IDS[4]).locator('[data-select-open]').click()
             clear_selection()
-            draft(DRAFT_IDS[0]).locator('input[data-select-toggle]').check()
+            draft(DRAFT_IDS[0]).locator('[data-select-open]').press('Space')
             selected(['draft:'+DRAFT_IDS[0]])
             expect(page.locator('#requestName')).to_have_value('Legacy draft 5')
             draft(DRAFT_IDS[2]).locator('[data-select-open]').click(modifiers=['Control'])
@@ -325,7 +382,7 @@ def main():
             expect(page.locator('#requestName')).to_have_value('Legacy draft 5')
             draft(DRAFT_IDS[3]).locator('[data-select-open]').click(modifiers=['Meta'])
             selected(['draft:'+DRAFT_IDS[index] for index in [0, 2]])
-            passed('checkbox, Control and Meta toggle draft selection without changing the active editor')
+            passed('Space, Control and Meta toggle draft selection without opening requests or adding visible controls')
 
             clear_selection()
             draft(DRAFT_IDS[1]).locator('[data-select-open]').click()
@@ -348,7 +405,7 @@ def main():
             passed('Control+A is restricted to currently filtered list entries')
 
             for identifier in DRAFT_IDS[:2]:
-                draft(identifier).locator('input[data-select-toggle]').check()
+                draft(identifier).locator('[data-select-open]').click(modifiers=['Control'])
             selected(['draft:'+identifier for identifier in DRAFT_IDS[:2]])
             url = page.locator('#url')
             url.fill(receiver_url+'/echo?typing=1')
@@ -364,12 +421,20 @@ def main():
 
             clear_selection()
             for identifier in [DRAFT_IDS[0], DRAFT_IDS[2], DRAFT_IDS[4]]:
-                draft(identifier).locator('input[data-select-toggle]').check()
-            page.locator('#deleteSelection').click()
+                draft(identifier).locator('[data-select-open]').click(modifiers=['Control'])
+            draft(DRAFT_IDS[0]).locator('[data-select-open]').click(button='right')
+            expect(page.get_by_role('menuitem', name='選択した3件を削除', exact=True)).to_be_visible()
+            selected(['draft:'+DRAFT_IDS[index] for index in [0, 2, 4]])
+            page.keyboard.press('Escape')
+            expect(draft(DRAFT_IDS[0]).locator('[aria-haspopup="menu"]')).to_be_focused()
+            selected(['draft:'+DRAFT_IDS[index] for index in [0, 2, 4]])
+            draft(DRAFT_IDS[0]).locator('[aria-haspopup="menu"]').click()
+            page.get_by_role('menuitem', name='選択した3件を削除', exact=True).click()
             confirmation(accept=False)
             assert [tab['id'] for tab in state()['tabs']] == DRAFT_IDS
+            expect(draft(DRAFT_IDS[0]).locator('[aria-haspopup="menu"]')).to_be_focused()
             selected(['draft:'+DRAFT_IDS[index] for index in [0, 2, 4]])
-            passed('cancelling bulk-delete confirmation preserves the entire selection and its data')
+            passed('right-click and row menus keep the group; cancelling its deletion restores focus and preserves selection and data')
             draft(DRAFT_IDS[0]).locator('[data-select-open]').press('Delete')
             page.keyboard.press('Delete')
             confirmation()
@@ -383,7 +448,7 @@ def main():
             capture('draft-bulk-delete-desktop')
             passed('Delete confirms once and removes only selected drafts plus their own revision records')
 
-            page.locator('#selectAllEntries').click()
+            draft(DRAFT_IDS[1]).locator('[data-select-open]').press('Control+a')
             selected(['draft:'+DRAFT_IDS[index] for index in [1, 3]])
             draft(DRAFT_IDS[1]).locator('[data-select-open]').press('Backspace')
             confirmation()
@@ -397,7 +462,7 @@ def main():
             open_history('history-4')
             clear_selection()
             for identifier in ['history-1', 'history-3']:
-                history(identifier).locator('input[data-select-toggle]').check()
+                history(identifier).locator('[data-select-open]').click(modifiers=['Control'])
             selected(['history:history-1', 'history:history-3'])
             expect(page.locator('#historyPage')).to_have_attribute('data-history-id', 'history-4')
             clear_selection()
@@ -409,13 +474,14 @@ def main():
             history('history-4').locator('[data-select-open]').press('Escape')
             selected([])
             assert state()['tabs'] == []
-            passed('history checkboxes, range selection and keyboard selection do not create or switch request drafts')
+            passed('history modifier clicks, range selection and keyboard selection do not create or switch request drafts')
 
             page.locator('#search').fill('History 2')
             expect(page.locator('[data-select-id^="history:"]')).to_have_count(1)
-            page.locator('#selectAllEntries').click()
+            history('history-2').locator('[data-select-open]').press('Control+a')
             selected(['history:history-2'])
-            page.locator('#deleteSelection').click()
+            history('history-2').locator('[data-select-open]').press('Shift+F10')
+            page.get_by_role('menuitem', name='送信履歴を削除', exact=True).click()
             confirmation()
             assert {entry['id'] for entry in state()['history']} == {'history-1', 'history-3', 'history-4'}
             assert state()['tabs'] == []
@@ -424,13 +490,15 @@ def main():
 
             page.set_viewport_size({'width': 320, 'height': 720})
             side('history')
-            page.locator('#selectAllEntries').click()
+            history('history-4').locator('[data-select-open]').press('Control+a')
             selected(['history:history-1', 'history:history-3', 'history:history-4'])
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-            toolbar = page.locator('#selectionToolbar').bounding_box()
-            assert toolbar and toolbar['x'] >= 0 and toolbar['x']+toolbar['width'] <= 321
+            expect(page.locator('input[data-select-toggle], #selectionToolbar')).to_have_count(0)
             capture('history-selection-320')
-            page.locator('#deleteSelection').click()
+            history('history-4').locator('[data-select-open]').press('Shift+F10')
+            menu = page.locator('#itemMenu').bounding_box()
+            assert menu and menu['x'] >= 0 and menu['x']+menu['width'] <= 321
+            page.get_by_role('menuitem', name='選択した3件を削除', exact=True).click()
             expect(page.locator('#appConfirm')).to_be_visible()
             bounds = page.locator('#appConfirm').bounding_box()
             assert bounds and bounds['x'] >= 0 and bounds['x']+bounds['width'] <= 321
@@ -440,7 +508,7 @@ def main():
             page.set_viewport_size({'width': 1440, 'height': 1000})
             reload()
             assert state()['history'] == [] and state()['tabs'] == []
-            passed('320px list controls and one application confirmation fit the viewport; deletion persists after reload')
+            passed('320px rows, context menu and one application confirmation fit the viewport without a selection toolbar; deletion persists after reload')
 
             # Invalid imported rows are omitted from the displayed form-data.
             # A file chosen for that displayed index must reach the same field.

@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <title>MiniPost</title>
-  <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/settings.css">
-  <link rel="stylesheet" href="/selection.css">
-  <link rel="stylesheet" href="/redesign.css">
-  <link rel="stylesheet" href="/corporate.css">
-  <link rel="stylesheet" href="/content-tabs.css">
-  <link rel="stylesheet" href="/studio.css">
-  <link rel="stylesheet" href="/script-editor.css">
-  <link rel="stylesheet" href="/navigation-ui.css">
-  <link rel="stylesheet" href="/variable-hover.css">
-  <link rel="stylesheet" href="/sent-history.css">
-  <link rel="stylesheet" href="/list-selection.css">
-  <script type="module" src="/app.js"></script>
-  <link rel="stylesheet" href="transfer-progress.css">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/settings.css">
+  <link rel="stylesheet" href="assets/selection.css">
+  <link rel="stylesheet" href="assets/redesign.css">
+  <link rel="stylesheet" href="assets/corporate.css">
+  <link rel="stylesheet" href="assets/content-tabs.css">
+  <link rel="stylesheet" href="assets/studio.css">
+  <link rel="stylesheet" href="assets/script-editor.css">
+  <link rel="stylesheet" href="assets/navigation-ui.css">
+  <link rel="stylesheet" href="assets/variable-hover.css">
+  <link rel="stylesheet" href="assets/sent-history.css">
+  <link rel="stylesheet" href="assets/list-selection.css">
+  <script type="module" src="assets/app.js"></script>
+  <link rel="stylesheet" href="assets/transfer-progress.css">
 </head>
 <body>
   <header class="topbar">
@@ -53,12 +53,7 @@
           <button id="clearHistory" class="icon-button" title="送信履歴を削除" aria-label="送信履歴を削除" hidden>⌫</button>
           <button id="navClose" class="icon-button" aria-label="一覧を閉じる" hidden>×</button>
         </div>
-        <div id="selectionToolbar" class="list-selection-toolbar" aria-label="選択項目の操作" hidden>
-          <span id="selectionCount" class="list-selection-count" role="status"></span>
-          <button id="selectAllEntries" class="text-button" title="表示中の項目をすべて選択（Ctrl / ⌘ + A）">すべて選択</button>
-          <button id="clearSelection" class="text-button" title="選択を解除（Esc）" hidden>解除</button>
-          <button id="deleteSelection" class="button danger" title="選択した項目を削除（Delete / Backspace）" disabled>削除</button>
-        </div>
+        <span id="selectionCount" class="visually-hidden" role="status"></span>
         <div id="sidebarContent" class="sidebar-content" tabindex="-1"></div>
       </aside>
     </div>

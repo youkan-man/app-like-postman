@@ -3,6 +3,7 @@ import base64
 import gzip
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import ssl
@@ -12,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
@@ -212,17 +214,78 @@ class ProxyTests(unittest.TestCase):
             result = json.load(response)
         self.assertEqual(json.loads(result['body'])['body'], 'via proxy')
         with urlopen(self.proxy_url + '/api/health') as response:
+            self.assertEqual(response.headers.get_all('Cache-Control'), ['no-store'])
             self.assertTrue(json.load(response)['ok'])
         with urlopen(self.proxy_url + '/') as response:
             html = response.read()
             self.assertIn(b'<title>MiniPost</title>', html)
             self.assertNotIn(b'id="requestTabs"', html)
             self.assertIn(b'id="requestHistory"', html)
-            self.assertIn(b'src="/app.js"', html)
+            self.assertIn(b'src="assets/app.js"', html)
         for path in ['/core.mjs', '/workbench.mjs', '/transport.mjs', '/revisions.mjs']:
             with self.subTest(path=path), urlopen(self.proxy_url + path) as response:
                 self.assertIn('javascript', response.headers['Content-Type'])
                 self.assertGreater(len(response.read()), 0)
+
+    def test_static_asset_alias_bytes_mime_and_cache_policy(self):
+        for name, mime in [('index.html', 'text/html'), ('app.js', 'javascript'),
+                           ('studio.mjs', 'javascript'), ('style.css', 'text/css')]:
+            expected = (proxy.STATIC_DIR / name).read_bytes()
+            for prefix in ['/', '/assets/']:
+                path = prefix + name + '?version=updated'
+                with self.subTest(path=path), urlopen(self.proxy_url + path) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.read(), expected)
+                    self.assertIn(mime, response.headers['Content-Type'])
+                    self.assertEqual(int(response.headers['Content-Length']), len(expected))
+                    self.assertEqual(response.headers.get_all('Cache-Control'), ['no-store'])
+
+    def test_static_conditionals_refresh_same_timestamp_body(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(proxy, 'STATIC_DIR', Path(directory)):
+            path = proxy.STATIC_DIR / 'module.mjs'
+            path.write_bytes(b'export const version = 1;')
+            modified = int(time.time()) - 60
+            os.utime(path, (modified, modified))
+            with urlopen(self.proxy_url + '/assets/module.mjs') as response:
+                before = response.read()
+                last_modified = response.headers['Last-Modified']
+            updated = b'export const version = 2;'
+            self.assertEqual(len(before), len(updated))
+            path.write_bytes(updated)
+            os.utime(path, (modified, modified))
+            validators = [{'If-Modified-Since': last_modified}, {'If-None-Match': '*'},
+                          {'If-Modified-Since': last_modified, 'If-None-Match': '"old-module"'}]
+            for asset_url in ['/module.mjs', '/assets/module.mjs']:
+                for headers in validators:
+                    with self.subTest(path=asset_url, headers=headers):
+                        with urlopen(Request(self.proxy_url + asset_url, headers=headers)) as response:
+                            self.assertEqual(response.status, 200)
+                            self.assertEqual(response.read(), updated)
+                            self.assertEqual(response.headers['Last-Modified'], last_modified)
+                            self.assertEqual(response.headers.get_all('Cache-Control'), ['no-store'])
+                with urlopen(Request(self.proxy_url + asset_url, method='HEAD', headers=validators[0])) as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.read(), b'')
+                    self.assertEqual(int(response.headers['Content-Length']), len(updated))
+                    self.assertEqual(response.headers.get_all('Cache-Control'), ['no-store'])
+
+    def test_static_asset_alias_keeps_standard_path_sanitization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            static = parent / 'static'
+            static.mkdir()
+            (parent / 'outside.txt').write_text('must not be served')
+            expected = b'export const inside = true;'
+            (static / 'module.mjs').write_bytes(expected)
+            with patch.object(proxy, 'STATIC_DIR', static):
+                for path in ['/assets/../outside.txt', '/assets/%2e%2e/outside.txt',
+                             '/assets/%2e%2e%2foutside.txt', '/assets/../../outside.txt',
+                             '/assets-other/module.mjs']:
+                    with self.subTest(path=path), self.assertRaises(HTTPError) as raised:
+                        urlopen(self.proxy_url + path)
+                    self.assertEqual(raised.exception.code, 404)
+                with urlopen(self.proxy_url + '/assets/nested/../module.mjs?version=1') as response:
+                    self.assertEqual(response.read(), expected)
 
     def test_removed_sample_endpoint(self):
         with self.assertRaises(HTTPError) as raised:

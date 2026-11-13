@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {contextFor, resolver} from '../static/core.mjs';
-import {variableTokens, variableAtCaret, variablePreview} from '../static/variable-hover.mjs';
+import {variableTokens, variableAtCaret, variablePreview, variableTooltipPlacement} from '../static/variable-hover.mjs';
 
 function fixture() {
   const request = {method:'GET',url:{raw:'https://{{host}}/v1',variable:[{key:'same',value:'path'}]}};
@@ -10,6 +10,32 @@ function fixture() {
   const collection = {_mpId:'collection',info:{name:'API'},variable:[{key:'same',value:'collection'}],item:[folder]};
   return {workspace:{collections:[collection],globals:[{key:'same',value:'global'},{key:'host',value:'api.example.test'}],environments:[{id:'env',name:'Dev',values:[{key:'same',value:'environment'},{key:'nested',value:'https://{{host}}/{{same}}'}]}],environmentId:'env'},tab:{collectionId:'collection',itemId:'item',request},folder};
 }
+
+test('placement prefers above and keeps its near edge outside the field', () => {
+  assert.deepEqual(variableTooltipPlacement({top:260,bottom:294},64,{height:800}),
+    {side:'above',edge:254,maxHeight:246});
+});
+
+test('placement falls below when above cannot fit the value preview', () => {
+  assert.deepEqual(variableTooltipPlacement({top:30,bottom:66},60,{height:600}),
+    {side:'below',edge:72,maxHeight:340});
+});
+
+test('oversized previews scroll within the larger side instead of crossing the field', () => {
+  const above = variableTooltipPlacement({top:150,bottom:190},340,{height:300});
+  assert.deepEqual(above,{side:'above',edge:144,maxHeight:136});
+  assert.equal(above.edge-above.maxHeight,8);
+  const below = variableTooltipPlacement({top:80,bottom:120},340,{height:300});
+  assert.deepEqual(below,{side:'below',edge:126,maxHeight:166});
+  assert.equal(below.edge+below.maxHeight,292);
+});
+
+test('placement honors visual viewport offsets and the maximum readable popup height', () => {
+  assert.deepEqual(variableTooltipPlacement({top:250,bottom:290},120,{top:200,height:500}),
+    {side:'below',edge:296,maxHeight:340});
+  assert.deepEqual(variableTooltipPlacement({top:780,bottom:820},900,{height:1000}),
+    {side:'above',edge:774,maxHeight:340});
+});
 
 test('token offsets identify each occurrence including whitespace and unicode', () => {
   const source = '/{{ first }}/{{日本語}}/{{ first }}';

@@ -54,7 +54,6 @@ export class SelectionState {
 }
 
 const rowSelector = '[data-select-id]';
-const toggleSelector = 'input[data-select-toggle]';
 const openSelector = '[data-select-open], .tree-open, .history-open';
 const sameIds = (a, b) => a.length === b.length && a.every((id, index) => id === b[index]);
 
@@ -62,13 +61,12 @@ function textEntry(target) {
   if (target?.isContentEditable || target?.closest?.('textarea, select, [role="textbox"]')) return true;
   const editable = target?.closest?.('[contenteditable]');
   if (editable && editable.getAttribute('contenteditable') !== 'false') return true;
-  const input = target?.closest?.('input');
-  return !!input && (input.type !== 'checkbox' || !input.matches(toggleSelector));
+  return !!target?.closest?.('input');
 }
 
 /**
- * Rows use data-select-id; checkboxes use data-select-toggle. Call refresh()
- * after replacing list contents. onChange updates the toolbar, not the list.
+ * Rows use data-select-id and their open buttons use data-select-open. Call
+ * refresh() after replacing list contents. onChange must not rebuild the list.
  * onDelete owns confirmation, persistence and reporting any deletion error.
  */
 export function bindListSelection(root, {onDelete = () => {}, onChange = () => {}} = {}) {
@@ -96,8 +94,6 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
       const selected = state.has(row.dataset.selectId);
       row.classList.toggle('list-selected', selected);
       row.setAttribute('aria-selected', String(selected));
-      const checkbox = row.querySelector(toggleSelector);
-      if (checkbox) checkbox.checked = selected;
     }
   }
 
@@ -107,28 +103,32 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
     if (!sameIds(before, state.ids)) onChange(state.ids);
   }
 
-  function focusRow(row, checkbox = false) {
-    const control = (checkbox && row.querySelector(toggleSelector))
+  function focusRow(row, action = false) {
+    const control = (action && row.querySelector('[aria-haspopup="menu"]'))
       || row.querySelector(openSelector) || row;
     control.focus({preventScroll: true});
     row.scrollIntoView?.({block: 'nearest'});
   }
 
-  function refresh() {
+  function restoreDetachedFocus() {
     if (destroyed) return;
-    const previousOrder = order(), focus = lastFocus;
+    const focus = lastFocus;
     const restoreFocus = focus && !root.contains(focus.element)
       && (!doc.activeElement || doc.activeElement === doc.body || doc.activeElement === root);
-    rows = listRows();
-    update(() => state.reconcile(order()));
     if (restoreFocus) {
-      const index = Math.max(0, previousOrder.indexOf(focus.id));
       const row = rows.find(item => item.dataset.selectId === focus.id)
-        || rows[Math.min(index, rows.length - 1)];
+        || rows[Math.min(focus.index, rows.length - 1)];
       lastFocus = null;
-      if (row) focusRow(row, focus.checkbox);
+      if (row) focusRow(row, focus.action);
       else root.focus({preventScroll: true});
     }
+  }
+
+  function refresh() {
+    if (destroyed) return;
+    rows = listRows();
+    update(() => state.reconcile(order()));
+    restoreDetachedFocus();
   }
 
   function click(event) {
@@ -136,19 +136,14 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
     const row = rowOf(event.target);
     if (!row) return;
     const id = row.dataset.selectId, modifier = event.ctrlKey || event.metaKey;
-    const checkbox = event.target.closest?.(toggleSelector);
     const action = event.target.closest?.('button, a, [role="button"]');
     // Opening an item replaces selection. Its menu keeps an existing group.
-    if (!checkbox && !modifier && !event.shiftKey && action
+    if (!modifier && !event.shiftKey && action
       && !action.matches(openSelector) && state.has(id)) return;
     update(() => state.select(id, order(), {
-      toggle: !!checkbox || modifier, range: event.shiftKey, additive: modifier,
+      toggle: modifier, range: event.shiftKey, additive: modifier,
     }));
-    if (checkbox) {
-      // Native checkboxes activate before click dispatch. Cancelling the click
-      // would restore their old checked state after paint().
-      event.stopPropagation();
-    } else if (modifier || event.shiftKey) {
+    if (modifier || event.shiftKey) {
       event.preventDefault(); event.stopPropagation();
     }
   }
@@ -162,14 +157,21 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
   function focusin(event) {
     const row = rowOf(event.target);
     if (row) {
-      lastFocus = {id: row.dataset.selectId, element: event.target,
-        checkbox: event.target.matches?.(toggleSelector)};
+      lastFocus = {id: row.dataset.selectId, element: event.target, index: rows.indexOf(row),
+        action: !event.target.matches?.(openSelector) && event.target.matches?.('[aria-haspopup="menu"]')};
       state.focused = row.dataset.selectId;
     }
   }
 
   function documentFocus(event) {
-    if (!root.contains(event.target)) lastFocus = null;
+    // Menus and confirmation dialogs temporarily borrow the row's focus. Keep
+    // its identity if the list is rebuilt while one of these surfaces is open.
+    if (event.target === doc.body && lastFocus && !root.contains(lastFocus.element)) return;
+    if (!root.contains(event.target) && !event.target.closest?.('[role="menu"], dialog')) lastFocus = null;
+  }
+
+  function surfaceInteraction(event) {
+    if (event.target.closest?.('[role="menu"], dialog')) queueMicrotask(restoreDetachedFocus);
   }
 
   function consume(event) { event.preventDefault(); event.stopPropagation(); }
@@ -177,11 +179,23 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
   function keydown(event) {
     if (event.defaultPrevented || event.isComposing || event.altKey || textEntry(event.target)) return;
     const modifier = event.ctrlKey || event.metaKey;
+    const current = rowOf(event.target);
     if (modifier && !event.shiftKey && event.key.toLowerCase() === 'a') {
       if (!rows.length) return;
       consume(event); update(() => state.selectAll(order())); return;
     }
+    if (event.key === ' ' && current && event.target.closest?.(openSelector)) {
+      consume(event);
+      if (!event.repeat) update(() => state.select(current.dataset.selectId, order(), {
+        toggle: true, range: event.shiftKey, additive: modifier,
+      }));
+      return;
+    }
     if (modifier) return;
+    if (current && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+      if (!state.has(current.dataset.selectId)) update(() => state.select(current.dataset.selectId, order()));
+      return; // Let the existing row handler open its menu.
+    }
     if (event.key === 'Escape') {
       if (!state.ids.length) return;
       consume(event); update(() => state.clear()); return;
@@ -203,7 +217,6 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
       return;
     }
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) || !rows.length) return;
-    const current = rowOf(event.target);
     if (!current && event.target !== root) return;
     const ids = order(), currentId = current?.dataset.selectId ?? state.focused;
     const index = ids.indexOf(currentId);
@@ -222,6 +235,8 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
   root.addEventListener('keydown', keydown, true);
   root.addEventListener('focusin', focusin);
   doc.addEventListener('focusin', documentFocus);
+  doc.addEventListener('click', surfaceInteraction, true);
+  doc.addEventListener('keydown', surfaceInteraction, true);
   refresh();
 
   return {
@@ -239,6 +254,8 @@ export function bindListSelection(root, {onDelete = () => {}, onChange = () => {
       root.removeEventListener('keydown', keydown, true);
       root.removeEventListener('focusin', focusin);
       doc.removeEventListener('focusin', documentFocus);
+      doc.removeEventListener('click', surfaceInteraction, true);
+      doc.removeEventListener('keydown', surfaceInteraction, true);
       state.clear(); paint(); lastFocus = null;
     },
   };
