@@ -14,6 +14,7 @@ python tests/ui_sent_values.py
 python tests/ui_draft_lifecycle.py
 python tests/ui_asset_update.py
 python tests/ui_text_url_navigation.py
+python tests/ui_layout.py
 python tests/docker_network.py
 ```
 
@@ -26,6 +27,8 @@ python tests/docker_network.py
 `tests/ui_asset_update.py` は旧モジュールを実HTTPキャッシュに残した状態で新しい画面を開き、更新された依存モジュールが読み込まれて一括削除が完了することをnative Chromiumで検証します。静的ファイルのキャッシュ方針・同一更新時刻での内容差し替えは `tests/test_proxy.py` で確認します。変数ポップアップの上下両方向の配置と、値がカーソルに近い端に来ることは `tests/ui_sent_values.py` が実座標で確認します。
 
 `tests/collection-drop.test.mjs` はドラッグの挿入位置を、兄弟間の共通境界・フォルダー階層・絞り込み・自己位置について検証します。`tests/ui_text_url_navigation.py` では、同じドラッグ中に上の行の下端、実際の行間、下の行の上端を通過させ、挿入位置と1本の線が変わらないことを実座標で確認します。説明ラベルを表示しないこと、行間での実際の移動、タッチ・キー操作、添付ファイル・参照・変更履歴の保持も確認します。
+
+`tests/ui_layout.py` は320/390pxとPC画面で、未登録リクエストの操作、本文・スクリプトとレスポンスの高さ、分割・画面サイズ変更、長い送信履歴を実座標で検証します。外側のはみ出しだけでなく、編集行の可視性、ボタンの文字折返し、操作要素の重なり、ペイン下端の空白も確認し、成功時・失敗時の画面と座標を保存します。
 
 Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポートだけを分離します。host／subnetオーバーライドや接続先書換えは使いません。結果と画面は `ARTIFACT_DIR` へ保存します。GitHub Actionsも同じ試験を実行します。物理COM／USBや本番APIを操作する試験は含みません。
 

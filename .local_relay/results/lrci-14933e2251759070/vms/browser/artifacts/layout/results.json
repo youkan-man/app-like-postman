@@ -1,0 +1,2712 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "new unregistered request and registration dialog remain readable and operable at 320px",
+    "new unregistered request and registration dialog remain readable and operable at 390px",
+    "body after a real send fills the workbench and exposes both panes at 1366x768",
+    "body after a real send fills the workbench and exposes both panes at 1440x920",
+    "body after a real send fills the workbench and exposes both panes at 320x720",
+    "body after a real send fills the workbench and exposes both panes at 390x844",
+    "body split keyboard, pointer and viewport resizing move actual panels while preserving readable content",
+    "scripts after a real send fills the workbench and exposes both panes at 1366x768",
+    "scripts after a real send fills the workbench and exposes both panes at 1440x920",
+    "scripts after a real send fills the workbench and exposes both panes at 320x720",
+    "scripts after a real send fills the workbench and exposes both panes at 390x844",
+    "scripts split keyboard, pointer and viewport resizing move actual panels while preserving readable content",
+    "running manual script keeps every header action reachable without overlap at 320, 390 and 768px, and stops normally",
+    "side request title keeps a readable name beside a long breadcrumb and unsaved state near its wrapping boundary",
+    "narrow desktop request pane preserves the complete registration label and URL controls",
+    "narrow desktop response pane keeps status, actions, search and keyboard-selected tabs visible without overlap",
+    "short 1440x520 window keeps request controls and both content panes reachable without hiding the footer",
+    "short 844x390 window keeps request controls and both content panes reachable without hiding the footer",
+    "long history names and URLs retain compact stable rows, readable status and working menus at 1440px"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "screenshots": [
+    "new-request-320-registration.png",
+    "new-request-320.png",
+    "new-request-390-registration.png",
+    "new-request-390.png",
+    "body-sent-1366x768.png",
+    "body-sent-1440x920.png",
+    "body-sent-320x720.png",
+    "body-sent-390x844.png",
+    "body-split-resize.png",
+    "scripts-sent-1366x768.png",
+    "scripts-sent-1440x920.png",
+    "scripts-sent-320x720.png",
+    "scripts-sent-390x844.png",
+    "scripts-split-resize.png",
+    "running-script-header-320.png",
+    "running-script-header-390.png",
+    "running-script-header-768.png",
+    "side-title-context-1280.png",
+    "side-narrow-request.png",
+    "side-narrow-response.png",
+    "short-window-1440x520.png",
+    "short-window-844x390.png",
+    "history-1440.png",
+    "failure.png"
+  ],
+  "measurements": [
+    {
+      "case": "body-sent-1366x768",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1366,
+          "bottom": 768
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 712,
+          "right": 1366,
+          "bottom": 768
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 684,
+          "right": 1366,
+          "bottom": 740
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 374.1875,
+          "right": 1366,
+          "bottom": 430.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 430.1875,
+          "width": 1101,
+          "height": 5,
+          "right": 1366,
+          "bottom": 435.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 435.1875,
+          "width": 1101,
+          "height": 304.8125,
+          "right": 1366,
+          "bottom": 740
+        },
+        "footer": {
+          "x": 265,
+          "y": 740,
+          "width": 1101,
+          "height": 28,
+          "right": 1366,
+          "bottom": 768
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 525.1875,
+          "width": 1101,
+          "height": 214.8125,
+          "right": 1366,
+          "bottom": 740
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1052,
+            "height": 106,
+            "right": 1334,
+            "bottom": 381.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1334,
+            "bottom": 381.1875,
+            "width": 1052,
+            "height": 106
+          },
+          "clientHeight": 106,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 525.1875,
+            "right": 1366,
+            "bottom": 740,
+            "width": 1101,
+            "height": 214.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-sent-1440x920",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 382.25,
+          "right": 1440,
+          "bottom": 438.25
+        },
+        "separator": {
+          "x": 265,
+          "y": 438.25,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 443.25
+        },
+        "response": {
+          "x": 265,
+          "y": 443.25,
+          "width": 1175,
+          "height": 448.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 533.25,
+          "width": 1175,
+          "height": 358.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 114.0625,
+            "right": 1408,
+            "bottom": 389.25
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 389.25,
+            "width": 1126,
+            "height": 114.0625
+          },
+          "clientHeight": 114,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 533.25,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 358.75
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-sent-320x720",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 320,
+          "bottom": 720
+        },
+        "layout": "stack",
+        "main": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 626,
+          "right": 320,
+          "bottom": 720
+        },
+        "exchange": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 583,
+          "right": 320,
+          "bottom": 677
+        },
+        "request": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 379,
+          "right": 320,
+          "bottom": 473
+        },
+        "separator": {
+          "x": 0,
+          "y": 473,
+          "width": 320,
+          "height": 5,
+          "right": 320,
+          "bottom": 478
+        },
+        "response": {
+          "x": 0,
+          "y": 478,
+          "width": 320,
+          "height": 199,
+          "right": 320,
+          "bottom": 677
+        },
+        "footer": {
+          "x": 0,
+          "y": 677,
+          "width": 320,
+          "height": 43,
+          "right": 320,
+          "bottom": 720
+        },
+        "responseContent": {
+          "x": 0,
+          "y": 613,
+          "width": 320,
+          "height": 64,
+          "right": 320,
+          "bottom": 677
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 10,
+            "y": 348,
+            "width": 285,
+            "height": 80,
+            "right": 295,
+            "bottom": 428
+          },
+          "visible": {
+            "x": 10,
+            "y": 348,
+            "right": 295,
+            "bottom": 428,
+            "width": 285,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1679,
+          "minimum": 35.8
+        },
+        "responseText": {
+          "visible": {
+            "x": 0,
+            "y": 613,
+            "right": 320,
+            "bottom": 677,
+            "width": 320,
+            "height": 64
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-sent-390x844",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 390,
+          "bottom": 844
+        },
+        "layout": "stack",
+        "main": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 750,
+          "right": 390,
+          "bottom": 844
+        },
+        "exchange": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 704,
+          "right": 390,
+          "bottom": 798
+        },
+        "request": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 458.984375,
+          "right": 390,
+          "bottom": 552.984375
+        },
+        "separator": {
+          "x": 0,
+          "y": 552.984375,
+          "width": 390,
+          "height": 5,
+          "right": 390,
+          "bottom": 557.984375
+        },
+        "response": {
+          "x": 0,
+          "y": 557.984375,
+          "width": 390,
+          "height": 240,
+          "right": 390,
+          "bottom": 797.984375
+        },
+        "footer": {
+          "x": 0,
+          "y": 798,
+          "width": 390,
+          "height": 46,
+          "right": 390,
+          "bottom": 844
+        },
+        "responseContent": {
+          "x": 0,
+          "y": 692.984375,
+          "width": 390,
+          "height": 105,
+          "right": 390,
+          "bottom": 797.984375
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 10,
+            "y": 412,
+            "width": 355,
+            "height": 95.984375,
+            "right": 365,
+            "bottom": 507.984375
+          },
+          "visible": {
+            "x": 10,
+            "y": 412,
+            "right": 365,
+            "bottom": 507.984375,
+            "width": 355,
+            "height": 95.984375
+          },
+          "clientHeight": 96,
+          "scrollHeight": 1679,
+          "minimum": 35.8
+        },
+        "responseText": {
+          "visible": {
+            "x": 0,
+            "y": 692.984375,
+            "right": 390,
+            "bottom": 797.984375,
+            "width": 390,
+            "height": 105
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 374.1875,
+          "right": 1440,
+          "bottom": 430.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 430.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 435.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 435.1875,
+          "width": 1175,
+          "height": 456.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 525.1875,
+          "width": 1175,
+          "height": 366.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 106,
+            "right": 1408,
+            "bottom": 381.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 381.1875,
+            "width": 1126,
+            "height": 106
+          },
+          "clientHeight": 106,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 525.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 366.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 623.25,
+          "right": 1440,
+          "bottom": 679.25
+        },
+        "separator": {
+          "x": 265,
+          "y": 679.25,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 684.25
+        },
+        "response": {
+          "x": 265,
+          "y": 684.25,
+          "width": 1175,
+          "height": 207.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 774.25,
+          "width": 1175,
+          "height": 117.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 355.0625,
+            "right": 1408,
+            "bottom": 630.25
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 630.25,
+            "width": 1126,
+            "height": 355.0625
+          },
+          "clientHeight": 355,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 774.25,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 117.75
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 471.5
+        },
+        "separator": {
+          "x": 265,
+          "y": 471.5,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 476.5
+        },
+        "response": {
+          "x": 265,
+          "y": 476.5,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 566.5,
+          "width": 1175,
+          "height": 325.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 147.3125,
+            "right": 1408,
+            "bottom": 422.5
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 422.5,
+            "width": 1126,
+            "height": 147.3125
+          },
+          "clientHeight": 147,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 566.5,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 325.5
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 768
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 712,
+          "right": 1440,
+          "bottom": 768
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 684,
+          "right": 1440,
+          "bottom": 740
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 374.1875,
+          "right": 1440,
+          "bottom": 430.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 430.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 435.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 435.1875,
+          "width": 1175,
+          "height": 304.8125,
+          "right": 1440,
+          "bottom": 740
+        },
+        "footer": {
+          "x": 265,
+          "y": 740,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 768
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 525.1875,
+          "width": 1175,
+          "height": 214.8125,
+          "right": 1440,
+          "bottom": 740
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 106,
+            "right": 1408,
+            "bottom": 381.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 381.1875,
+            "width": 1126,
+            "height": 106
+          },
+          "clientHeight": 106,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 525.1875,
+            "right": 1440,
+            "bottom": 740,
+            "width": 1175,
+            "height": 214.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 471.5
+        },
+        "separator": {
+          "x": 265,
+          "y": 471.5,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 476.5
+        },
+        "response": {
+          "x": 265,
+          "y": 476.5,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 566.5,
+          "width": 1175,
+          "height": 325.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 147.3125,
+            "right": 1408,
+            "bottom": 422.5
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 422.5,
+            "width": 1126,
+            "height": 147.3125
+          },
+          "clientHeight": 147,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 566.5,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 325.5
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "body-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 471.5
+        },
+        "separator": {
+          "x": 265,
+          "y": 471.5,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 476.5
+        },
+        "response": {
+          "x": 265,
+          "y": 476.5,
+          "width": 1175,
+          "height": 415.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 566.5,
+          "width": 1175,
+          "height": 325.5,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 1126,
+            "height": 147.3125,
+            "right": 1408,
+            "bottom": 422.5
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1408,
+            "bottom": 422.5,
+            "width": 1126,
+            "height": 147.3125
+          },
+          "clientHeight": 147,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 566.5,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 325.5
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-sent-1366x768",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1366,
+          "bottom": 768
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 712,
+          "right": 1366,
+          "bottom": 768
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 684,
+          "right": 1366,
+          "bottom": 740
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1101,
+          "height": 448.1875,
+          "right": 1366,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1101,
+          "height": 5,
+          "right": 1366,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1101,
+          "height": 230.8125,
+          "right": 1366,
+          "bottom": 740
+        },
+        "footer": {
+          "x": 265,
+          "y": 740,
+          "width": 1101,
+          "height": 28,
+          "right": 1366,
+          "bottom": 768
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1101,
+          "height": 140.8125,
+          "right": 1366,
+          "bottom": 740
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1052,
+            "height": 80,
+            "right": 1334,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1334,
+            "bottom": 429.1875,
+            "width": 1052,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1366,
+            "bottom": 740,
+            "width": 1101,
+            "height": 140.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-sent-1440x920",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 382.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 292.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 292.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-sent-320x720",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 320,
+          "bottom": 720
+        },
+        "layout": "stack",
+        "main": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 626,
+          "right": 320,
+          "bottom": 720
+        },
+        "exchange": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 583,
+          "right": 320,
+          "bottom": 677
+        },
+        "request": {
+          "x": 0,
+          "y": 94,
+          "width": 320,
+          "height": 379,
+          "right": 320,
+          "bottom": 473
+        },
+        "separator": {
+          "x": 0,
+          "y": 473,
+          "width": 320,
+          "height": 5,
+          "right": 320,
+          "bottom": 478
+        },
+        "response": {
+          "x": 0,
+          "y": 478,
+          "width": 320,
+          "height": 199,
+          "right": 320,
+          "bottom": 677
+        },
+        "footer": {
+          "x": 0,
+          "y": 677,
+          "width": 320,
+          "height": 43,
+          "right": 320,
+          "bottom": 720
+        },
+        "responseContent": {
+          "x": 0,
+          "y": 613,
+          "width": 320,
+          "height": 64,
+          "right": 320,
+          "bottom": 677
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 10,
+            "y": 315,
+            "width": 285,
+            "height": 80,
+            "right": 295,
+            "bottom": 395
+          },
+          "visible": {
+            "x": 10,
+            "y": 315,
+            "right": 295,
+            "bottom": 395,
+            "width": 285,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1600,
+          "minimum": 35.8
+        },
+        "responseText": {
+          "visible": {
+            "x": 0,
+            "y": 613,
+            "right": 320,
+            "bottom": 677,
+            "width": 320,
+            "height": 64
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-sent-390x844",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 390,
+          "bottom": 844
+        },
+        "layout": "stack",
+        "main": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 750,
+          "right": 390,
+          "bottom": 844
+        },
+        "exchange": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 704,
+          "right": 390,
+          "bottom": 798
+        },
+        "request": {
+          "x": 0,
+          "y": 94,
+          "width": 390,
+          "height": 484,
+          "right": 390,
+          "bottom": 578
+        },
+        "separator": {
+          "x": 0,
+          "y": 578,
+          "width": 390,
+          "height": 5,
+          "right": 390,
+          "bottom": 583
+        },
+        "response": {
+          "x": 0,
+          "y": 583,
+          "width": 390,
+          "height": 214.984375,
+          "right": 390,
+          "bottom": 797.984375
+        },
+        "footer": {
+          "x": 0,
+          "y": 798,
+          "width": 390,
+          "height": 46,
+          "right": 390,
+          "bottom": 844
+        },
+        "responseContent": {
+          "x": 0,
+          "y": 718,
+          "width": 390,
+          "height": 79.984375,
+          "right": 390,
+          "bottom": 797.984375
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 10,
+            "y": 418,
+            "width": 355,
+            "height": 80,
+            "right": 365,
+            "bottom": 498
+          },
+          "visible": {
+            "x": 10,
+            "y": 418,
+            "right": 365,
+            "bottom": 498,
+            "width": 355,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1600,
+          "minimum": 35.8
+        },
+        "responseText": {
+          "visible": {
+            "x": 0,
+            "y": 718,
+            "right": 390,
+            "bottom": 797.984375,
+            "width": 390,
+            "height": 79.984375
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 382.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 292.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 292.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 623.25,
+          "right": 1440,
+          "bottom": 679.25
+        },
+        "separator": {
+          "x": 265,
+          "y": 679.25,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 684.25
+        },
+        "response": {
+          "x": 265,
+          "y": 684.25,
+          "width": 1175,
+          "height": 207.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 774.25,
+          "width": 1175,
+          "height": 117.75,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 245.875,
+            "right": 1408,
+            "bottom": 595.0625
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 595.0625,
+            "width": 1126,
+            "height": 245.875
+          },
+          "clientHeight": 246,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 774.25,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 117.75
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 382.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 292.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 292.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 768
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 712,
+          "right": 1440,
+          "bottom": 768
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 684,
+          "right": 1440,
+          "bottom": 740
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 230.8125,
+          "right": 1440,
+          "bottom": 740
+        },
+        "footer": {
+          "x": 265,
+          "y": 740,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 768
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 140.8125,
+          "right": 1440,
+          "bottom": 740
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 740,
+            "width": 1175,
+            "height": 140.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 382.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 292.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 292.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "scripts-split-resize",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 448.1875,
+          "right": 1440,
+          "bottom": 504.1875
+        },
+        "separator": {
+          "x": 265,
+          "y": 504.1875,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 509.1875
+        },
+        "response": {
+          "x": 265,
+          "y": 509.1875,
+          "width": 1175,
+          "height": 382.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 599.1875,
+          "width": 1175,
+          "height": 292.8125,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 349.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 429.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 349.1875,
+            "right": 1408,
+            "bottom": 429.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1735,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 599.1875,
+            "right": 1440,
+            "bottom": 892,
+            "width": 1175,
+            "height": 292.8125
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "side-title-context-1280",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1280,
+          "bottom": 920
+        },
+        "layout": "side",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1015,
+          "height": 864,
+          "right": 1280,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1015,
+          "height": 836,
+          "right": 1280,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 505,
+          "height": 836,
+          "right": 770,
+          "bottom": 892
+        },
+        "separator": {
+          "x": 770,
+          "y": 56,
+          "width": 5,
+          "height": 836,
+          "right": 775,
+          "bottom": 892
+        },
+        "response": {
+          "x": 775,
+          "y": 56,
+          "width": 505,
+          "height": 836,
+          "right": 1280,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1015,
+          "height": 28,
+          "right": 1280,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 775,
+          "y": 169,
+          "width": 505,
+          "height": 723,
+          "right": 1280,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 346.1875,
+            "width": 456,
+            "height": 496.8125,
+            "right": 738,
+            "bottom": 843
+          },
+          "visible": {
+            "x": 282,
+            "y": 346.1875,
+            "right": 738,
+            "bottom": 843,
+            "width": 456,
+            "height": 496.8125
+          },
+          "clientHeight": 497,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 775,
+            "y": 169,
+            "right": 1280,
+            "bottom": 892,
+            "width": 505,
+            "height": 723
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "side-narrow-request",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "side",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 292.5,
+          "height": 836,
+          "right": 557.5,
+          "bottom": 892
+        },
+        "separator": {
+          "x": 557.5,
+          "y": 56,
+          "width": 5,
+          "height": 836,
+          "right": 562.5,
+          "bottom": 892
+        },
+        "response": {
+          "x": 562.5,
+          "y": 56,
+          "width": 877.5,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 562.5,
+          "y": 145,
+          "width": 877.5,
+          "height": 747,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 416.1875,
+            "width": 243.5,
+            "height": 426.8125,
+            "right": 525.5,
+            "bottom": 843
+          },
+          "visible": {
+            "x": 282,
+            "y": 416.1875,
+            "right": 525.5,
+            "bottom": 843,
+            "width": 243.5,
+            "height": 426.8125
+          },
+          "clientHeight": 427,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 562.5,
+            "y": 145,
+            "right": 1440,
+            "bottom": 892,
+            "width": 877.5,
+            "height": 747
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "side-narrow-response",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "side",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 877.5,
+          "height": 836,
+          "right": 1142.5,
+          "bottom": 892
+        },
+        "separator": {
+          "x": 1142.5,
+          "y": 56,
+          "width": 5,
+          "height": 836,
+          "right": 1147.5,
+          "bottom": 892
+        },
+        "response": {
+          "x": 1147.5,
+          "y": 56,
+          "width": 292.5,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 1147.5,
+          "y": 188,
+          "width": 292.5,
+          "height": 704,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 828.5,
+            "height": 567.8125,
+            "right": 1110.5,
+            "bottom": 843
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1110.5,
+            "bottom": 843,
+            "width": 828.5,
+            "height": 567.8125
+          },
+          "clientHeight": 568,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 1147.5,
+            "y": 188,
+            "right": 1440,
+            "bottom": 892,
+            "width": 292.5,
+            "height": 704
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "side-narrow-response",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 920
+        },
+        "layout": "side",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 864,
+          "right": 1440,
+          "bottom": 920
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 877.5,
+          "height": 836,
+          "right": 1142.5,
+          "bottom": 892
+        },
+        "separator": {
+          "x": 1142.5,
+          "y": 56,
+          "width": 5,
+          "height": 836,
+          "right": 1147.5,
+          "bottom": 892
+        },
+        "response": {
+          "x": 1147.5,
+          "y": 56,
+          "width": 292.5,
+          "height": 836,
+          "right": 1440,
+          "bottom": 892
+        },
+        "footer": {
+          "x": 265,
+          "y": 892,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 920
+        },
+        "responseContent": {
+          "x": 1147.5,
+          "y": 188,
+          "width": 292.5,
+          "height": 704,
+          "right": 1440,
+          "bottom": 892
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 275.1875,
+            "width": 828.5,
+            "height": 567.8125,
+            "right": 1110.5,
+            "bottom": 843
+          },
+          "visible": {
+            "x": 282,
+            "y": 275.1875,
+            "right": 1110.5,
+            "bottom": 843,
+            "width": 828.5,
+            "height": 567.8125
+          },
+          "clientHeight": 568,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 1147.5,
+            "y": 188,
+            "right": 1440,
+            "bottom": 892,
+            "width": 292.5,
+            "height": 704
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "short-window-1440x520",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 1440,
+          "bottom": 520
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 464,
+          "right": 1440,
+          "bottom": 520
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 436,
+          "right": 1440,
+          "bottom": 492
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 1175,
+          "height": 276.984375,
+          "right": 1440,
+          "bottom": 332.984375
+        },
+        "separator": {
+          "x": 265,
+          "y": 332.984375,
+          "width": 1175,
+          "height": 5,
+          "right": 1440,
+          "bottom": 337.984375
+        },
+        "response": {
+          "x": 265,
+          "y": 337.984375,
+          "width": 1175,
+          "height": 154,
+          "right": 1440,
+          "bottom": 491.984375
+        },
+        "footer": {
+          "x": 265,
+          "y": 492,
+          "width": 1175,
+          "height": 28,
+          "right": 1440,
+          "bottom": 520
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 411.984375,
+          "width": 1175,
+          "height": 80,
+          "right": 1440,
+          "bottom": 491.984375
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 233.1875,
+            "width": 1126,
+            "height": 80,
+            "right": 1408,
+            "bottom": 313.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 233.1875,
+            "right": 1408,
+            "bottom": 313.1875,
+            "width": 1126,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 411.984375,
+            "right": 1440,
+            "bottom": 491.984375,
+            "width": 1175,
+            "height": 80
+          },
+          "minimum": 19.8
+        }
+      }
+    },
+    {
+      "case": "short-window-844x390",
+      "geometry": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "right": 844,
+          "bottom": 390
+        },
+        "layout": "stack",
+        "main": {
+          "x": 265,
+          "y": 56,
+          "width": 579,
+          "height": 334,
+          "right": 844,
+          "bottom": 390
+        },
+        "exchange": {
+          "x": 265,
+          "y": 56,
+          "width": 579,
+          "height": 291,
+          "right": 844,
+          "bottom": 347
+        },
+        "request": {
+          "x": 265,
+          "y": 56,
+          "width": 579,
+          "height": 121.984375,
+          "right": 844,
+          "bottom": 177.984375
+        },
+        "separator": {
+          "x": 265,
+          "y": 177.984375,
+          "width": 579,
+          "height": 5,
+          "right": 844,
+          "bottom": 182.984375
+        },
+        "response": {
+          "x": 265,
+          "y": 182.984375,
+          "width": 579,
+          "height": 164.015625,
+          "right": 844,
+          "bottom": 347
+        },
+        "footer": {
+          "x": 265,
+          "y": 347,
+          "width": 579,
+          "height": 43,
+          "right": 844,
+          "bottom": 390
+        },
+        "responseContent": {
+          "x": 265,
+          "y": 266.984375,
+          "width": 579,
+          "height": 80,
+          "right": 844,
+          "bottom": 346.984375
+        },
+        "mainScroll": 0,
+        "pageScroll": 0,
+        "editor": {
+          "rect": {
+            "x": 282,
+            "y": 77.1875,
+            "width": 530,
+            "height": 80,
+            "right": 812,
+            "bottom": 157.1875
+          },
+          "visible": {
+            "x": 282,
+            "y": 77.1875,
+            "right": 812,
+            "bottom": 157.1875,
+            "width": 530,
+            "height": 80
+          },
+          "clientHeight": 80,
+          "scrollHeight": 1821,
+          "minimum": 41.45
+        },
+        "responseText": {
+          "visible": {
+            "x": 265,
+            "y": 266.984375,
+            "right": 844,
+            "bottom": 346.984375,
+            "width": 579,
+            "height": 80
+          },
+          "minimum": 19.8
+        }
+      }
+    }
+  ],
+  "failure": {
+    "case": "history-1024",
+    "error": "Locator.scroll_into_view_if_needed: Error: strict mode violation: locator(\"[data-history-id=\\\"layout-history-long\\\"]\") resolved to 2 elements:\n    1) <div aria-current=\"true\" aria-selected=\"true\" class=\"history-entry list-selected\" data-history-id=\"layout-history-long\" data-select-id=\"history:layout-history-long\">…</div> aka locator(\".history-entry.list-selected\")\n    2) <section id=\"historyPage\" aria-label=\"送信履歴\" class=\"workspace-page history-page\" data-history-id=\"layout-history-long\">…</section> aka get_by_role(\"region\", name=\"送信履歴\")\n\nCall log:\n  - waiting for locator(\"[data-history-id=\\\"layout-history-long\\\"]\")\n"
+  }
+}

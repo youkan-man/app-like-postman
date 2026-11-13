@@ -582,7 +582,9 @@ function renderSidebarSection() {
         renderHistoryPage(); workbench.closeNavigation();
       }, 'history-open'); open.dataset.selectOpen = '';
       row.dataset.historyId = entry.id || ''; row.setAttribute('aria-current', String(selectedHistoryEntry === entry));
-      const label = element('span', 'tree-label'); label.append(element('span', '', entry.tab.name), element('span', 'history-detail', new Date(entry.at).toLocaleString() + ' · ' + historyUrl(entry)));
+      const detail = new Date(entry.at).toLocaleString() + ' · ' + historyUrl(entry);
+      const label = element('span', 'tree-label'); label.append(element('span', 'history-name', entry.tab.name), element('span', 'history-detail', detail));
+      open.title = `${entry.tab.name}\n${detail}`;
       const method = sentRequests(entry)?.[0]?.method || entry.tab.request.method;
       open.append(element('span', `method-label method-${method}`, method), label, element('span', 'history-code', entry.status || 'ERR'));
       row.append(open);

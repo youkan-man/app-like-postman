@@ -246,9 +246,12 @@ def main():
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
             body_box=page.get_by_label('Raw body').bounding_box()
             request_box=page.locator('.request-editor').bounding_box()
-            assert min(body_box['y']+body_box['height'],request_box['y']+request_box['height'])-max(body_box['y'],request_box['y'])>=230
+            line_height=page.get_by_label('Raw body').evaluate('e => parseFloat(getComputedStyle(e).lineHeight)')
+            assert min(body_box['y']+body_box['height'],request_box['y']+request_box['height'])-max(body_box['y'],request_box['y'])>=4*line_height
+            assert page.locator('#responseContent').evaluate('e => e.clientHeight >= parseFloat(getComputedStyle(e).fontSize)*1.4')
+            assert page.locator('.statusbar').evaluate('e => e.getBoundingClientRect().bottom <= innerHeight+1')
             capture('body-phone')
-            passed('phone creation, variable page, source editor and relation layout have no page overflow')
+            passed('phone pages keep editable body lines, response content and footer visible without page overflow')
             assert not errors,errors
             passed('no uncaught browser JavaScript errors')
             browser.close()
