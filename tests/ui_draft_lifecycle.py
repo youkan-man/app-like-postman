@@ -5,9 +5,12 @@ native IndexedDB record; sending uses a real HTTP receiver in either VM mode.
 """
 from __future__ import annotations
 
+import base64
 import copy
 from contextlib import contextmanager
 import difflib
+from email.parser import BytesParser
+from email.policy import default
 from http.server import ThreadingHTTPServer
 import json
 import os
@@ -438,6 +441,59 @@ def main():
             reload()
             assert state()['history'] == [] and state()['tabs'] == []
             passed('320px list controls and one application confirmation fit the viewport; deletion persists after reload')
+
+            # Invalid imported rows are omitted from the displayed form-data.
+            # A file chosen for that displayed index must reach the same field.
+            multipart_id = 'multipart-imported-rows'
+            multipart_body = {'mode': 'formdata', 'formdata': [None,
+                {'key': 'note', 'type': 'text', 'value': 'unchanged metadata'},
+                {'key': 'upload', 'type': 'file', 'src': 'original.bin'}]}
+            multipart_tab = {'id': multipart_id, 'name': 'Imported multipart', 'request': {
+                'method': 'POST', 'url': receiver_url+'/echo?formdata-index=1', 'header': [], 'auth': None,
+                'body': copy.deepcopy(multipart_body)}, 'settings': copy.deepcopy(SETTINGS), 'dirty': True}
+            multipart_workspace = {'version': 2, 'collections': [], 'environments': [], 'globals': [],
+                'tabs': [multipart_tab], 'activeId': multipart_id, 'environmentId': '', 'history': [],
+                'collapsed': [], 'theme': 'light', 'revisions': {}, 'relations': [], 'relationRuns': []}
+            load_workspace(multipart_workspace)
+            draft(multipart_id).locator('[data-select-open]').click()
+            file_slot = page.locator('[data-file-slot="form-1"]')
+            expect(file_slot.locator('.file-pick')).to_contain_text('original.bin')
+            assert_drafts_equal(state()['tabs'], [multipart_tab], 'open imported form-data containing a null row')
+            file_bytes = b'\x00\x01\xffmultipart-row-index\r\n'
+            with page.expect_file_chooser() as chooser:
+                file_slot.locator('.file-pick').click()
+            chooser.value.set_files([{'name': 'selected-row.bin', 'mimeType': 'application/octet-stream',
+                                     'buffer': file_bytes}])
+            expect(file_slot.locator('.file-pick')).to_have_attribute('aria-busy', 'false')
+            expect(file_slot.locator('.file-pick')).to_have_text('selected-row.bin')
+            selected_rows = state()['tabs'][0]['request']['body']['formdata']
+            assert [row['key'] for row in selected_rows] == ['note', 'upload']
+            assert selected_rows[0]['value'] == 'unchanged metadata' and 'src' not in selected_rows[0]
+            assert selected_rows[1]['src'] == ['selected-row.bin']
+            with page.expect_response(lambda response: response.url.endswith('/api/request')) as sent_response:
+                page.locator('#send').click()
+            response = sent_response.value.json()
+            assert response['ok'], response
+            expect(page.locator('#responseStatus')).to_contain_text('200')
+            expect(page.locator('#send')).to_contain_text('Send')
+            received = json.loads(response['body'])
+            assert received['method'] == 'POST' and received['path'] == '/echo?formdata-index=1'
+            content_type = next(value for key, value in received['headers'] if key.lower() == 'content-type')
+            message = BytesParser(policy=default).parsebytes(
+                b'Content-Type: '+content_type.encode()+b'\r\nMIME-Version: 1.0\r\n\r\n'
+                +base64.b64decode(received['body_base64']))
+            assert [(part.get_param('name', header='content-disposition'), part.get_filename(),
+                     part.get_payload(decode=True)) for part in message.iter_parts()] == [
+                         ('note', None, b'unchanged metadata'), ('upload', 'selected-row.bin', file_bytes)]
+            # Exercise Clear directly from the unnormalized import as well.
+            load_workspace(multipart_workspace)
+            expect(file_slot.locator('.file-pick')).to_contain_text('original.bin')
+            file_slot.locator('.file-clear').click()
+            expect(file_slot.locator('.file-pick')).to_have_text('ファイルを選択')
+            cleared_rows = state()['tabs'][0]['request']['body']['formdata']
+            assert [row['key'] for row in cleared_rows] == ['note', 'upload']
+            assert cleared_rows[0]['value'] == 'unchanged metadata' and 'src' not in cleared_rows[1]
+            passed('imported invalid form-data rows stay unchanged on open; explicit file selection and clear address the displayed row and real HTTP preserves its bytes')
 
             assert not errors, errors
             assert not dialogs, dialogs

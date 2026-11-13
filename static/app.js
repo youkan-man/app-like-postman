@@ -424,7 +424,7 @@ function filePicker(tabId, key, source, multiple) {
     selectedFiles.remove(tabId, key);
     const tab = requestSession.get(tabId); if (!tab) return;
     if (key === 'binary') delete tab.request.body.file;
-    else {const row = tab.request.body.formdata?.[Number(key.slice(5))]; if (row) delete row.src;}
+    else {tab.request.body.formdata = rows(tab.request.body.formdata); const row = tab.request.body.formdata[Number(key.slice(5))]; if (row) delete row.src;}
     touchTab(tab); refreshFileFields(tabId);
     $('request-fields-body')?.querySelector(`[data-file-slot="${key}"] .file-pick`)?.focus({preventScroll:true});
   }, 'text-button file-clear'));
@@ -437,7 +437,10 @@ function chooseFiles(tabId, key, multiple) {
   const cleanup = () => chooser.remove(); chooser.addEventListener('cancel', cleanup, {once:true});
   chooser.onchange = async () => {
     const files = [...chooser.files]; cleanup(); if (!files.length) return;
-    if (!requestSession.get(tabId)) return;
+    const editor = requestSession.get(tabId); if (!editor) return;
+    // Normalize the displayed row order only for an explicit file edit. Merely
+    // opening imported form-data must leave the persisted request unchanged.
+    if (key !== 'binary') {editor.request.body.formdata = rows(editor.request.body.formdata); touchTab(editor);}
     const pending = selectedFiles.read(tabId, key, files); refreshFileFields(tabId);
     const slot = await pending; if (!slot) return;
     const currentKey = selectedFiles.keyOf(tabId, slot), tab = requestSession.get(tabId);

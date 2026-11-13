@@ -268,10 +268,20 @@ def main():
             expect(page.locator('#appConfirm')).to_have_count(0);page.locator('#closeModal').click()
             passed('revision restore confirmation stacks above the history drawer without closing it on cancellation')
             # Remaining destructive paths also use the same application dialog.
+            # Merely opening saved requests leaves no durable draft. Create the
+            # request explicitly before exercising its discard confirmation.
+            expect(page.locator('[data-draft-id]')).to_have_count(0)
+            sidebar=page.locator('#sidebarContent')
+            sidebar.click(button='right',position={'x':8,'y':sidebar.bounding_box()['height']-4})
+            page.get_by_role('menuitem',name='リクエストを作成',exact=True).click()
+            expect(page.locator('#requestName')).to_have_value('Untitled request')
+            expect(page.locator('[data-draft-id]')).to_have_count(1)
             page.get_by_role('button',name='Untitled requestの下書き操作',exact=True).click()
             page.get_by_role('menuitem',name='下書きを削除',exact=True).click()
+            expect(page.locator('#appConfirm')).to_be_visible()
             page.locator('#appConfirm').get_by_role('button',name='削除',exact=True).click()
             expect(page.get_by_role('button',name='Untitled requestの下書き操作',exact=True)).to_have_count(0)
+            expect(page.locator('[data-draft-id]')).to_have_count(0)
             import_value({'info':{'name':'Delete tree'},'item':[{'name':'Delete folder','item':[{'name':'Inside folder','request':{'method':'GET','url':target}}]}]})
             for button_name in ['Delete folderの操作','Delete treeの設定']:
                 page.get_by_role('button',name=button_name,exact=True).click();page.get_by_role('menuitem',name='削除',exact=True).click()
