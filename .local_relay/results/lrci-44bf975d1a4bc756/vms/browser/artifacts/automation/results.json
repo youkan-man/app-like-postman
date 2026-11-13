@@ -1,0 +1,35 @@
+{
+  "passed": 17,
+  "checks": [
+    "no injected sample UI or accumulating request tabs",
+    "environment tab edits a full page, autosaves and scopes creation",
+    "right-click creation inserts after a request or under the clicked folder",
+    "request placeholder extraction creates a selected editable environment",
+    "large body editor highlights JSON/XML and retains editing DOM across categories",
+    "failed scripts do not commit partial variable writes",
+    "script workers have no application DOM and CSP blocks direct network calls",
+    "infinite script terminates at the configured timeout without freezing the UI",
+    "global Stop terminates an unlimited manual script",
+    "pre/post scripts execute and primary variables override environment values in HTTP",
+    "post-hoc metadata extraction and automatic rule survive reload of the received response",
+    "primary variables have an editable session-scoped page",
+    "relation sequential execution repeats the plan and branches on a response element",
+    "relation stop interrupts an outstanding wait without sending another request",
+    "whole backup includes relation references, scripts and run logs but not session primary values",
+    "phone creation, variable page, source editor and relation layout have no page overflow",
+    "no uncaught browser JavaScript errors"
+  ],
+  "page_errors": [],
+  "screenshots": [
+    "environment-desktop.png",
+    "body-highlight-desktop.png",
+    "response-extraction.png",
+    "primary-variables.png",
+    "relation-config-desktop.png",
+    "relation-results-desktop.png",
+    "relation-phone.png",
+    "environment-phone.png",
+    "body-phone.png"
+  ],
+  "transport": "real browser HTTP"
+}

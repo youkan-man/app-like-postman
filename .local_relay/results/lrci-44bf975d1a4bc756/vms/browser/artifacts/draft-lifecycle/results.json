@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "fresh blank is temporary; its first user edit creates exactly one durable draft",
+    "pre-existing drafts and their revisions survive import and reload unchanged",
+    "opening and switching saved requests never creates persisted editor copies",
+    "history edits stay in session memory when reopened and do not mutate source history or drafts",
+    "sending a temporary history editor reaches real HTTP and saves only transmitted history",
+    "collection-save cancellation and confirmation create no drafts; confirmation registers one request",
+    "explicit Save draft persists one editor and subsequent edits survive reload",
+    "explicit duplication creates one durable draft without persisting the opened history editor",
+    "full backup contains only durable drafts and no orphan revisions from temporary editors",
+    "checkbox, Control and Meta toggle draft selection without changing the active editor",
+    "Shift selects a contiguous range; list Control+A selects drafts only and Escape clears selection",
+    "Control+A is restricted to currently filtered list entries",
+    "Control+A, Backspace and Delete inside text inputs edit text without deleting selected entries",
+    "cancelling bulk-delete confirmation preserves the entire selection and its data",
+    "Delete confirms once and removes only selected drafts plus their own revision records",
+    "Backspace can delete the last drafts; reload keeps the list empty without replacement drafts",
+    "history checkboxes, range selection and keyboard selection do not create or switch request drafts",
+    "filtered history deletion removes only the visible selected entry and leaves drafts empty",
+    "320px list controls and one application confirmation fit the viewport; deletion persists after reload",
+    "imported invalid form-data rows stay unchanged on open; explicit file selection and clear address the displayed row and real HTTP preserves its bytes",
+    "no uncaught browser errors, native dialogs or crashes"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "screenshots": [
+    "explicit-drafts-desktop.png",
+    "draft-bulk-delete-desktop.png",
+    "history-selection-320.png",
+    "history-delete-confirmation-320.png"
+  ]
+}

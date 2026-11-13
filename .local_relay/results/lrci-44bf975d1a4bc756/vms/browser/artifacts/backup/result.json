@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Postman individual import changes localStorage without writing server data",
+    "saved request is sent by context menu without server workspace persistence",
+    "whole export includes collections, environments, request history, revisions and layout",
+    "explicit menu action commits an atomic server backup",
+    "editing during a server write keeps the saved status marked as stale",
+    "new edits are local only and do not auto-sync to server",
+    "manually restoring a server backup retains environment and request data",
+    "failed full import rolls back workspace, layout and section preferences",
+    "backup UI and context actions produce no browser exceptions or viewport overflow"
+  ],
+  "errors": [],
+  "screenshots": [
+    "whole-backup-desktop.png",
+    "whole-backup-phone.png"
+  ]
+}
