@@ -1,0 +1,23 @@
+{
+  "branch": "feat/variable-values-history",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-13T06:25:27.557398Z",
+    "id": "lrce-b7afe9744fa51cfe67666a16",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-0310868e1efe",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-1c79bd3219e7e7c1-browser",
+  "source_sha": "04da8539716d7ab34638528ff9bcd3bfb2e84470",
+  "started_at": "2026-11-13T03:25:22.819410002Z",
+  "status": "failed",
+  "version": 1
+}
