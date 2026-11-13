@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 from contextlib import contextmanager
+import difflib
 from http.server import ThreadingHTTPServer
 import json
 import os
@@ -33,6 +34,17 @@ READ_WORKSPACE = """() => new Promise((resolve, reject) => {
 SETTINGS = {'verify_tls': False, 'follow_redirects': True, 'timeout_ms': 30000}
 DRAFT_IDS = [f'legacy-draft-{index}' for index in range(1, 6)]
 HISTORY_IDS = [f'history-{index}' for index in range(1, 5)]
+
+
+def assert_drafts_equal(actual, expected, context):
+    actual_ids = [tab['id'] for tab in actual]
+    expected_ids = [tab['id'] for tab in expected]
+    assert actual_ids == expected_ids, f'{context}: draft identities changed: {actual_ids!r} != {expected_ids!r}'
+    if actual != expected:
+        before = json.dumps(expected, ensure_ascii=False, sort_keys=True, indent=2).splitlines()
+        after = json.dumps(actual, ensure_ascii=False, sort_keys=True, indent=2).splitlines()
+        difference = '\n'.join(difflib.unified_diff(before, after, fromfile='expected drafts', tofile='actual drafts', lineterm=''))
+        raise AssertionError(f'{context}: persisted draft contents changed\n{difference}')
 
 
 def workspace_fixture(receiver_url):
@@ -215,7 +227,7 @@ def main():
 
             for identifier, name in [('saved-a', 'Saved A'), ('saved-b', 'Saved B'), ('saved-a', 'Saved A')]:
                 open_saved(identifier, name)
-                assert state()['tabs'] == baseline['tabs']
+                assert_drafts_equal(state()['tabs'], baseline['tabs'], 'open saved request '+identifier)
             passed('opening and switching saved requests never creates persisted editor copies')
 
             open_history('history-1', edit=True)
@@ -225,13 +237,13 @@ def main():
             edited_body = 'edited history body — 日本語'
             page.locator('#url').fill(edited_url)
             page.get_by_label('Raw body', exact=True).fill(edited_body)
-            assert state()['tabs'] == baseline['tabs']
+            assert_drafts_equal(state()['tabs'], baseline['tabs'], 'edit temporary history request')
             assert state()['history'] == baseline['history']
             open_saved('saved-b', 'Saved B')
             open_history('history-1', edit=True)
             expect(page.locator('#url')).to_have_value(edited_url)
             expect(page.get_by_label('Raw body', exact=True)).to_have_value(edited_body)
-            assert state()['tabs'] == baseline['tabs']
+            assert_drafts_equal(state()['tabs'], baseline['tabs'], 'reopen temporary history request')
             passed('history edits stay in session memory when reopened and do not mutate source history or drafts')
 
             with page.expect_response(lambda response: response.url.endswith('/api/request')) as sent_response:
@@ -243,7 +255,8 @@ def main():
             received = json.loads(response['body'])
             assert received['path'] == '/echo?temporary=1' and received['body'] == edited_body
             sent = state()
-            assert sent['tabs'] == baseline['tabs'] and len(sent['history']) == len(baseline['history'])+1
+            assert_drafts_equal(sent['tabs'], baseline['tabs'], 'send temporary history request')
+            assert len(sent['history']) == len(baseline['history'])+1
             assert sent['history'][-1]['sent_requests'][0]['body'] == edited_body
             passed('sending a temporary history editor reaches real HTTP and saves only transmitted history')
 
@@ -251,14 +264,14 @@ def main():
             page.locator('#saveRequest').click()
             expect(page.locator('#modalTitle')).to_have_text('Save request')
             page.locator('#cancelModal').click()
-            assert state()['tabs'] == baseline['tabs']
+            assert_drafts_equal(state()['tabs'], baseline['tabs'], 'cancel collection save')
             assert state()['collections'] == baseline['collections']
             page.locator('#saveRequest').click()
             page.get_by_label('Request name', exact=True).fill('Registered from history')
             page.locator('#modalSubmit').click()
             expect(page.locator('#modal')).not_to_be_visible()
             registered = state()
-            assert registered['tabs'] == baseline['tabs']
+            assert_drafts_equal(registered['tabs'], baseline['tabs'], 'register temporary request in collection')
             saved_items = registered['collections'][0]['item'][0]['item']
             assert len(saved_items) == 3 and saved_items[-1]['name'] == 'Registered from history'
             assert saved_items[-1]['request']['body']['raw'] == 'history-body-2'
@@ -275,7 +288,7 @@ def main():
             explicit = state()
             reload()
             expect(page.locator('#url')).to_have_value(receiver_url+'/echo?explicit-draft=1')
-            assert state()['tabs'] == explicit['tabs']
+            assert_drafts_equal(state()['tabs'], explicit['tabs'], 'reload explicitly saved draft')
             passed('explicit Save draft persists one editor and subsequent edits survive reload')
 
             open_history('history-4', edit=True)
@@ -290,7 +303,7 @@ def main():
             archive_path = out/'explicit-drafts-backup.json'
             downloaded.value.save_as(archive_path)
             archived = json.loads(archive_path.read_text())['workspace']
-            assert archived['tabs'] == duplicated['tabs']
+            assert_drafts_equal(archived['tabs'], duplicated['tabs'], 'export durable drafts')
             draft_keys = {'draft:'+tab['id'] for tab in archived['tabs']}
             assert all(key in draft_keys for key in archived['revisions'] if key.startswith('draft:'))
             capture('explicit-drafts-desktop')

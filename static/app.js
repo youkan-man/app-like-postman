@@ -295,11 +295,11 @@ function authEditor(owner, inherited = false, changed = () => {}) {
     grid.append(element('label', '', '認証方式'), typeSelect);
     const specs = {bearer: [['token', 'Token']], basic: [['username', 'Username'], ['password', 'Password']], apikey: [['key', 'Key'], ['value', 'Value'], ['in', 'Add to']], oauth2: [['accessToken', 'Access token'], ['headerPrefix', 'Header prefix']]};
     if (specs[type]) {
-      const attrs = owner.auth[type] = rows(owner.auth[type]);
+      const attrs = rows(owner.auth[type]);
       for (const [key, label] of specs[type]) {
         let row = attrs.find(v => v.key === key);
         const value = row?.value ?? (key === 'in' ? 'header' : key === 'headerPrefix' ? 'Bearer' : '');
-        const change = v => {if (!row) {row = {key, type: 'string'}; attrs.push(row);} row.value = v; changed();};
+        const change = v => {if (!row) {row = {key, type: 'string'}; attrs.push(row);} row.value = v; owner.auth[type] = attrs; changed();};
         const control = key === 'in' ? select([['header', 'Header'], ['query', 'Query Params']], value, change) : input(value, label, change, key === 'password' ? 'password' : 'text');
         control.setAttribute('aria-label', label); grid.append(element('label', '', label), control);
       }
@@ -315,11 +315,11 @@ function renderPaneSection(root, pane) {
   const scriptWarning = context.events.some(e => e.disabled !== true);
   $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'インポート済みスクリプトは参照のみです。実行するコードはスクリプト編集欄へ明示的にコピーしてください。';
   if (pane === 'params') {
-    const u = urlParts(r.url); r.url = {...r.url, query: u.query, variable: u.variable};
-    if (r.url.variable.length) caption('Query Params', root);
-    root.append(kvEditor(r.url.query, () => {setQuery(r, r.url.query); $('url').value = displayUrl(r.url); touch();}));
-    if (r.url.variable.length || /\/:\w/.test(u.base)) {caption('Path Variables', root); root.append(kvEditor(r.url.variable, touch));}
-  } else if (pane === 'headers') {r.header = rows(r.header); root.append(kvEditor(r.header, touch));}
+    const u = urlParts(r.url);
+    if (u.variable.length) caption('Query Params', root);
+    root.append(kvEditor(u.query, () => {setQuery(r, u.query); $('url').value = displayUrl(r.url); touchTab(tab);}));
+    if (u.variable.length || /\/:\w/.test(u.base)) {caption('Path Variables', root); root.append(kvEditor(u.variable, () => {r.url = {...urlParts(r.url), variable:u.variable}; touchTab(tab);}));}
+  } else if (pane === 'headers') {const headers = rows(r.header); root.append(kvEditor(headers, () => {r.header = headers; touchTab(tab);}));}
   else if (pane === 'authorization') root.append(authEditor(r, true, touch));
   else if (pane === 'body') renderBody(root, tab);
   else if (pane === 'settings') {
@@ -453,30 +453,31 @@ function chooseFiles(tabId, key, multiple) {
   chooser.click();
 }
 function renderBody(root, tab) {
-  const body = tab.request.body ||= {mode: 'none'}, toolbar = element('div', 'body-toolbar');
+  const body = clone(tab.request.body || {mode: 'none'}), toolbar = element('div', 'body-toolbar');
+  const changed = () => {tab.request.body = body; touchTab(tab);};
   const modes = [['none', 'none'], ['formdata', 'form-data'], ['urlencoded', 'x-www-form-urlencoded'], ['raw', 'raw'], ['file', 'binary'], ['graphql', 'GraphQL']];
   for (const [value, label] of modes) {
     const wrap = element('label'), radio = element('input'); radio.type = 'radio'; radio.name = 'bodyMode'; radio.value = value; radio.checked = (body.mode || 'none') === value;
-    radio.onchange = () => {body.mode = value; touch(); renderPane(); $('editorContent').querySelector(`input[name="bodyMode"][value="${value}"]`)?.focus({preventScroll:true});}; wrap.append(radio, label); toolbar.append(wrap);
+    radio.onchange = () => {body.mode = value; changed(); renderPane(); $('editorContent').querySelector(`input[name="bodyMode"][value="${value}"]`)?.focus({preventScroll:true});}; wrap.append(radio, label); toolbar.append(wrap);
   }
   root.append(toolbar);
-  if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; touch(); renderPane();}, 'text-button'));
+  if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; changed(); renderPane();}, 'text-button'));
   if (body.mode === 'raw') {
     body.options ||= {}; body.options.raw ||= {language: 'text'};
-    const editor = createCodeEditor({value:body.raw || '', language:body.options.raw.language || 'text', label:'Raw body', onChange:value=>{body.raw=value;touch();}});
-    const language = select([['text','Text'],['json','JSON'],['xml','XML'],['html','HTML'],['javascript','JavaScript']], body.options.raw.language || 'text', value=>{body.options.raw.language=value;editor.setLanguage(value);touch();});
+    const editor = createCodeEditor({value:body.raw || '', language:body.options.raw.language || 'text', label:'Raw body', onChange:value=>{body.raw=value;changed();}});
+    const language = select([['text','Text'],['json','JSON'],['xml','XML'],['html','HTML'],['javascript','JavaScript']], body.options.raw.language || 'text', value=>{body.options.raw.language=value;editor.setLanguage(value);changed();});
     language.setAttribute('aria-label','本文のフォーマット');toolbar.append(language);
     toolbar.append(button('JSON整形',()=>{try{editor.setValue(JSON.stringify(JSON.parse(editor.textarea.value),null,2));}catch(error){toast(`JSON: ${error.message}`);}},'text-button'));
     root.append(editor.element);
   } else if (body.mode === 'urlencoded' || body.mode === 'formdata') {
-    const key = body.mode; body[key] = rows(body[key]); root.append(kvEditor(body[key], touch, {files: key === 'formdata'}));
+    const key = body.mode; body[key] = rows(body[key]); root.append(kvEditor(body[key], changed, {files: key === 'formdata'}));
   } else if (body.mode === 'file') {
     root.append(filePicker(tab.id, 'binary', body.file?.src, false));
   } else if (body.mode === 'graphql') {
     body.graphql ||= {query: '', variables: '{}'};
     for (const key of ['query', 'variables']) {
       caption(key === 'query' ? 'Query' : 'Variables (JSON)', root);
-      root.append(createCodeEditor({value:typeof body.graphql[key] === 'object' ? JSON.stringify(body.graphql[key],null,2) : body.graphql[key] || '',language:key === 'query' ? 'graphql' : 'json',label:`GraphQL ${key}`,onChange:value=>{body.graphql[key]=value;touch();}}).element);
+      root.append(createCodeEditor({value:typeof body.graphql[key] === 'object' ? JSON.stringify(body.graphql[key],null,2) : body.graphql[key] || '',language:key === 'query' ? 'graphql' : 'json',label:`GraphQL ${key}`,onChange:value=>{body.graphql[key]=value;changed();}}).element);
     }
   }
 }
