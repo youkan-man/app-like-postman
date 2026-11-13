@@ -66,6 +66,9 @@ export class RevisionStore {
     if (this.previous.has(from)) this.previous.set(to, this.previous.get(from));
     this.previous.delete(from);
   }
+  remove(key) {
+    delete this.workspace.revisions[key]; this.previous.delete(key);
+  }
   restore(key, entry) {
     const row = settingsIndex(this.workspace).get(key);
     if (!row) throw new Error('復元先の設定がありません。');

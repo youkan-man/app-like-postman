@@ -27,6 +27,7 @@ export function initStudio(api) {
   }
   function responseFor(tab){return snapshots.get(requestKey(w(),tab));}
   function transferResponse(before,after){if(snapshots.has(before)){snapshots.set(after,snapshots.get(before));snapshots.delete(before);}}
+  function forgetResponse(key){snapshots.delete(key);scriptLogs.delete(key);try{session?.setItem(RESPONSE_KEY,JSON.stringify([...snapshots]));}catch{storageError();}}
   function noteScript(tab,entry){scriptLogs.set(requestKey(w(),tab),entry);const log=$('scriptLog');if(log&&requestKey(w(),api.active())===requestKey(w(),tab))log.textContent=entry.error||entry.logs?.map(r=>r.message).join('\n')||'完了';}
   async function execute(tab,{signal,environmentId=w().environmentId,files={},onProgress}={}) {
     const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
@@ -360,7 +361,7 @@ export function initStudio(api) {
   $('stopRelationGlobal').onclick=stopRelation;
   $('extractResponse').onclick=()=>responseExtraction(api.active());
   $('sidebarContent').addEventListener('contextmenu',event=>{if(event.defaultPrevented||event.target.closest('.tree-row,.history-entry,input'))return;event.preventDefault();creationMenu($('sidebarContent'),event,true);});
-  return {primary,execute,rememberResponse,responseFor,transferResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,
+  return {primary,execute,rememberResponse,responseFor,transferResponse,forgetResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,
     createEnvironment,creationMenu,createItem,captureContext,requestActions,draftActions,renderScripts,responseExtraction,addRequestToRelation,
     isRunning:()=>Boolean(controller||manualControllers.size),
     reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];},refresh(){surfaceKey='';syncView(api.side());}};

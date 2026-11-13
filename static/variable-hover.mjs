@@ -82,8 +82,10 @@ export function bindVariableHover({root = document, workspace, active, primary =
   const scope = document.createElement('span'); scope.className = 'variable-tooltip-scope';
   const value = document.createElement('pre'); value.className = 'variable-tooltip-value';
   const note = document.createElement('div'); note.className = 'variable-tooltip-note'; note.textContent = 'プレビュー · 送信時に再生成'; note.hidden = true;
-  heading.append(name, scope); tip.append(heading, value, note); document.body.append(tip);
-  let state = null, dismissed = null, animation = null, hideTimer = null, refreshTimer = null, pending = null;
+  // The resolved value is the reason for inspecting a variable. Keep metadata
+  // after it in both the visual order and the accessible description.
+  heading.append(name, scope); tip.append(value, heading, note); document.body.append(tip);
+  let state = null, dismissed = null, animation = null, hideTimer = null, refreshTimer = null, pending = null, pointerInTip = false;
   const geometries = new WeakMap();
   const listeners = [];
   function listen(target, type, fn, options) {target.addEventListener(type, fn, options); listeners.push(() => target.removeEventListener(type, fn, options));}
@@ -99,7 +101,7 @@ export function bindVariableHover({root = document, workspace, active, primary =
   function hide() {
     window.clearTimeout(hideTimer); window.clearInterval(refreshTimer); hideTimer = refreshTimer = null;
     if (state) clearDescription(state.control);
-    state = null; tip.hidden = true;
+    state = null; tip.hidden = true; pointerInTip = false;
   }
   function postponeHide() {window.clearTimeout(hideTimer); hideTimer = window.setTimeout(hide, 130);}
   function locate(control) {
@@ -128,8 +130,10 @@ export function bindVariableHover({root = document, workspace, active, primary =
     tip.style.maxWidth = `${Math.max(1, Math.min(520, width - 2 * margin))}px`; tip.style.maxHeight = `${Math.max(1, Math.min(340, height - 2 * margin))}px`;
     const box = state.anchor, tipBox = tip.getBoundingClientRect();
     const left = Math.max(leftEdge + margin, Math.min(state.x ?? box.left, leftEdge + width - tipBox.width - margin));
-    let top = box.bottom + 6;
-    if (top + tipBox.height > topEdge + height - margin) top = box.top - tipBox.height - 6;
+    // Prefer the space above the field so URL previews leave the editor tabs
+    // immediately below it available for the next action.
+    let top = box.top - tipBox.height - 6;
+    if (top < topEdge + margin) top = box.bottom + 6;
     top = Math.max(topEdge + margin, Math.min(top, topEdge + height - tipBox.height - margin));
     tip.style.left = `${left}px`; tip.style.top = `${top}px`;
   }
@@ -161,7 +165,7 @@ export function bindVariableHover({root = document, workspace, active, primary =
   function inspectPointer(event) {
     if (event.pointerType === 'touch' || tip.contains(event.target)) return;
     const control = eligible(event.target);
-    if (!control) {if (state?.mode === 'pointer') postponeHide(); dismissed = null; return;}
+    if (!control) {if (state) postponeHide(); dismissed = null; return;}
     pending = {control, x:event.clientX, y:event.clientY};
     if (animation !== null) return;
     animation = window.requestAnimationFrame(() => {
@@ -180,13 +184,19 @@ export function bindVariableHover({root = document, workspace, active, primary =
   }
   listen(root, 'pointermove', inspectPointer);
   listen(root, 'pointerover', inspectPointer);
-  listen(root, 'pointerout', event => {if (state?.mode === 'pointer' && (event.target === state.control || tip.contains(event.target)) && !tip.contains(event.relatedTarget) && event.relatedTarget !== state.control) {postponeHide(); dismissed = null;}});
-  listen(tip, 'pointerenter', () => window.clearTimeout(hideTimer));
-  listen(root, 'focusin', event => {const control = eligible(event.target); if (control) {dismissed = null; inspectCaret(control);} else if (!tip.contains(event.target)) hide();});
-  listen(root, 'focusout', event => {if (event.target === state?.control && !tip.contains(event.relatedTarget)) hide();});
-  listen(root, 'keyup', event => {const control = eligible(event.target); if (control && event.key !== 'Escape' && !event.isComposing) inspectCaret(control);});
+  listen(root, 'pointerout', event => {if (state && (event.target === state.control || tip.contains(event.target)) && !tip.contains(event.relatedTarget) && event.relatedTarget !== state.control) {postponeHide(); dismissed = null;}});
+  listen(tip, 'pointerenter', () => {pointerInTip = true; window.clearTimeout(hideTimer);});
+  listen(tip, 'pointerleave', () => {pointerInTip = false;});
+  listen(root, 'focusin', event => {const control = eligible(event.target); if (control) {dismissed = null; if (state?.control !== control) hide();} else if (!tip.contains(event.target)) hide();});
+  // Clicking selectable value text can blur an input with relatedTarget=null.
+  // Keep the preview alive while the pointer is selecting its contents.
+  listen(root, 'focusout', event => {if (event.target === state?.control && !pointerInTip && !tip.contains(event.relatedTarget)) hide();});
+  const caretKeys = new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','Tab']);
+  listen(root, 'keyup', event => {const control = eligible(event.target); if (control && caretKeys.has(event.key) && !event.isComposing) inspectCaret(control);});
   listen(root, 'click', event => {const control = eligible(event.target); if (control && state?.mode !== 'pointer') inspectCaret(control);});
-  listen(root, 'input', event => {if (event.isComposing) {hide(); return;} const control = eligible(event.target); if (control) {dismissed = null; geometries.delete(control); inspectCaret(control);} else render();});
+  // Typing or filling a field should not open a popup over the next control.
+  // Hovering or deliberately moving the caret can inspect the new value.
+  listen(root, 'input', event => {if (event.isComposing) {hide(); return;} const control = eligible(event.target); if (control) {dismissed = null; geometries.delete(control); hide();} else render();});
   listen(root, 'change', () => render());
   listen(root, 'compositionstart', hide);
   listen(root, 'keydown', event => {
@@ -196,7 +206,7 @@ export function bindVariableHover({root = document, workspace, active, primary =
       dismissed = {control:state.control, key:state.key, start:state.start}; hide();
     }
   }, true);
-  listen(document, 'selectionchange', () => {if (state?.mode !== 'pointer' && !tip.contains(document.getSelection()?.anchorNode)) {const control = eligible(document.activeElement); if (control) inspectCaret(control);}});
+  listen(document, 'selectionchange', () => {if (state?.mode === 'keyboard' && !tip.contains(document.getSelection()?.anchorNode)) {const control = eligible(document.activeElement); if (control) inspectCaret(control);}});
   listen(root, 'scroll', event => {if (!tip.contains(event.target)) hide();}, true);
   listen(window, 'resize', hide);
   listen(window, 'blur', hide);

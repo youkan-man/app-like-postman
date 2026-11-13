@@ -33,10 +33,16 @@
       "run": "bash ci/relay_2vm_prepare_browser.sh"
     },
     {
-      "name": "browser-cross-vm-e2e",
+      "name": "browser-cross-vm-e2e-artifacts",
       "vm": "browser",
       "needs": ["prepare-browser", "start-app"],
-      "run": "bash ci/relay_2vm_verify_browser.sh"
+      "run": "bash ci/relay_2vm_collect_browser.sh"
+    },
+    {
+      "name": "browser-cross-vm-e2e",
+      "vm": "browser",
+      "needs": ["browser-cross-vm-e2e-artifacts"],
+      "run": "bash ci/relay_2vm_collect_browser.sh --check"
     }
   ],
   "environment_revision": "minipost-2vm-chromium-20261016-v2"

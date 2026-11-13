@@ -1,0 +1,18 @@
+PASS each URL placeholder resolves the hovered token using the selected environment
+PASS resolved value is the first and largest text, and remains selectable for copying
+PASS switching environments immediately refreshes hover precedence over folder/collection/globals
+PASS long multiline values remain complete, wrap within the popup and can be scrolled
+PASS filling a template does not reopen a popup or block the next editor tab
+PASS empty, zero, missing and disabled variables have distinct correct hover states
+PASS header/auth/body hover resolves nested variables without changing the request
+PASS keyboard caret reveals a variable; leaving for another control or Escape dismisses it
+PASS hover hit testing follows horizontal input scrolling and vertical textarea scrolling
+PASS saved snapshot exactly matches real receiver method, encoded URL, all wire headers and UTF-8 body
+PASS pre-send script values are frozen in history while hover shows post-response primary values
+PASS history displays transmitted values without changing the current environment or request draft
+PASS history retains the original transmitted values after environment changes and reload
+PASS history remains readable at 390px and 320px without document horizontal overflow
+PASS explicit edit action reopens the original variable template
+PASS tooltip stays inside the phone viewport at 390px and 320px
+PASS legacy history reports missing transmitted values instead of resolving old templates with current variables
+PASS no uncaught browser errors or native dialogs

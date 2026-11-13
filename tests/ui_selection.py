@@ -46,6 +46,17 @@ def main():
                 saved()
                 return page.evaluate('(k)=>JSON.parse(localStorage.getItem(k))', KEY)
 
+            def stored_request(value, name):
+                def requests(items):
+                    for item in items:
+                        if 'request' in item:
+                            yield item
+                        yield from requests(item.get('item', []))
+                matches = [(collection, item) for collection in value['collections']
+                           for item in requests(collection.get('item', [])) if item['name'] == name]
+                assert len(matches) == 1, (name, matches)
+                return matches[0]
+
             def load(value):
                 page.locator('#import').click()
                 page.get_by_label('インポートJSON').fill(json.dumps(value))
@@ -91,8 +102,10 @@ def main():
             body_toggle.click()
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             first = state()
-            draft = next(t for t in first['tabs'] if t['id'] == first['activeId'])
-            key = 'request:' + draft['collectionId'] + ':' + draft['itemId']
+            stored_collection, stored_item = stored_request(first, long)
+            key = 'request:' + stored_collection['_mpId'] + ':' + stored_item['_mpId']
+            assert stored_item['request']['body']['raw'] == 'after-one'
+            assert not any(t.get('collectionId') == stored_collection['_mpId'] for t in first['tabs'])
             assert first['revisions'][key][-1]['value']['request']['body']['raw'] == 'after-one'
             choose('Second request')
             choose(long)
@@ -100,8 +113,10 @@ def main():
             count = len(state()['revisions'][key])
             choose('Second request')
             choose(long)
-            assert len(state()['revisions'][key]) == count
-            passed('switching selection retains each draft; selection alone does not add revisions')
+            selected = state()
+            assert len(selected['revisions'][key]) == count
+            assert selected['tabs'] == first['tabs']
+            passed('switching saved requests retains edits without creating drafts or revisions')
             page.get_by_label('Raw body').fill('after-two')
             saved()
             page.locator('#requestHistory').click()
@@ -157,7 +172,7 @@ def main():
             expect(page.locator('section.editor-section[data-pane=body] .editor-section-body')).to_be_visible()
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             page.screenshot(path=str(out/'single-selection.png'), full_page=True)
-            passed('drafts and revisions survive reload')
+            passed('saved request edits and revisions survive reload')
             page.locator('#sidebarContent').click(button='right',position={'x':200,'y':page.locator('#sidebarContent').bounding_box()['height']-4}); page.get_by_role('menuitem',name='リクエストを作成',exact=True).click()
             page.locator('#requestName').fill('Unsaved work')
             page.locator('#url').fill(echo_url+'/echo?draft=1')
@@ -168,22 +183,27 @@ def main():
             page.locator('#requestHistory').click()
             assert page.locator('.revision-entry').count() > 0
             page.locator('#closeModal').click()
+            before_save = state()
+            draft = next(t for t in before_save['tabs'] if t['id'] == before_save['activeId'])
+            assert draft['name'] == 'Unsaved work'
+            assert draft['request']['url']['raw'] == echo_url+'/echo?draft=1'
             page.locator('#saveRequest').click()
             page.locator('#modalSubmit').click()
             saved()
             current = state()
-            active = next(t for t in current['tabs'] if t['id'] == current['activeId'])
-            newkey = 'request:'+active['collectionId']+':'+active['itemId']
+            stored_collection, stored_item = stored_request(current, 'Unsaved work')
+            newkey = 'request:'+stored_collection['_mpId']+':'+stored_item['_mpId']
+            assert stored_item['request']['url']['raw'] == echo_url+'/echo?draft=1'
             assert current['revisions'][newkey]
-            assert 'draft:'+active['id'] not in current['revisions']
+            assert 'draft:'+draft['id'] not in current['revisions']
             passed('unsaved work stays in the list and its history follows the first collection save')
             expect(page.locator('section.editor-section[data-pane=settings] .editor-section-body')).to_be_visible()
             page.get_by_label('TLS証明書を検証する', exact=True).check()
             page.get_by_label('リダイレクトを追従する', exact=True).uncheck()
             page.get_by_label('Timeout ms', exact=True).fill('12500')
             saved()
-            current = next(t for t in state()['tabs'] if t['id'] == state()['activeId'])
-            assert current['settings'] == {'verify_tls':True,'follow_redirects':False,'timeout_ms':12500}
+            _, stored_item = stored_request(state(), 'Unsaved work')
+            assert stored_item['settings'] == {'verify_tls':True,'follow_redirects':False,'timeout_ms':12500}
             passed('consecutive TLS redirect and timeout edits all persist')
             page.set_viewport_size({'width':390,'height':844})
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')

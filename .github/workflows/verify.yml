@@ -83,6 +83,9 @@ jobs:
       - name: Current variable hover values and immutable transmitted history
         if: ${{ !cancelled() }}
         run: python tests/ui_sent_values.py 2>&1 | tee artifacts/browser/ui-sent-values.log
+      - name: Temporary editors, explicit drafts and bulk list deletion
+        if: ${{ !cancelled() }}
+        run: python tests/ui_draft_lifecycle.py 2>&1 | tee artifacts/browser/ui-draft-lifecycle.log
       - name: UI interactions and visual evidence
         if: ${{ !cancelled() }}
         run: python tests/ui_workbench.py 2>&1 | tee artifacts/browser/ui-e2e.log

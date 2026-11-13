@@ -1,0 +1,35 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "each URL placeholder resolves the hovered token using the selected environment",
+    "resolved value is the first and largest text, and remains selectable for copying",
+    "switching environments immediately refreshes hover precedence over folder/collection/globals",
+    "long multiline values remain complete, wrap within the popup and can be scrolled",
+    "filling a template does not reopen a popup or block the next editor tab",
+    "empty, zero, missing and disabled variables have distinct correct hover states",
+    "header/auth/body hover resolves nested variables without changing the request",
+    "keyboard caret reveals a variable; leaving for another control or Escape dismisses it",
+    "hover hit testing follows horizontal input scrolling and vertical textarea scrolling",
+    "saved snapshot exactly matches real receiver method, encoded URL, all wire headers and UTF-8 body",
+    "pre-send script values are frozen in history while hover shows post-response primary values",
+    "history displays transmitted values without changing the current environment or request draft",
+    "history retains the original transmitted values after environment changes and reload",
+    "history remains readable at 390px and 320px without document horizontal overflow",
+    "explicit edit action reopens the original variable template",
+    "tooltip stays inside the phone viewport at 390px and 320px",
+    "legacy history reports missing transmitted values instead of resolving old templates with current variables",
+    "no uncaught browser errors or native dialogs"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "screenshots": [
+    "hover-long-value.png",
+    "hover-body-desktop.png",
+    "history-desktop.png",
+    "history-390.png",
+    "history-320.png",
+    "hover-phone-390.png",
+    "hover-phone-320.png",
+    "history-legacy.png"
+  ]
+}

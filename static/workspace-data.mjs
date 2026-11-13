@@ -55,6 +55,7 @@ function validWorkspace(ws) {
       request(h.tab.request) && typeof h.tab.name === 'string') &&
     (ws.collapsed == null || Array.isArray(ws.collapsed)) &&
     (ws.activeId == null || typeof ws.activeId === 'string') &&
+    (ws.activeRequest == null || (record(ws.activeRequest) && validId(ws.activeRequest.collectionId) && validId(ws.activeRequest.itemId))) &&
     (ws.environmentId == null || typeof ws.environmentId === 'string') &&
     validRelations(ws.relations) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
@@ -88,7 +89,7 @@ export function mergeWorkspace(into, source) {
     h.id = remap(h.id); h.environmentId = remap(h.environmentId);
     if (h.tab) {
       h.tab.id = remap(h.tab.id); h.tab.collectionId = remap(h.tab.collectionId);
-      h.tab.itemId = remap(h.tab.itemId);
+      h.tab.itemId = remap(h.tab.itemId); h.tab.pendingFolderId = remap(h.tab.pendingFolderId);
     }
   });
   for (const relation of imported.relations || []) {
@@ -124,6 +125,9 @@ export function mergeWorkspace(into, source) {
     }
   }
   if (!into.environmentId && imported.environmentId) into.environmentId = remap(imported.environmentId);
+  if (!into.activeRequest && !into.activeId && imported.activeRequest) into.activeRequest = {
+    collectionId:remap(imported.activeRequest.collectionId), itemId:remap(imported.activeRequest.itemId)
+  };
   if (!into.activeId && imported.activeId) into.activeId = remap(imported.activeId);
   return into;
 }

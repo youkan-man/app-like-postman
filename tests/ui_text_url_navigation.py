@@ -52,6 +52,13 @@ def main():
                 page.locator('#import').click();page.get_by_label('インポートJSON',exact=True).fill(json.dumps(value));page.locator('#modalSubmit').click()
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了');page.locator('#modalSubmit').click();saved()
             def row(name):return page.locator('.tree-row[data-collection-id]').filter(has=page.locator('.tree-label',has_text=re.compile('^'+re.escape(name)+'$')))
+            def stored_item(value, collection_id, item_id):
+                def descendants(items):
+                    for item in items:
+                        yield item
+                        yield from descendants(item.get('item', []))
+                collection=next(c for c in value['collections'] if c['_mpId']==collection_id)
+                return next(item for item in descendants(collection['item']) if item['_mpId']==item_id)
             def choose(name):
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 page.locator('[data-sidebar=collections]').click();row(name).locator('.tree-open').click();expect(page.locator('#requestName')).to_have_value(name)
@@ -107,13 +114,17 @@ def main():
             drag('Request two','Other request','after',cancel=True);assert state()==before
             passed('self-descendant drops and Escape leave collections unchanged')
             choose('Request one');page.locator('#url').fill(plain+' changed');saved()
-            before=state();draft=next(t for t in before['tabs'] if t['id']==before['activeId']);key=f"request:{draft['collectionId']}:{draft['itemId']}";revs=before['revisions'][key]
+            before=state();request_id=row('Request one').get_attribute('data-item-id');key=f"request:{a['_mpId']}:{request_id}";revs=before['revisions'][key]
+            request=stored_item(before,a['_mpId'],request_id)
+            assert request['request']['url']['raw']==plain+' changed'
             drag('Folder A','Collection B');w=state()
-            assert w['activeId']==draft['id'];current=next(t for t in w['tabs'] if t['id']==draft['id']);assert current['collectionId']==b['_mpId']
-            assert w['revisions'][f"request:{b['_mpId']}:{draft['itemId']}"]==revs
-            assert key not in w['revisions'];expect(area).to_have_value(plain+' changed')
+            current=stored_item(w,b['_mpId'],request_id);assert current==request
+            assert w['tabs']==before['tabs']
+            assert w['activeRequest']=={'collectionId':b['_mpId'],'itemId':request_id}
+            assert w['revisions'][f"request:{b['_mpId']}:{request_id}"]==revs
+            assert key not in w['revisions'];expect(page.locator('#requestName')).to_have_value('Request one');expect(area).to_have_value(plain+' changed')
             passed('cross-collection folder move preserves active editor, descendant IDs and existing revisions')
-            # A binary attachment must follow the existing draft, not be lost during a move.
+            # A binary attachment must follow the open editor during a move.
             choose('Upload');page.locator('#editor-tab-body').click();data=bytes(range(256))*4096
             with page.expect_file_chooser() as picked:page.locator('[data-file-slot=binary] .file-pick').click()
             picked.value.set_files({'name':'日本.bin','mimeType':'application/octet-stream','buffer':data})
@@ -154,6 +165,8 @@ def main():
             before=state();fixture.reload(page);restored=state()
             assert restored['collections']==before['collections'] and restored['relations']==before['relations']
             assert restored['activeId']==before['activeId'] and restored['revisions']==before['revisions']
+            assert restored['activeRequest']==before['activeRequest']
+            expect(page.locator('#requestName')).to_have_value('Upload')
             passed('moved hierarchy, stable references, active request and revision history survive reload')
             assert not errors,errors;assert not native_dialogs,native_dialogs
             passed('no browser-native dialogs or uncaught page exceptions')
