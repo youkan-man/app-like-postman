@@ -1,0 +1,241 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-13T07:29:15.656Z",
+  "workspace": {
+    "version": 2,
+    "collections": [
+      {
+        "info": {
+          "name": "Backup API",
+          "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        },
+        "item": [
+          {
+            "name": "Echo backup",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://127.0.0.1:42797/echo",
+                "base": "http://127.0.0.1:42797/echo",
+                "hash": "",
+                "query": [],
+                "variable": [],
+                "_mpTextParts": true
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\"note\":\"initial\"}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "header": []
+            },
+            "_mpId": "962fdaf4-8b48-4680-84e9-2e8fb2d61ef1"
+          }
+        ],
+        "_mpId": "2ef2b966-f406-4c83-9867-49f50e7ae4e5"
+      }
+    ],
+    "environments": [
+      {
+        "name": "QA backup",
+        "_postman_variable_scope": "environment",
+        "values": [
+          {
+            "key": "key",
+            "value": "test-local-only",
+            "disabled": false
+          }
+        ],
+        "id": "cc11cbbd-eaa1-4d2f-8bf2-2b769b380132"
+      }
+    ],
+    "globals": [],
+    "tabs": [],
+    "activeId": "",
+    "environmentId": "cc11cbbd-eaa1-4d2f-8bf2-2b769b380132",
+    "history": [
+      {
+        "id": "6ff3ab2f-602a-40fd-863b-4fb9de4db586",
+        "at": "2026-11-13T07:29:15.314Z",
+        "tab": {
+          "id": "130a652b-0d5b-4c19-9896-3517f8e723b7",
+          "name": "Echo backup",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "http://127.0.0.1:42797/echo",
+              "base": "http://127.0.0.1:42797/echo",
+              "hash": "",
+              "query": [],
+              "variable": [],
+              "_mpTextParts": true
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\":\"initial\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "header": []
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": false,
+          "collectionId": "2ef2b966-f406-4c83-9867-49f50e7ae4e5",
+          "itemId": "962fdaf4-8b48-4680-84e9-2e8fb2d61ef1"
+        },
+        "environmentId": "cc11cbbd-eaa1-4d2f-8bf2-2b769b380132",
+        "environmentName": "QA backup",
+        "status": 200,
+        "elapsed_ms": 1,
+        "sent_requests": [
+          {
+            "method": "POST",
+            "url": "http://127.0.0.1:42797/echo",
+            "request_target": "/echo",
+            "headers": [
+              {
+                "key": "Host",
+                "value": "127.0.0.1:42797"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Connection",
+                "value": "close"
+              },
+              {
+                "key": "Content-Length",
+                "value": "18"
+              }
+            ],
+            "body_size": 18,
+            "body_mode": "text",
+            "body": "{\"note\":\"initial\"}",
+            "transmission": "sent",
+            "response_status": 200
+          }
+        ]
+      }
+    ],
+    "collapsed": [],
+    "theme": "light",
+    "relations": [],
+    "relationRuns": [],
+    "revisions": {
+      "collection:2ef2b966-f406-4c83-9867-49f50e7ae4e5": [
+        {
+          "id": "a35deb38-2aef-4b39-8513-df2666fa139d",
+          "at": "2026-11-13T07:29:14.905Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "variable",
+            "auth"
+          ],
+          "value": {
+            "name": "Backup API",
+            "variable": [],
+            "auth": null
+          }
+        }
+      ],
+      "request:2ef2b966-f406-4c83-9867-49f50e7ae4e5:962fdaf4-8b48-4680-84e9-2e8fb2d61ef1": [
+        {
+          "id": "0c4378a1-e264-4da9-9105-9a6990a324a7",
+          "at": "2026-11-13T07:29:14.906Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "request",
+            "settings"
+          ],
+          "value": {
+            "name": "Echo backup",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://127.0.0.1:42797/echo",
+                "base": "http://127.0.0.1:42797/echo",
+                "hash": "",
+                "query": [],
+                "variable": [],
+                "_mpTextParts": true
+              },
+              "body": {
+                "mode": "raw",
+                "raw": "{\"note\":\"initial\"}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
+                }
+              },
+              "header": [],
+              "auth": null
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "environment:cc11cbbd-eaa1-4d2f-8bf2-2b769b380132": [
+        {
+          "id": "c5944762-b301-4bbe-99b0-a75ff7da8b15",
+          "at": "2026-11-13T07:29:15.130Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "values"
+          ],
+          "value": {
+            "name": "QA backup",
+            "values": [
+              {
+                "key": "key",
+                "value": "test-local-only",
+                "disabled": false
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "activeRequest": {
+      "collectionId": "2ef2b966-f406-4c83-9867-49f50e7ae4e5",
+      "itemId": "962fdaf4-8b48-4680-84e9-2e8fb2d61ef1"
+    }
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "all",
+      "sidebar": "collections",
+      "response": "pretty"
+    }
+  }
+}

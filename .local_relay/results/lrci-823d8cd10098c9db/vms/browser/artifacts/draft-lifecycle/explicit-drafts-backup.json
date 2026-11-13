@@ -1,0 +1,872 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-13T07:25:49.777Z",
+  "workspace": {
+    "version": 2,
+    "collections": [
+      {
+        "_mpId": "collection-main",
+        "info": {
+          "name": "Lifecycle collection",
+          "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        },
+        "variable": [],
+        "item": [
+          {
+            "_mpId": "folder-main",
+            "name": "Saved requests",
+            "item": [
+              {
+                "_mpId": "saved-a",
+                "name": "Saved A",
+                "request": {
+                  "method": "POST",
+                  "url": "http://10.240.0.107:18081/echo",
+                  "header": [],
+                  "auth": null,
+                  "body": {
+                    "mode": "raw",
+                    "raw": "saved-a",
+                    "options": {
+                      "raw": {
+                        "language": "text"
+                      }
+                    }
+                  }
+                },
+                "settings": {
+                  "verify_tls": false,
+                  "follow_redirects": true,
+                  "timeout_ms": 30000
+                }
+              },
+              {
+                "_mpId": "saved-b",
+                "name": "Saved B",
+                "request": {
+                  "method": "POST",
+                  "url": "http://10.240.0.107:18081/echo",
+                  "header": [],
+                  "auth": null,
+                  "body": {
+                    "mode": "raw",
+                    "raw": "saved-b",
+                    "options": {
+                      "raw": {
+                        "language": "text"
+                      }
+                    }
+                  }
+                },
+                "settings": {
+                  "verify_tls": false,
+                  "follow_redirects": true,
+                  "timeout_ms": 30000
+                }
+              },
+              {
+                "_mpId": "mp-1794554747745-t8jrs4gapn",
+                "name": "Registered from history",
+                "request": {
+                  "method": "POST",
+                  "url": "http://10.240.0.107:18081/echo",
+                  "header": [],
+                  "auth": null,
+                  "body": {
+                    "mode": "raw",
+                    "raw": "history-body-2",
+                    "options": {
+                      "raw": {
+                        "language": "text"
+                      }
+                    }
+                  }
+                },
+                "settings": {
+                  "verify_tls": false,
+                  "follow_redirects": true,
+                  "timeout_ms": 30000
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "environments": [],
+    "globals": [],
+    "tabs": [
+      {
+        "id": "legacy-draft-1",
+        "name": "Legacy draft 1",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "legacy-1",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true
+      },
+      {
+        "id": "legacy-draft-2",
+        "name": "Legacy draft 2",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "legacy-2",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true
+      },
+      {
+        "id": "legacy-draft-3",
+        "name": "Legacy draft 3",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "legacy-3",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true
+      },
+      {
+        "id": "legacy-draft-4",
+        "name": "Legacy draft 4",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "legacy-4",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true
+      },
+      {
+        "id": "legacy-draft-5",
+        "name": "Legacy draft 5",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "legacy-5",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true
+      },
+      {
+        "id": "mp-1794554747945-0xo6smvqehu",
+        "name": "History 3",
+        "collectionId": "collection-main",
+        "request": {
+          "method": "POST",
+          "url": {
+            "raw": "http://10.240.0.107:18081/echo?explicit-draft=1",
+            "base": "http://10.240.0.107:18081/echo",
+            "hash": "",
+            "query": [
+              {
+                "key": "explicit-draft",
+                "value": "1",
+                "disabled": false
+              }
+            ],
+            "variable": [],
+            "_mpTextParts": true,
+            "_mpTypedUrl": true
+          },
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "history-body-3",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true,
+        "pendingFolderId": "folder-main"
+      },
+      {
+        "id": "mp-1794554749292-c8uba4dthhj",
+        "name": "History 4 copy",
+        "collectionId": "collection-main",
+        "request": {
+          "method": "POST",
+          "url": "http://10.240.0.107:18081/echo",
+          "header": [],
+          "auth": null,
+          "body": {
+            "mode": "raw",
+            "raw": "history-body-4",
+            "options": {
+              "raw": {
+                "language": "text"
+              }
+            }
+          }
+        },
+        "settings": {
+          "verify_tls": false,
+          "follow_redirects": true,
+          "timeout_ms": 30000
+        },
+        "dirty": true,
+        "pendingFolderId": "folder-main"
+      }
+    ],
+    "activeId": "mp-1794554749292-c8uba4dthhj",
+    "environmentId": "",
+    "history": [
+      {
+        "id": "history-1",
+        "at": "2026-01-01T00:00:00Z",
+        "status": 200,
+        "environmentId": "",
+        "environmentName": "",
+        "tab": {
+          "id": "old-editor-1",
+          "name": "History 1",
+          "collectionId": "collection-main",
+          "itemId": "saved-a",
+          "request": {
+            "method": "POST",
+            "url": "http://10.240.0.107:18081/echo",
+            "header": [],
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "history-body-1",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": false
+        }
+      },
+      {
+        "id": "history-2",
+        "at": "2026-01-02T00:00:00Z",
+        "status": 200,
+        "environmentId": "",
+        "environmentName": "",
+        "tab": {
+          "id": "old-editor-2",
+          "name": "History 2",
+          "collectionId": "collection-main",
+          "itemId": "saved-a",
+          "request": {
+            "method": "POST",
+            "url": "http://10.240.0.107:18081/echo",
+            "header": [],
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "history-body-2",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": false
+        }
+      },
+      {
+        "id": "history-3",
+        "at": "2026-01-03T00:00:00Z",
+        "status": 200,
+        "environmentId": "",
+        "environmentName": "",
+        "tab": {
+          "id": "old-editor-3",
+          "name": "History 3",
+          "collectionId": "collection-main",
+          "itemId": "saved-a",
+          "request": {
+            "method": "POST",
+            "url": "http://10.240.0.107:18081/echo",
+            "header": [],
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "history-body-3",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": false
+        }
+      },
+      {
+        "id": "history-4",
+        "at": "2026-01-04T00:00:00Z",
+        "status": 200,
+        "environmentId": "",
+        "environmentName": "",
+        "tab": {
+          "id": "old-editor-4",
+          "name": "History 4",
+          "collectionId": "collection-main",
+          "itemId": "saved-a",
+          "request": {
+            "method": "POST",
+            "url": "http://10.240.0.107:18081/echo",
+            "header": [],
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "history-body-4",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": false
+        }
+      },
+      {
+        "id": "mp-1794554746828-ccrk2rqfdjf",
+        "at": "2026-11-13T07:25:46.809Z",
+        "tab": {
+          "id": "mp-1794554745665-b9h2ezp2oy",
+          "name": "History 1",
+          "collectionId": "collection-main",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "http://10.240.0.107:18081/echo?temporary=1",
+              "base": "http://10.240.0.107:18081/echo",
+              "hash": "",
+              "query": [
+                {
+                  "key": "temporary",
+                  "value": "1",
+                  "disabled": false
+                }
+              ],
+              "variable": [],
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "header": [],
+            "auth": null,
+            "body": {
+              "mode": "raw",
+              "raw": "edited history body — 日本語",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "dirty": true,
+          "pendingFolderId": "folder-main"
+        },
+        "environmentId": "",
+        "environmentName": "",
+        "status": 200,
+        "elapsed_ms": 2,
+        "sent_requests": [
+          {
+            "method": "POST",
+            "url": "http://10.240.0.107:18081/echo?temporary=1",
+            "request_target": "/echo?temporary=1",
+            "headers": [
+              {
+                "key": "Host",
+                "value": "10.240.0.107:18081"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain; charset=utf-8"
+              },
+              {
+                "key": "Connection",
+                "value": "close"
+              },
+              {
+                "key": "Content-Length",
+                "value": "33"
+              }
+            ],
+            "body_size": 33,
+            "body_mode": "text",
+            "body": "edited history body — 日本語",
+            "transmission": "sent",
+            "response_status": 200
+          }
+        ]
+      }
+    ],
+    "collapsed": [],
+    "theme": "light",
+    "revisions": {
+      "draft:legacy-draft-1": [
+        {
+          "id": "revision-legacy-draft-1",
+          "at": "2026-01-01T00:00:00Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "Legacy draft 1",
+            "request": {
+              "method": "POST",
+              "url": "http://10.240.0.107:18081/echo",
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "legacy-1",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:legacy-draft-2": [
+        {
+          "id": "revision-legacy-draft-2",
+          "at": "2026-01-01T00:00:00Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "Legacy draft 2",
+            "request": {
+              "method": "POST",
+              "url": "http://10.240.0.107:18081/echo",
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "legacy-2",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:legacy-draft-3": [
+        {
+          "id": "revision-legacy-draft-3",
+          "at": "2026-01-01T00:00:00Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "Legacy draft 3",
+            "request": {
+              "method": "POST",
+              "url": "http://10.240.0.107:18081/echo",
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "legacy-3",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:legacy-draft-4": [
+        {
+          "id": "revision-legacy-draft-4",
+          "at": "2026-01-01T00:00:00Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "Legacy draft 4",
+            "request": {
+              "method": "POST",
+              "url": "http://10.240.0.107:18081/echo",
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "legacy-4",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:legacy-draft-5": [
+        {
+          "id": "revision-legacy-draft-5",
+          "at": "2026-01-01T00:00:00Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "Legacy draft 5",
+            "request": {
+              "method": "POST",
+              "url": "http://10.240.0.107:18081/echo",
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "legacy-5",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "request:collection-main:mp-1794554747745-t8jrs4gapn": [
+        {
+          "id": "mp-1794554747749-zv2p2adyyg",
+          "at": "2026-11-13T07:25:47.749Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "request",
+            "settings"
+          ],
+          "value": {
+            "name": "Registered from history",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://10.240.0.107:18081/echo",
+                "base": "http://10.240.0.107:18081/echo",
+                "hash": "",
+                "query": [],
+                "variable": [],
+                "_mpTextParts": true
+              },
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "history-body-2",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:mp-1794554747945-0xo6smvqehu": [
+        {
+          "id": "mp-1794554748230-iml4vhpecth",
+          "at": "2026-11-13T07:25:48.230Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "request",
+            "settings"
+          ],
+          "value": {
+            "name": "History 3",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://10.240.0.107:18081/echo",
+                "base": "http://10.240.0.107:18081/echo",
+                "hash": "",
+                "query": [],
+                "variable": [],
+                "_mpTextParts": true
+              },
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "history-body-3",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        },
+        {
+          "id": "mp-1794554748682-npp6sfu3ueq",
+          "at": "2026-11-13T07:25:48.682Z",
+          "reason": "変更",
+          "changed": [
+            "request"
+          ],
+          "value": {
+            "name": "History 3",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://10.240.0.107:18081/echo?explicit-draft=1",
+                "base": "http://10.240.0.107:18081/echo",
+                "hash": "",
+                "query": [
+                  {
+                    "key": "explicit-draft",
+                    "value": "1",
+                    "disabled": false
+                  }
+                ],
+                "variable": [],
+                "_mpTextParts": true,
+                "_mpTypedUrl": true
+              },
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "history-body-3",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ],
+      "draft:mp-1794554749292-c8uba4dthhj": [
+        {
+          "id": "mp-1794554749293-bd6virel959",
+          "at": "2026-11-13T07:25:49.293Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "request",
+            "settings"
+          ],
+          "value": {
+            "name": "History 4 copy",
+            "request": {
+              "method": "POST",
+              "url": {
+                "raw": "http://10.240.0.107:18081/echo",
+                "base": "http://10.240.0.107:18081/echo",
+                "hash": "",
+                "query": [],
+                "variable": [],
+                "_mpTextParts": true
+              },
+              "header": [],
+              "auth": null,
+              "body": {
+                "mode": "raw",
+                "raw": "history-body-4",
+                "options": {
+                  "raw": {
+                    "language": "text"
+                  }
+                }
+              }
+            },
+            "settings": {
+              "verify_tls": false,
+              "follow_redirects": true,
+              "timeout_ms": 30000
+            }
+          }
+        }
+      ]
+    },
+    "relations": [],
+    "relationRuns": []
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "body",
+      "sidebar": "collections",
+      "response": "pretty"
+    }
+  }
+}
