@@ -392,8 +392,8 @@ def main():
                 if page.locator('#toggleSidebar').get_attribute('aria-expanded') != 'true':
                     page.locator('#toggleSidebar').click()
                 page.locator('[data-sidebar=history]').click()
-                long_row = page.locator('[data-history-id="layout-history-long"]')
-                short_row = page.locator('[data-history-id="layout-history-short"]')
+                long_row = page.locator('#sidebarContent .history-entry[data-history-id="layout-history-long"]')
+                short_row = page.locator('#sidebarContent .history-entry[data-history-id="layout-history-short"]')
                 long_row.scroll_into_view_if_needed()
                 settle()
                 row_data = long_row.evaluate('''e => {'''+RECT_HELPERS+r'''
