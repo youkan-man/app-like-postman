@@ -1,0 +1,23 @@
+{
+  "branch": "fix/editor-usability-20261117",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-17T11:39:23.4303Z",
+    "id": "lrce-e38a01ebc2d6c1fe1ccd745b",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "b87fdd7b79b0336ffe234757ab21cfafb385df3a4317071c859415ea629c51ce",
+    "sandbox_id": "sb-dcf332fecb4d",
+    "source_generation": 2
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-81701de951a7251d-app",
+  "source_sha": "ff05a50ca3f60de12315a7abaa43bb4c30be6818",
+  "started_at": "2026-11-17T08:51:53.356840546Z",
+  "status": "ready",
+  "version": 1
+}
