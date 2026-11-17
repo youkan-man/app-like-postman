@@ -1,0 +1,16 @@
+PASS a failed language Worker fetch exposes retry and recovers without losing source or textarea focus
+PASS live JSON input supplies nested property types and semantic completion preserves native Undo
+PASS completion inside an identifier preserves UTF-16 positions after supplementary Unicode characters
+PASS array callback, destructuring and aliases propagate input types into standard method completion
+PASS shared data contributes typed member and quoted-key completions through an API alias
+PASS variable, request and environment dictionaries use actual workspace names without displaying secret values
+PASS saved script references complete by name and ID, and their inferred return types continue through await and indexing
+PASS rapid edits discard stale language-service answers and accept only the current source completion
+PASS changing JSON fields or switching to text updates the same live Worker dictionary without a reload
+PASS edited shared data adds new keys and types and removes stale keys from completion
+PASS renaming and editing another saved script refreshes reference names and its return type in the existing editor
+PASS completion analyzes source without executing edited code or sending HTTP requests
+PASS the same source editor still executes JavaScript normally when the user explicitly runs it
+PASS an already-open completion popup follows a live viewport resize and remains pointer-selectable
+PASS typed completion remains usable inside the desktop and 390/320 px editor without horizontal overflow
+PASS semantic editing produces no uncaught browser errors, native dialogs or page crashes

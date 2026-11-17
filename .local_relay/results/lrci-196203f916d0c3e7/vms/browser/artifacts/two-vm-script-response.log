@@ -1,0 +1,17 @@
+PASS pre-send mutations to method, URL, headers and JSON body reach the real HTTP receiver
+PASS post-receive edits replace the actual body/status and automatic extraction reads processed metadata
+PASS response header/body views, native clipboard copy and downloaded JSON use the processed response
+PASS a saved script edits an already-received response through response/minipost.response without another HTTP request
+PASS a failing response script commits neither edited display/status nor variable/shared-data writes
+PASS Stop after pending mutations preserves the previous response and discards partial script writes
+PASS setBody/content type/show select the transformed HTML preview and matching download
+PASS processed response, HTML preview and response actions remain usable at desktop, 390 px and 320 px
+PASS restore returns to the first wire response after multiple transformations without resending
+PASS repeating show after manual view selection applies the new presentation once without modifying response bytes
+PASS delayed response processing and variable-only scripts cannot commit after a newer HTTP response
+PASS relation decisions and recorded status use the transformed response, skipping the unmatched request
+PASS a failed automatic post-hook preserves the received body/status and reports its error without partial writes
+PASS cancelling an automatic post-hook after mutation never commits its response or shared-data writes
+PASS automatic form-data row reordering sends the corresponding selected bytes while preserving editor selections
+PASS manually applying a form-data script moves live file selections with their rows and preserves receiver hashes
+PASS native response editing produces no uncaught JavaScript errors, browser dialogs or crashes
