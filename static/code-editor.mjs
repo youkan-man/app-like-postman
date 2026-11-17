@@ -161,12 +161,13 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     try{
       area.focus({preventScroll:true});
       if(after!==before){
+        for(const record of editHistory)if(record.undone)record.discarded=true;
         area.setSelectionRange(from,to);
         // This participates in the browser's existing textarea undo stack.
         try{native=document.execCommand('insertText',false,text);}catch{}
         if(area.value===before){area.setRangeText(text,from,to,'end');native=false;}
         if(knownValue!==area.value)notifyInput();
-        editHistory.push({before,after:area.value,beforeSelection,afterSelection,native});
+        editHistory.push({before,after:area.value,beforeSelection,afterSelection,native,undone:false,discarded:false});
         let retained=editHistory.reduce((size,item)=>size+item.before.length+item.after.length,0);
         while(editHistory.length>1&&(editHistory.length>32||retained>4_000_000)){
           const removed=editHistory.shift();retained-=removed.before.length+removed.after.length;
@@ -178,7 +179,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     return true;
   }
   function fallbackHistory(redo){
-    const record=[...editHistory].reverse().find(item=>!item.native&&(redo?item.before:item.after)===area.value);
+    const record=[...editHistory].reverse().find(item=>!item.native&&!item.discarded&&item.undone===redo&&(redo?item.before:item.after)===area.value);
     if(!record)return false;
     applying=true;invalidate();
     try{area.value=redo?record.after:record.before;restoreSelection(redo?record.afterSelection:record.beforeSelection);notifyInput(redo?'historyRedo':'historyUndo');}
@@ -197,7 +198,10 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){
       const redo=event.inputType==='historyRedo';
       const record=[...editHistory].reverse().find(item=>(redo?item.before:item.after)===previous&&(redo?item.after:item.before)===area.value);
-      if(record)restoreSelection(redo?record.afterSelection:record.beforeSelection);
+      if(record){record.undone=!redo;restoreSelection(redo?record.afterSelection:record.beforeSelection);}
+    }else if(!applying){
+      // Typing a new branch after Undo permanently invalidates the old Redo.
+      for(const record of editHistory)if(record.undone)record.discarded=true;
     }
     invalidate();paint();onChange(area.value);
     if(event.isComposing||composing||applying)return;

@@ -94,6 +94,36 @@ def check_native_editing(page, area, root, passed, capture):
     expect(area).to_be_focused()
     passed('Tab indents selected lines without deleting source or indenting the following line, with native Undo/Redo and Shift+Tab outdent')
 
+    # Exercise the setRangeText fallback with real keys, including a new native
+    # edit branch that returns to the same text as the old redo starting point.
+    original_exec_command = page.evaluate_handle('() => document.execCommand')
+    try:
+        page.evaluate('() => { document.execCommand = () => false; }')
+        area.fill('')
+        area.press_sequentially('x')
+        analysed()
+        area.press('Escape')
+        expect(suggestions).to_be_hidden()
+        area.press('Tab')
+        expect(area).to_have_value('x ')
+        area.press('Control+z')
+        expect(area).to_have_value('x')
+        area.press('Control+Shift+z')
+        expect(area).to_have_value('x ')
+        area.press('Control+z')
+        expect(area).to_have_value('x')
+        area.press_sequentially('y')
+        expect(area).to_have_value('xy')
+        area.press('Backspace')
+        expect(area).to_have_value('x')
+        area.press('Control+Shift+z')
+        expect(area).to_have_value('x')
+        expect(area).to_be_focused()
+    finally:
+        page.evaluate('(original) => { document.execCommand = original; }', original_exec_command)
+        original_exec_command.dispose()
+    passed('fallback Tab supports Undo/Redo and native typing then Backspace permanently discards the previous redo branch')
+
     area.fill('')
     area.press_sequentially('if (true) {}', delay=8)
     area.press('ArrowLeft')
