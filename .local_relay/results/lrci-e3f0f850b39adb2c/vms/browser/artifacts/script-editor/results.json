@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "checks": [],
+  "screenshots": [
+    "failure.png"
+  ],
+  "errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}

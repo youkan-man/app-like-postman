@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "legacy root modules are loaded over HTTP and expose the exact missing deletion APIs",
+    "updated application and its relative module graph load exclusively from uncached assets URLs",
+    "old module bytes remain in the real browser cache without an additional server read",
+    "bulk deletion completes with warmed legacy caches and removes both drafts and their revisions",
+    "reload preserves the empty draft list without partial deletion, native dialogs or browser errors"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "screenshots": [
+    "warm-cache-delete-desktop.png"
+  ],
+  "legacy_sha256": {
+    "/revisions.mjs": "eb986ceb434ff114368c70cfead85d6dc186d7b640d510d93734220bcfa0d971",
+    "/studio.mjs": "9527a12589693dbaa51f7317e47798c63f2561ba3fa52733d7936631e5db7b02"
+  }
+}
