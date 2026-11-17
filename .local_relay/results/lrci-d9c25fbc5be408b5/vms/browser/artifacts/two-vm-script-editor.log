@@ -1,0 +1,25 @@
+PASS Tab completes without indentation and native Undo restores the previous source
+PASS nested API completion accepts Enter without inserting a newline
+PASS completion replaces the entire identifier when the caret is inside it
+PASS comments and string/template literals do not show API completion
+PASS a local variable resolved by the language service is offered and inserted
+PASS nested object types survive aliasing and destructuring in member completion
+PASS block scope and shadowed variables select the actual binding without leaking closed-scope names
+PASS array callbacks infer element members and chained results retain standard string methods
+PASS class instances, inherited methods and this members are resolved from syntax and types
+PASS function return values and awaited async return values provide inferred members
+PASS template interpolations are parsed as code and suggestions do not execute the edited source
+PASS JSDoc enriches a user-defined function signature and identifies its current argument
+PASS function signature displays the active argument
+PASS Shift+Tab leaves the editor without accepting a suggestion
+PASS IME composition input and Enter are not intercepted by completion
+PASS Ctrl+Enter is left available to the application command handler
+PASS Ctrl+Space, arrow selection and Escape keep accessible active-option state
+PASS pending analysis never consumes Enter and stale edits or blur cannot reopen an old completion list
+PASS PageUp and PageDown invalidate completion at the previous caret position without changing source
+PASS pointer completion preserves textarea focus
+PASS syntax colors and completion popup remain visible without overflow at 320–1440px
+PASS edited pre-script executes in the isolated Worker and commits its successful variable write
+PASS a failing assertion keeps partial variable writes out of session state
+PASS post-script completion and IndexedDB autosave survive an HTTP reload
+PASS no uncaught browser JavaScript errors, native dialogs or page crashes

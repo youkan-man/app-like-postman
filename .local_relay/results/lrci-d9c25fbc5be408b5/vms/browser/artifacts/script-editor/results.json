@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "Tab completes without indentation and native Undo restores the previous source",
+    "nested API completion accepts Enter without inserting a newline",
+    "completion replaces the entire identifier when the caret is inside it",
+    "comments and string/template literals do not show API completion",
+    "a local variable resolved by the language service is offered and inserted",
+    "nested object types survive aliasing and destructuring in member completion",
+    "block scope and shadowed variables select the actual binding without leaking closed-scope names",
+    "array callbacks infer element members and chained results retain standard string methods",
+    "class instances, inherited methods and this members are resolved from syntax and types",
+    "function return values and awaited async return values provide inferred members",
+    "template interpolations are parsed as code and suggestions do not execute the edited source",
+    "JSDoc enriches a user-defined function signature and identifies its current argument",
+    "function signature displays the active argument",
+    "Shift+Tab leaves the editor without accepting a suggestion",
+    "IME composition input and Enter are not intercepted by completion",
+    "Ctrl+Enter is left available to the application command handler",
+    "Ctrl+Space, arrow selection and Escape keep accessible active-option state",
+    "pending analysis never consumes Enter and stale edits or blur cannot reopen an old completion list",
+    "PageUp and PageDown invalidate completion at the previous caret position without changing source",
+    "pointer completion preserves textarea focus",
+    "syntax colors and completion popup remain visible without overflow at 320–1440px",
+    "edited pre-script executes in the isolated Worker and commits its successful variable write",
+    "a failing assertion keeps partial variable writes out of session state",
+    "post-script completion and IndexedDB autosave survive an HTTP reload",
+    "no uncaught browser JavaScript errors, native dialogs or page crashes"
+  ],
+  "screenshots": [
+    "script-arguments.png",
+    "script-completion-desktop.png",
+    "script-completion-390.png",
+    "script-completion-320.png"
+  ],
+  "errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}
