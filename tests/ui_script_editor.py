@@ -10,6 +10,47 @@ from test_proxy import proxy, start_server
 from script_editor_checks import check_editor
 
 
+def check_json_formatting(page, passed, capture):
+    page.locator('#editor-tab-body').click()
+    raw_mode = page.locator('#editorContent').get_by_role('radio', name='raw', exact=True)
+    raw_mode.check()
+    expect(raw_mode).to_be_checked()
+    page.get_by_label('本文のフォーマット', exact=True).select_option('json')
+    area = page.get_by_label('Raw body', exact=True)
+    original = '{"name":"Ada","enabled":true,"items":[1,2]}'
+    formatted = json.dumps(json.loads(original), ensure_ascii=False, indent=2)
+    area.fill('')
+    area.press_sequentially(original, delay=8)
+    expect(area).to_have_value(original)
+    # Keep a real user selection so format/Undo cannot silently replace the
+    # editor and reset its input history or caret to the start/end of the body.
+    area.press('Home')
+    area.press('ArrowRight')
+    for _ in range(6):
+        area.press('Shift+ArrowRight')
+    selection = area.evaluate('element => [element.selectionStart, element.selectionEnd, element.selectionDirection]')
+    assert selection[:2] == [1, 7]
+    page.get_by_role('button', name='JSON整形', exact=True).click()
+    expect(area).to_have_value(formatted)
+    expect(area).to_be_focused()
+    for width, height in [(1440, 1000), (390, 844), (320, 720)]:
+        page.set_viewport_size({'width': width, 'height': height})
+        expect(area).to_be_visible()
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        capture('body-json-formatted-' + str(width))
+    page.set_viewport_size({'width': 1440, 'height': 1000})
+    area.press('Control+z')
+    expect(area).to_have_value(original)
+    assert area.evaluate('element => [element.selectionStart, element.selectionEnd, element.selectionDirection]') == selection
+    expect(area).to_be_focused()
+    area.press('Control+Shift+z')
+    expect(area).to_have_value(formatted)
+    expect(area).to_be_focused()
+    passed('JSON formatting stays in the native edit history: Undo restores the exact typed body and selection, and Redo reapplies it')
+    page.locator('#editor-tab-scripts').click()
+    page.locator('#script-tab-before').click()
+
+
 def main():
     if os.environ.get('MINIPOST_INLINE_TEST') == '1':
         raise RuntimeError('This acceptance suite requires a real HTTP origin')
@@ -56,6 +97,7 @@ def main():
                 page.screenshot(path=str(out/(name+'.png')),full_page=True)
                 shots.append(name+'.png')
             check_editor(page,area,root,passed,capture)
+            check_json_formatting(page,passed,capture)
 
             # Verify the actual isolated Worker, not an evaluator in the test process.
             area.fill("pm.test('script assertion', () => pm.expect(2 + 2).to.equal(4)); vars.set('editorVerified', 'yes');")
