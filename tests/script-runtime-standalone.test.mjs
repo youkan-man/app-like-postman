@@ -19,6 +19,51 @@ test('standalone scripts return typed data and keep undefined distinct from null
   assert.equal((await executeScript('return 0;')).result, 0);
 });
 
+test('local request and response declarations work with awaited host API calls', async () => {
+  const calls = [];
+  const output = await executeScript(`
+    const request = await minipost.requests.get('echo');
+    const response = await minipost.requests.send(request);
+    return await Promise.resolve({id:request.id, status:response.status, body:response.body});
+  `, {request:{method:'UNUSED'}, response:{status:500}}, {
+    onCall:async (method, args) => {
+      calls.push([method, args]);
+      return method === 'requests.get' ? {id:'echo-id', method:'POST'} : {status:200, body:{ok:true}};
+    }
+  });
+  assert.deepEqual(output.result, {id:'echo-id', status:200, body:{ok:true}});
+  assert.deepEqual(calls, [['requests.get', ['echo']], ['requests.send', [{id:'echo-id', method:'POST'}, undefined]]]);
+});
+
+test('user lexical declarations can shadow injected names without changing sibling scripts', async () => {
+  const output = await executeScript(`
+    const values = [];
+    const input = 4, console = {log:value => values.push(value)};
+    let request = 'local request', response = 'local response';
+    const pm = 'local pm', vars = 'local vars', scripts = 'local scripts', store = 'local store';
+    console.log(input);
+    const child = await minipost.scripts.run('child', {n:7});
+    const minipostResult = minipost.store.get('child');
+    return {values, request, response, pm, vars, scripts, store, child, minipostResult};
+  `, {input:{n:99}, scripts:[{id:'child', name:'Child', source:'console.log("child API"); store.set("child", input.n); return input.n * 2;'}]});
+  assert.deepEqual(output.result, {values:[4], request:'local request', response:'local response', pm:'local pm', vars:'local vars', scripts:'local scripts', store:'local store', child:14, minipostResult:7});
+  assert.deepEqual(output.logs, [{level:'log', message:'child API'}]);
+  assert.deepEqual(output.dataWrites, [{key:'child', value:7}]);
+  assert.equal((await executeScript('const minipost = {local:true}; return minipost.local;')).result, true);
+});
+
+test('unshadowed injected APIs and return await retain their existing behavior', async () => {
+  const output = await executeScript(`
+    console.log(request.method, response.status);
+    vars.set('answer', input.answer);
+    await new Promise(resolve => setTimeout(resolve, 1));
+    return await Promise.resolve({answer:pm.variables.get('answer'), method:pm.request.method, status:pm.response.code});
+  `, {input:{answer:42}, request:{method:'GET'}, response:{status:201}});
+  assert.deepEqual(output.result, {answer:'42', method:'GET', status:201});
+  assert.deepEqual(output.logs, [{level:'log', message:'GET 201'}]);
+  assert.deepEqual(output.writes.primary, [{key:'answer', value:'42'}]);
+});
+
 test('child scripts have isolated input and share only explicit transaction APIs', async () => {
   const context = {input:{items:[1]}, primary:{old:'kept'}, data:{count:1}, scripts:[{id:'child-id', name:'child', source:`
     input.items.push(2);

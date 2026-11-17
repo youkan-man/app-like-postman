@@ -156,7 +156,9 @@ export async function executeScript(source, context = {}, options = {}) {
           include:expected => {if (!String(actual).includes(String(expected))) throw new Error('Expected value to include ' + text(expected));}
         }})
       };
-      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', '"use strict";\n' + String(code || '') + '\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
+      // Keep host bindings outside the user's lexical scope so ordinary local
+      // declarations such as `const request` can shadow them without collisions.
+      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', '"use strict";\n{\n' + String(code || '') + '\n}\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
       const result = await fn(pm, vars, response, request, scriptConsole, input, scripts, store, minipost);
       for (let at = 0; at < pendingTests.length;) {
         const batch = pendingTests.slice(at); at = pendingTests.length; await Promise.all(batch);

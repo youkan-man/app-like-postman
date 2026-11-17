@@ -116,7 +116,12 @@ def main():
 
             def run(outcome='success'):
                 page.locator('#runStandaloneScript').click()
-                expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', outcome)
+                try:
+                    expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', outcome)
+                except AssertionError as error:
+                    details = page.locator('#standaloneScriptResult').inner_text()
+                    logs = page.locator('#standaloneScriptLog').inner_text()
+                    raise AssertionError(f'Script did not reach {outcome}: {details}\nLogs: {logs}') from error
                 expect(page.locator('#runStandaloneScript')).to_be_enabled()
 
             def result():
@@ -301,7 +306,7 @@ def main():
             assert len(requests) == sent_before + 2
             passed('normal request execution invokes referenced saved scripts before and after HTTP with phase-specific input')
             open_script(main_id)
-            edit("const values = await scripts.run("+json.dumps(child_id)+", input); return {values, previous: store.get('lastSummary')};", '[4,9]')
+            edit("const values = await scripts.run(\n  "+json.dumps(child_id)+", input\n);\n\nreturn {\n  values,\n  previous: store.get('lastSummary')\n};", '[4,9]')
             run()
             assert result() == expected_result
 
