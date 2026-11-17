@@ -15,10 +15,16 @@ export function validScripts(value) {
   return value.every(script => {
     if (!record(script) || !validId(script.id) || ids.has(script.id) || typeof script.name !== 'string' ||
       typeof script.source !== 'string' || typeof script.input !== 'string' ||
+      (script.bindingId !== undefined && script.bindingId !== '' && !validId(script.bindingId)) ||
       !['json','text'].includes(script.inputFormat) || !Number.isFinite(script.timeoutMs) || script.timeoutMs < 0) return false;
     ids.add(script.id);
     return true;
   });
+}
+
+export function validScriptBindings(value) {
+  return record(value) && Object.entries(value).every(([id,bindings]) => validId(id) && record(bindings) &&
+    Object.values(bindings).every(validId));
 }
 
 export function validScriptData(value) {
@@ -47,8 +53,10 @@ export function validScriptData(value) {
 export function ensureScripts(workspace) {
   if (workspace.scripts === undefined) workspace.scripts = [];
   if (workspace.scriptData === undefined) workspace.scriptData = {};
+  if (workspace.scriptBindings === undefined) workspace.scriptBindings = {};
   if (!validScripts(workspace.scripts)) throw new Error('保存されたスクリプトの形式が不正です。');
   if (!validScriptData(workspace.scriptData)) throw new Error('保存されたスクリプトデータの形式が不正です。');
+  if (!validScriptBindings(workspace.scriptBindings)) throw new Error('保存されたスクリプト参照の形式が不正です。');
   return workspace;
 }
 

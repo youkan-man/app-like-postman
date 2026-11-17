@@ -10,7 +10,7 @@ export function makeScriptContext(workspace, primary, {input,scriptId,tab,result
   const view={...workspace,environmentId};
   const context=contextFor(view,tab || {request:newRequest()},primary.rows);
   return {
-    input,scriptId,scripts:clone(workspace.scripts || []),data:clone(workspace.scriptData || {}),
+    input,scriptId,scripts:clone(workspace.scripts || []),bindings:clone(workspace.scriptBindings || {}),bindingId:tab?.request?._minipost?.scriptBindingId,data:clone(workspace.scriptData || {}),
     variables:context.vars,primary:primary.snapshot(),environment:valueMap(context.environment?.values),globals:valueMap(workspace.globals),
     request:tab ? clone(tab.request) : null,response:responseMetadata(result),raw:result
   };

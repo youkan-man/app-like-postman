@@ -1,6 +1,6 @@
 /** Whole-workspace import/export owns data compatibility; revision behavior is owned by revisions.mjs. */
 import {clone, uid} from './core.mjs';
-import {validScripts, validScriptData} from './scripts.mjs';
+import {validScripts, validScriptData, validScriptBindings} from './scripts.mjs';
 export const BUNDLE_KIND = 'minipost.workspace';
 export const BUNDLE_VERSION = 1;
 const safeClone = value => clone(value ?? null);
@@ -25,7 +25,7 @@ export function isWorkspaceBundle(input) {
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = id => typeof id === 'string' && id.length > 0 && !id.includes(':') && id !== '__proto__';
 const request = value => record(value) && typeof value.method === 'string' && value.url != null &&
-  ['beforeScriptId','afterScriptId'].every(key => value._minipost?.[key] === undefined || typeof value._minipost[key] === 'string');
+  ['beforeScriptId','afterScriptId','scriptBindingId'].every(key => value._minipost?.[key] === undefined || typeof value._minipost[key] === 'string');
 function validItems(items, depth = 0) {
   if (!Array.isArray(items) || depth > 40) return false;
   return items.every(item => record(item) && validId(item._mpId) && typeof item.name === 'string' &&
@@ -60,6 +60,7 @@ function validWorkspace(ws) {
     (ws.activeRequest == null || (record(ws.activeRequest) && validId(ws.activeRequest.collectionId) && validId(ws.activeRequest.itemId))) &&
     (ws.environmentId == null || typeof ws.environmentId === 'string') &&
     (ws.scripts === undefined || validScripts(ws.scripts)) && (ws.scriptData === undefined || validScriptData(ws.scriptData)) &&
+    (ws.scriptBindings === undefined || validScriptBindings(ws.scriptBindings)) &&
     validRelations(ws.relations) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
 export function readWorkspaceBundle(input) {
@@ -71,10 +72,48 @@ export function readWorkspaceBundle(input) {
     throw new Error('保存されたワークスペースの構造が不正です。');
   return {workspace: safeClone(ws), layout: obj.layout && typeof obj.layout === 'object' ? safeClone(obj.layout) : null};
 }
+function scriptReferences(scripts, remap) {
+  const names = new Map(), references = new Map();
+  for (const script of scripts) {
+    references.set(script.id,remap(script.id));
+    names.set(script.name,names.has(script.name) ? null : script.id);
+  }
+  for (const [name,id] of names) if (id && !references.has(name)) references.set(name,remap(id));
+  return Object.fromEntries(references);
+}
+function visitScriptOwners(workspace, requestFn, scriptRevisionFn) {
+  for (const collection of workspace.collections || []) visit(collection.item,item=>requestFn(item.request));
+  for (const tab of workspace.tabs || []) requestFn(tab.request);
+  for (const entry of workspace.history || []) requestFn(entry.tab?.request);
+  for (const property of ['revisions','settingHistory']) for (const [key,entries] of Object.entries(workspace[property] || {})) {
+    for (const entry of entries) for (const value of [entry.value,entry.before,entry.after]) {
+      if (/^(request|draft):/.test(key)) requestFn(value?.request || value);
+      else if (key.startsWith('script:') && record(value) && typeof value.source === 'string') scriptRevisionFn(value);
+    }
+  }
+}
+function bindRequest(request, bindingFor) {
+  const config=request?._minipost;
+  if (config && (config.scriptBindingId || config.before || config.after)) config.scriptBindingId=bindingFor(config.scriptBindingId || '');
+}
+/** Fix existing unambiguous calls before adding same-name imports to the catalog. */
+function preserveScriptBindings(workspace) {
+  const references=scriptReferences(workspace.scripts || [],id=>id),bindings=workspace.scriptBindings ||= {};
+  let defaultId;
+  for (const id of Object.keys(bindings)) bindings[id]={...references,...bindings[id]};
+  const bindingFor=id=>{
+    if (id) return id;
+    if (!defaultId) {defaultId=uid();bindings[defaultId]={...references};}
+    return defaultId;
+  };
+  for (const script of workspace.scripts || []) if (!script.bindingId) script.bindingId=bindingFor('');
+  visitScriptOwners(workspace,request=>bindRequest(request,bindingFor),value=>{if(!value.bindingId)value.bindingId=bindingFor('');});
+}
 export function mergeWorkspace(into, source) {
   for (const workspace of [into,source]) {
     if ((workspace.scripts !== undefined && !validScripts(workspace.scripts)) ||
-      (workspace.scriptData !== undefined && !validScriptData(workspace.scriptData))) throw new Error('スクリプトまたはスクリプトデータの形式が不正です。');
+      (workspace.scriptData !== undefined && !validScriptData(workspace.scriptData)) ||
+      (workspace.scriptBindings !== undefined && !validScriptBindings(workspace.scriptBindings))) throw new Error('スクリプトまたはスクリプトデータの形式が不正です。');
   }
   // Regenerate external IDs to avoid silently overwriting existing entities.
   const ids = new Map(), remap = id => {
@@ -87,7 +126,19 @@ export function mergeWorkspace(into, source) {
     for (const key of ['beforeScriptId','afterScriptId']) if (request._minipost[key]) request._minipost[key] = remap(request._minipost[key]);
   };
   const imported = safeClone(source);
-  for (const script of imported.scripts || []) script.id = remap(script.id);
+  const references=scriptReferences(imported.scripts || [],remap),sourceBindings=imported.scriptBindings || {},bindingIds=new Map(),bindings={};
+  const remapBinding=id=>{
+    if (!bindingIds.has(id)) {
+      const nextId=uid();bindingIds.set(id,nextId);
+      const previous=Object.fromEntries(Object.entries(sourceBindings[id] || {}).map(([reference,target])=>[reference,remap(target)]));
+      bindings[nextId]={...references,...previous};
+    }
+    return bindingIds.get(id);
+  };
+  for (const id of Object.keys(sourceBindings)) remapBinding(id);
+  for (const script of imported.scripts || []) {script.bindingId=remapBinding(script.bindingId || '');script.id = remap(script.id);}
+  visitScriptOwners(imported,request=>bindRequest(request,remapBinding),value=>{value.bindingId=remapBinding(value.bindingId || '');});
+  imported.scriptBindings=bindings;
   imported.collections.forEach(c => {
     c._mpId = remap(c._mpId);
     visit(c.item, item => {item._mpId = remap(item._mpId);remapScriptReferences(item.request);});
@@ -118,6 +169,8 @@ export function mergeWorkspace(into, source) {
     run.id = remap(run.id); run.relationId = remap(run.relationId);
     for (const entry of run.entries || []) {entry.stepId = remap(entry.stepId);if (entry.branch?.target && !entry.branch.target.startsWith('$')) entry.branch.target = remap(entry.branch.target);}
   }
+  preserveScriptBindings(into);
+  Object.assign(into.scriptBindings,imported.scriptBindings);
   into.relations ||= []; into.relations.push(...(imported.relations || []));
   into.relationRuns ||= []; into.relationRuns.push(...(imported.relationRuns || []));
   into.scripts ||= []; into.scripts.push(...(imported.scripts || []));

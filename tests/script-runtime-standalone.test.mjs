@@ -48,6 +48,73 @@ test('script lookup prefers an exact ID and rejects ambiguous or missing names',
   await assert.rejects(executeScript('return await scripts.run("missing");', {scripts}), /見つかりません/);
 });
 
+test('imported callers keep their original ID and unique-name references bound to the imported copy', async () => {
+  const source = 'return {byId:await scripts.run("helper-old"), byName:await minipost.scripts.run("Helper"), list:scripts.list()};';
+  const scripts = [
+    {id:'helper-old', name:'Helper', source:'return "original";'},
+    {id:'helper-copy', name:'Helper', source:'return "copy";'},
+    {id:'parent-copy', name:'Parent', source, bindingId:'import-copy'}
+  ];
+  const output = await executeScript(source, {scriptId:'parent-copy', scripts, bindings:{'import-copy':{'helper-old':'helper-copy', Helper:'helper-copy'}}});
+  assert.deepEqual(output.result, {byId:'copy', byName:'copy', list:scripts.map(({id, name}) => ({id, name}))});
+});
+
+test('each nested caller uses its own binding while sharing the variable and store transaction', async () => {
+  const source = `
+    const child = await scripts.run('child-old');
+    const parent = await minipost.scripts.run('target');
+    return {child, parent, value:vars.get('child'), shared:store.get('shared')};
+  `;
+  const scripts = [
+    {id:'parent-copy', name:'Parent', source, bindingId:'parent-binding'},
+    {id:'child-copy', name:'Child', bindingId:'child-binding', source:'vars.set("child", "done"); store.set("shared", true); return await minipost.scripts.run("target");'},
+    {id:'parent-target', name:'Target', source:'return "parent target";'},
+    {id:'child-target', name:'Target', source:'return "child target";'}
+  ];
+  const output = await executeScript(source, {scriptId:'parent-copy', scripts, bindings:{
+    'parent-binding':{'child-old':'child-copy', target:'parent-target'},
+    'child-binding':{target:'child-target'}
+  }});
+  assert.deepEqual(output.result, {child:'child target', parent:'parent target', value:'done', shared:true});
+  assert.deepEqual(output.writes.primary, [{key:'child', value:'done'}]);
+  assert.deepEqual(output.dataWrites, [{key:'shared', value:true}]);
+});
+
+test('a deleted bound target cannot fall back to an existing original ID or a coincidental name', async () => {
+  const source = 'return await scripts.run("original-id");';
+  const scripts = [
+    {id:'caller', name:'Caller', source, bindingId:'import'},
+    {id:'original-id', name:'Original', source:'throw new Error("wrong original executed");'},
+    {id:'unrelated', name:'deleted-copy', source:'throw new Error("wrong name executed");'}
+  ];
+  await assert.rejects(executeScript(source, {scriptId:'caller', scripts, bindings:{import:{'original-id':'deleted-copy'}}}), /スクリプトが見つかりません: original-id/);
+});
+
+test('only an inline root inherits context.bindingId; a saved child without bindings resolves normally', async () => {
+  const source = 'return {direct:await scripts.run("target-old"), nested:await minipost.scripts.run("child-old")};';
+  const scripts = [
+    {id:'target-old', name:'Target', source:'return "original";'},
+    {id:'target-copy', name:'Target', source:'return "copy";'},
+    {id:'plain-child', name:'Child', source:'return await scripts.run("target-old");'}
+  ];
+  const context = {scripts, bindingId:'inline-binding', bindings:{'inline-binding':{'target-old':'target-copy', 'child-old':'plain-child'}}};
+  assert.deepEqual((await executeScript(source, context)).result, {direct:'copy', nested:'original'});
+  assert.equal((await executeScript('return await scripts.run("target-old");', {...context, scriptId:'plain-child'})).result, 'original');
+});
+
+test('binding lookup only uses own keys and leaves unbound references on the normal resolution path', async () => {
+  const source = 'return {own:await scripts.run("__proto__"), inherited:await scripts.run("toString"), fallback:await scripts.run("Unique name")};';
+  const scripts = [
+    {id:'caller', name:'Caller', source, bindingId:'__proto__'},
+    {id:'bound', name:'Bound', source:'return "bound";'},
+    {id:'toString', name:'Object name', source:'return "own script";'},
+    {id:'unbound', name:'Unique name', source:'return "unique";'}
+  ];
+  const bindings = JSON.parse('{"__proto__":{"__proto__":"bound"}}');
+  const output = await executeScript(source, {scriptId:'caller', scripts, bindings});
+  assert.deepEqual(output.result, {own:'bound', inherited:'own script', fallback:'unique'});
+});
+
 test('scripts can call themselves recursively with a normal terminating condition', async () => {
   const source = 'return input <= 1 ? 1 : input * await scripts.run("factorial", input - 1);';
   const output = await executeScript(source, {input:6, scriptId:'factorial', scripts:[{id:'factorial', name:'Factorial', source}]});

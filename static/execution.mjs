@@ -10,7 +10,7 @@ const valueMap=rows=>Object.fromEntries((rows||[]).filter(r=>r.key&&r.disabled!=
 export async function executeRequest({workspace,tab,files={},primary,environmentId=workspace.environmentId,signal,
   send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress,scriptCall,onScriptLog}) {
   throwIfAborted(signal);
-  const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request),scripts=clone(workspace.scripts||[]);
+  const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request),scripts=clone(workspace.scripts||[]),bindings=clone(workspace.scriptBindings||{});
   const attachments=copyAttachments(typeof files?.then==='function'?await files:files);throwIfAborted(signal);
   const environment=workspace.environments.find(e=>e.id===environmentId);
   async function run(source,result,phase) {
@@ -23,7 +23,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
       onProgress?.({phase:phase==='before'?'script':'processing'});
       const ctx=contextFor(view,snapshot,primary.rows),metadata=responseMetadata(result);
       const output=await script(source,{variables:ctx.vars,primary:primary.snapshot(),environment:valueMap(environment?.values),globals:valueMap(workspace.globals),request:snapshot.request,response:metadata,raw:result,
-        scripts:clone(scripts),data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
+        scripts:clone(scripts),bindings:clone(bindings),bindingId:automation.scriptBindingId,data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
       {signal,timeoutMs,onCall:scriptCall,onLog:entry=>onScriptLog?.({phase,...entry})});
       throwIfAborted(signal);
       onVariables(applyScriptWrites(workspace,primary,environment,output));onScript({phase,logs:output.logs,result:output.result,error:null});

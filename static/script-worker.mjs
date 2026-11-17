@@ -95,16 +95,13 @@ export async function executeScript(source, context = {}, options = {}) {
       clear() { checkActive(); for (const key of data.keys()) dataWrites.push({key, remove:true}); data.clear(); }
     };
     const catalog = Array.isArray(ctx.scripts) ? ctx.scripts : [];
-    const findScript = reference => {
-      const key = String(reference), byId = catalog.filter(script => script.id === key);
-      const matches = byId.length ? byId : catalog.filter(script => script.name === key);
+    const findScript = (reference, binding) => {
+      const key = String(reference), bound = binding && Object.hasOwn(binding, key);
+      const byId = catalog.filter(script => script.id === (bound ? binding[key] : key));
+      const matches = bound || byId.length ? byId : catalog.filter(script => script.name === key);
       if (!matches.length) throw new Error(`スクリプトが見つかりません: ${key}`);
       if (matches.length > 1) throw new Error(`スクリプト名またはIDが重複しています: ${key}。一意なIDで指定してください。`);
       return matches[0];
-    };
-    const scripts = {
-      list() { checkActive(); return catalog.map(({id, name}) => ({id, name})); },
-      async run(reference, input) { checkActive(); const script = findScript(reference); return copy(await invoke(script.source, input, script.id)); }
     };
     const call = async (method, args) => {
       checkActive();
@@ -113,17 +110,25 @@ export async function executeScript(source, context = {}, options = {}) {
       const result = await wait(onCall(method, copy(args), {signal, variables}));
       checkActive(); return copy(result);
     };
-    const minipost = {
+    const applicationAPI = {
       requests:{list:() => call('requests.list', []), get:reference => call('requests.get', [reference]), send:(reference, options) => call('requests.send', [reference, options])},
       environments:{list:() => call('environments.list', []), get:reference => call('environments.get', [reference])},
       workspace:{read:() => call('workspace.read', [])},
-      variables:vars, environment, globals, scripts, store
+      variables:vars, environment, globals, store
     };
     const scriptConsole = Object.fromEntries(['log', 'info', 'debug', 'warn', 'error'].map(level => [level, (...values) => log(level, ...values)]));
     const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
     async function invoke(code, value, id) {
       checkActive();
       const input = copy(value), request = copy(ctx.request), response = copy(ctx.response), pendingTests = [];
+      const caller = catalog.find(script => script.id === id);
+      const bindingId = caller ? caller.bindingId : id == null || id === '' ? ctx.bindingId : undefined;
+      const binding = bindingId && ctx.bindings && Object.hasOwn(ctx.bindings, bindingId) ? ctx.bindings[bindingId] : null;
+      const scripts = {
+        list() { checkActive(); return catalog.map(({id, name}) => ({id, name})); },
+        async run(reference, input) { checkActive(); const script = findScript(reference, binding); return copy(await invoke(script.source, input, script.id)); }
+      };
+      const minipost = {...applicationAPI, scripts};
       const test = (name, fn) => {
         checkActive();
         const pass = () => { log('test', 'PASS ' + name); };

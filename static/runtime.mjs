@@ -110,7 +110,8 @@ export function requestAutomation(request) {
   const auto = request._minipost || {};
   return {before:String(auto.before || ''),after:String(auto.after || ''),
     beforeScriptId:typeof auto.beforeScriptId === 'string' ? auto.beforeScriptId : '',
-    afterScriptId:typeof auto.afterScriptId === 'string' ? auto.afterScriptId : '',enabled:auto.enabled !== false,
+    afterScriptId:typeof auto.afterScriptId === 'string' ? auto.afterScriptId : '',
+    scriptBindingId:typeof auto.scriptBindingId === 'string' ? auto.scriptBindingId : '',enabled:auto.enabled !== false,
     timeoutMs:Number.isFinite(auto.timeoutMs) ? Math.max(0,auto.timeoutMs) : 5000,
     extractions:Array.isArray(auto.extractions) ? auto.extractions : []};
 }

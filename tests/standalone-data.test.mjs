@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {clone,newRequest} from '../static/core.mjs';
-import {newScript,ensureScripts,parseScriptInput,validScripts,validScriptData,applyScriptWrites} from '../static/scripts.mjs';
+import {newScript,ensureScripts,parseScriptInput,validScripts,validScriptData,validScriptBindings,applyScriptWrites} from '../static/scripts.mjs';
 import {PrimaryVariables,requestAutomation} from '../static/runtime.mjs';
 import {exportWorkspace,readWorkspaceBundle,mergeWorkspace} from '../static/workspace-data.mjs';
 import {RevisionStore} from '../static/revisions.mjs';
 import {executeRequest} from '../static/execution.mjs';
+import {executeScript} from '../static/script-worker.mjs';
 import {completionContext,signatureHelp} from '../static/script-intelligence.mjs';
 
 function workspace() {
@@ -217,4 +218,102 @@ test('standalone APIs provide completions and signatures without requiring reque
   assert.deepEqual(names('minipost.requests.s'),['send']);assert.deepEqual(names('minipost.environments.g'),['get']);
   assert.deepEqual(names('minipost.store.d'),['delete']);assert.deepEqual(names('minipost.variables.s'),['set']);
   assert.equal(signatureHelp('scripts.run("Normalize", ').argument,1);assert.equal(signatureHelp('minipost.workspace.read(').name,'minipost.workspace.read');
+});
+
+function reusableWorkspace() {
+  const ws=workspace();
+  ws.scripts=[saved('parent-original','Parent','return [await scripts.run("child-original", input), await minipost.scripts.run("Child", input)];'),
+    saved('child-original','Child','return "original";')];
+  return ws;
+}
+const runSaved=async(ws,script)=>executeScript(script.source,{scripts:ws.scripts,bindings:ws.scriptBindings,scriptId:script.id,input:null});
+
+test('adding the same backup twice preserves each original-ID and unique-name call without rewriting code',async()=>{
+  const source=reusableWorkspace(),sourceBefore=clone(source),into=clone(source);
+  const revision=new RevisionStore(into);into.scripts[0].input='1';revision.capture();
+  const backup=readWorkspaceBundle(exportWorkspace(source)).workspace;
+  mergeWorkspace(into,backup);mergeWorkspace(into,backup);
+  assert.deepEqual(source,sourceBefore);assert.deepEqual(backup,sourceBefore);
+  const parents=into.scripts.filter(script=>script.name==='Parent'),children=into.scripts.filter(script=>script.name==='Child');
+  assert.equal(parents.length,3);assert.equal(new Set(into.scripts.map(script=>script.bindingId)).size,3);
+  assert.equal(Object.keys(into.scriptBindings).length,3); // One dictionary per group, shared by its scripts.
+  for (const [index,child] of children.entries()) child.source=`return ${JSON.stringify(['original','first copy','second copy'][index])};`;
+  for (const [index,parent] of parents.entries()) {
+    assert.equal(parent.source,source.scripts[0].source);
+    assert.equal(parent.bindingId,children[index].bindingId);
+    assert.equal(into.scriptBindings[parent.bindingId]['child-original'],children[index].id);
+    assert.equal(into.scriptBindings[parent.bindingId].Child,children[index].id);
+    assert.deepEqual((await runSaved(into,parent)).result,Array(2).fill(['original','first copy','second copy'][index]));
+  }
+  assert.equal(into.revisions['script:parent-original'][0].value.bindingId,parents[0].bindingId);
+  new RevisionStore(into).restore('script:parent-original',into.revisions['script:parent-original'][0]);
+  assert.deepEqual((await runSaved(into,parents[0])).result,['original','original']);
+});
+
+test('exporting and re-importing several copied script groups preserves old aliases and independent children',async()=>{
+  const source=reusableWorkspace(),combined=clone(source);mergeWorkspace(combined,source);mergeWorkspace(combined,source);
+  combined.scripts.filter(script=>script.name==='Child').forEach((script,index)=>{script.source=`return ${index};`;});
+  const bundle=exportWorkspace(combined),restored=readWorkspaceBundle(bundle).workspace;
+  assert.deepEqual(restored.scriptBindings,combined.scriptBindings);
+  const destination=workspace();destination.scripts=[saved('child-original','Child','return "unrelated";')];
+  mergeWorkspace(destination,restored);
+  const imported=destination.scripts.slice(1),parents=imported.filter(script=>script.name==='Parent');
+  for (const [index,parent] of parents.entries()) assert.deepEqual((await runSaved(destination,parent)).result,[index,index]);
+  const firstChild=imported.find(script=>script.name==='Child'&&script.bindingId===parents[0].bindingId);
+  firstChild.source='return "changed only here";';
+  assert.deepEqual((await runSaved(destination,parents[0])).result,['changed only here','changed only here']);
+  assert.deepEqual((await runSaved(destination,parents[1])).result,[1,1]);
+  assert.equal((await runSaved(destination,destination.scripts[0])).result,'unrelated');
+  destination.scripts=destination.scripts.filter(script=>script!==firstChild);
+  await assert.rejects(runSaved(destination,parents[0]),/スクリプトが見つかりません/);
+});
+
+test('added inline request hooks and their historical versions use the same imported binding group',async()=>{
+  const source=reusableWorkspace();
+  const hook={before:'vars.set("token", await scripts.run("Child", input));',after:'return await scripts.run("child-original", input);'};
+  source.tabs[0].request._minipost=clone(hook);source.collections[0].item[0].request._minipost=clone(hook);
+  source.history=[{id:'history',tab:clone(source.tabs[0])}];
+  source.revisions={'request:collection:item':[{value:{name:'Request',request:clone(source.tabs[0].request)}}]};
+  const into=workspace();into.scripts=[saved('child-original','Child','return "unrelated";')];
+  mergeWorkspace(into,source);mergeWorkspace(into,source);
+  const importedParents=into.scripts.filter(script=>script.name==='Parent');
+  for (const [index,parent] of importedParents.entries()) {
+    const child=into.scripts.find(script=>script.name==='Child'&&script.bindingId===parent.bindingId);child.source=`return "copy-${index}";`;
+    const tab=into.tabs[index+1],outputs=[];
+    assert.equal(tab.request._minipost.scriptBindingId,parent.bindingId);
+    assert.equal(requestAutomation(tab.request).scriptBindingId,parent.bindingId);
+    assert.equal(into.history[index].tab.request._minipost.scriptBindingId,parent.bindingId);
+    const collection=into.collections[index+1],key=`request:${collection._mpId}:${collection.item[0]._mpId}`;
+    assert.equal(into.revisions[key][0].value.request._minipost.scriptBindingId,parent.bindingId);
+    const result=await executeRequest({workspace:into,tab,primary:new PrimaryVariables(),script:executeScript,onScript:value=>outputs.push(value),send:async payload=>{
+      assert.equal(payload.url,`https://example.test/copy-${index}`);return response();
+    }});
+    assert.deepEqual(result.automationErrors,[]);assert.equal(outputs.at(-1).result,`copy-${index}`);
+  }
+  // A saved hook owns its binding even when the request has a different inline binding.
+  const otherTab=clone(into.tabs[2]);otherTab.request._minipost.afterScriptId=importedParents[0].id;
+  const outputs=[];await executeRequest({workspace:into,tab:otherTab,primary:new PrimaryVariables(),script:executeScript,onScript:value=>outputs.push(value),send:async()=>response()});
+  assert.deepEqual(outputs.at(-1).result,['copy-0','copy-0']);
+});
+
+test('existing unique-name inline hooks remain usable after same-name scripts are added',async()=>{
+  const into=reusableWorkspace(),source=reusableWorkspace();
+  into.tabs[0].request._minipost={before:'vars.set("token", await scripts.run("Child"));'};
+  mergeWorkspace(into,source);into.scripts.at(-1).source='return "imported";';
+  await executeRequest({workspace:into,tab:into.tabs[0],primary:new PrimaryVariables(),script:executeScript,send:async payload=>{
+    assert.equal(payload.url,'https://example.test/original');return response();
+  }});
+});
+
+test('binding metadata is optional for old backups and invalid binding dictionaries are rejected',()=>{
+  const ws=reusableWorkspace();assert.equal(Object.hasOwn(newScript(),'bindingId'),false);
+  assert.deepEqual(readWorkspaceBundle(exportWorkspace(ws)).workspace,ws);ensureScripts(ws);assert.deepEqual(ws.scriptBindings,{});
+  assert.equal(validScriptBindings({group:{'original-id':'current-id','__proto__':'current-id'}}),true);
+  for (const modify of [
+    copy=>{copy.scriptBindings=[];},copy=>{copy.scriptBindings={group:{Child:17}};},
+    copy=>{copy.scripts[0].bindingId=17;},copy=>{copy.tabs[0].request._minipost={scriptBindingId:17};}
+  ]) {
+    const broken=clone(ws);modify(broken);
+    assert.throws(()=>readWorkspaceBundle({kind:'minipost.workspace',version:1,workspace:broken}));
+  }
 });

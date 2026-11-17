@@ -281,7 +281,7 @@ export function initStudio(api) {
       if(scriptId&&!saved)options.push([scriptId,'削除されたスクリプト']);
       const choose=select(options,scriptId||'',value=>{config[`${phase}ScriptId`]=value;save();api.renderEditor();});choose.setAttribute('aria-label',`${title}に実行するスクリプト`);picker.append(choose);
       if(saved)picker.append(btn('編集',()=>scriptWorkspace.open(saved.id),'button'));
-      else if(!scriptId)picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{config[`${phase}ScriptId`]=script.id;save();}),'button'));
+      else if(!scriptId)picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
       panel.append(picker,createCodeEditor({value:saved?saved.source:config[phase],language:'javascript',intellisense:true,readOnly:Boolean(scriptId),label:`${title}スクリプト`,onChange:value=>{if(!scriptId){config[phase]=value;save();}}}).element);
     }
     selectPhase(scriptPhases.get(requestKey(w(),tab))||'before');
