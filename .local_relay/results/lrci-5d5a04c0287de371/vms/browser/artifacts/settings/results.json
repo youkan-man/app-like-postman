@@ -1,0 +1,29 @@
+{
+  "passed": 16,
+  "checks": [
+    "selected environment, highlighted row and main page agree; no Save/Cancel workflow",
+    "autosave preserves focus and open page; edited token immediately reaches real HTTP",
+    "header selector switches page without dropping either environment edits",
+    "No environment removes stale values; renaming updates selection and sidebar immediately",
+    "environment settings copy/paste preserves target identity and uses independent values",
+    "environment duplication and variable-row copy/duplicate/paste/disable/delete are independent",
+    "variable context menu keyboard/focus works without replacing native text-input menus",
+    "close flushes pending autosave and reload restores selected environment and values",
+    "Ctrl+S leaves settings open; export includes automatically saved live values",
+    "Globals autosave is independent and never mislabeled as the selected environment",
+    "collection variables and inherited auth autosave without dismissing the drawer",
+    "scope settings paste and folder/collection duplication preserve independent hierarchy identities",
+    "storage errors keep the editor values and show a failed-save state, then recover",
+    "mobile inline-page menus work; resizing and Escape keep automatically saved edits",
+    "deleting the selected environment clears selection and stale settings together",
+    "no uncaught browser JavaScript errors"
+  ],
+  "screenshots": [
+    "environment-autosave.png",
+    "variable-context-menu.png",
+    "mobile-settings-menu.png"
+  ],
+  "page_errors": [],
+  "target": "real loopback HTTP",
+  "storage_failure_test": "Storage.setItem only; HTTP not mocked"
+}
