@@ -1,5 +1,6 @@
 /** Whole-workspace import/export owns data compatibility; revision behavior is owned by revisions.mjs. */
 import {clone, uid} from './core.mjs';
+import {validScripts, validScriptData} from './scripts.mjs';
 export const BUNDLE_KIND = 'minipost.workspace';
 export const BUNDLE_VERSION = 1;
 const safeClone = value => clone(value ?? null);
@@ -23,7 +24,8 @@ export function isWorkspaceBundle(input) {
 }
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = id => typeof id === 'string' && id.length > 0 && !id.includes(':') && id !== '__proto__';
-const request = value => record(value) && typeof value.method === 'string' && value.url != null;
+const request = value => record(value) && typeof value.method === 'string' && value.url != null &&
+  ['beforeScriptId','afterScriptId'].every(key => value._minipost?.[key] === undefined || typeof value._minipost[key] === 'string');
 function validItems(items, depth = 0) {
   if (!Array.isArray(items) || depth > 40) return false;
   return items.every(item => record(item) && validId(item._mpId) && typeof item.name === 'string' &&
@@ -33,7 +35,7 @@ function validRevisions(map) {
   if (map == null) return true;
   if (!record(map)) return false;
   for (const [key, entries] of Object.entries(map)) {
-    if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft|relation):[^:]+(?::[^:]+)?$/.test(key)) return false;
+    if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft|relation|script):[^:]+(?::[^:]+)?$/.test(key)) return false;
     if (!Array.isArray(entries) || !entries.every(entry => record(entry) && (record(entry.value) || (Object.hasOwn(entry, 'before') && Object.hasOwn(entry, 'after'))))) return false;
   }
   return true;
@@ -57,6 +59,7 @@ function validWorkspace(ws) {
     (ws.activeId == null || typeof ws.activeId === 'string') &&
     (ws.activeRequest == null || (record(ws.activeRequest) && validId(ws.activeRequest.collectionId) && validId(ws.activeRequest.itemId))) &&
     (ws.environmentId == null || typeof ws.environmentId === 'string') &&
+    (ws.scripts === undefined || validScripts(ws.scripts)) && (ws.scriptData === undefined || validScriptData(ws.scriptData)) &&
     validRelations(ws.relations) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
 export function readWorkspaceBundle(input) {
@@ -69,27 +72,38 @@ export function readWorkspaceBundle(input) {
   return {workspace: safeClone(ws), layout: obj.layout && typeof obj.layout === 'object' ? safeClone(obj.layout) : null};
 }
 export function mergeWorkspace(into, source) {
+  for (const workspace of [into,source]) {
+    if ((workspace.scripts !== undefined && !validScripts(workspace.scripts)) ||
+      (workspace.scriptData !== undefined && !validScriptData(workspace.scriptData))) throw new Error('スクリプトまたはスクリプトデータの形式が不正です。');
+  }
   // Regenerate external IDs to avoid silently overwriting existing entities.
   const ids = new Map(), remap = id => {
     if (!id) return id;
     if (!ids.has(id)) ids.set(id, uid());
     return ids.get(id);
   };
+  const remapScriptReferences = request => {
+    if (!request?._minipost) return;
+    for (const key of ['beforeScriptId','afterScriptId']) if (request._minipost[key]) request._minipost[key] = remap(request._minipost[key]);
+  };
   const imported = safeClone(source);
+  for (const script of imported.scripts || []) script.id = remap(script.id);
   imported.collections.forEach(c => {
     c._mpId = remap(c._mpId);
-    visit(c.item, item => {item._mpId = remap(item._mpId);});
+    visit(c.item, item => {item._mpId = remap(item._mpId);remapScriptReferences(item.request);});
   });
   imported.environments.forEach(e => {e.id = remap(e.id);});
   imported.tabs.forEach(t => {
     t.id = remap(t.id); t.itemId = remap(t.itemId); t.collectionId = remap(t.collectionId);
     t.pendingFolderId = remap(t.pendingFolderId);
+    remapScriptReferences(t.request);
   });
   imported.history.forEach(h => {
     h.id = remap(h.id); h.environmentId = remap(h.environmentId);
     if (h.tab) {
       h.tab.id = remap(h.tab.id); h.tab.collectionId = remap(h.tab.collectionId);
       h.tab.itemId = remap(h.tab.itemId); h.tab.pendingFolderId = remap(h.tab.pendingFolderId);
+      remapScriptReferences(h.tab.request);
     }
   });
   for (const relation of imported.relations || []) {
@@ -106,6 +120,10 @@ export function mergeWorkspace(into, source) {
   }
   into.relations ||= []; into.relations.push(...(imported.relations || []));
   into.relationRuns ||= []; into.relationRuns.push(...(imported.relationRuns || []));
+  into.scripts ||= []; into.scripts.push(...(imported.scripts || []));
+  into.scriptData ||= {};
+  for (const [key,value] of Object.entries(imported.scriptData || {})) if (!Object.hasOwn(into.scriptData,key))
+    Object.defineProperty(into.scriptData,key,{value,enumerable:true,configurable:true,writable:true});
   into.collections.push(...imported.collections);
   into.environments.push(...imported.environments);
   into.globals.push(...imported.globals);
@@ -119,6 +137,8 @@ export function mergeWorkspace(into, source) {
       const parts = key.split(':');
       const renamed = [parts[0], ...parts.slice(1).map(remap)].join(':');
       if (parts[0] === 'relation') for (const entry of values) {const value=entry.value;if(value){value.environmentId=remap(value.environmentId);for(const step of value.steps || []){step.id=remap(step.id);step.collectionId=remap(step.collectionId);step.itemId=remap(step.itemId);step.draftId=remap(step.draftId);for(const field of ['onTrue','onFalse'])if(step[field] && !step[field].startsWith('$'))step[field]=remap(step[field]);}}}
+      if (parts[0] === 'request' || parts[0] === 'draft') for (const entry of values)
+        for (const value of [entry.value,entry.before,entry.after]) remapScriptReferences(value?.request || value);
       if (renamed === 'globals') {
         into[property].globals = [...(into[property].globals || []), ...values];
       } else into[property][renamed] = values;

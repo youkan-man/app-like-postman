@@ -28,13 +28,15 @@ export class PrimaryVariables {
   snapshot() {return Object.fromEntries(this.rows.filter(r => r.key && r.disabled !== true && r.enabled !== false).map(r => [r.key,r.value]));}
   apply(writes = []) {
     // Validate the entire transaction before committing any script output.
-    const next = this.rows.map(r => ({...r}));
-    for (const row of writes) {
+    const changes = writes.map(row => {
       const key = checkName(row.key);
-      if (row.remove) {for (let i=next.length-1;i>=0;i--) if(next[i].key===key) next.splice(i,1);}
-      else upsertVariable(next,key,row.value);
+      return row.remove ? {key,remove:true} : {key,value:variableText(row.value)};
+    });
+    for (const row of changes) {
+      if (row.remove) {for (let i=this.rows.length-1;i>=0;i--) if(this.rows[i].key===row.key) this.rows.splice(i,1);}
+      else upsertVariable(this.rows,row.key,row.value);
     }
-    this.rows = next; this.save();
+    this.save();
   }
 }
 export function extractVariableNames(value) {
@@ -106,7 +108,9 @@ export function extractionWrites(rules, metadata) {
 }
 export function requestAutomation(request) {
   const auto = request._minipost || {};
-  return {before:String(auto.before || ''),after:String(auto.after || ''),enabled:auto.enabled !== false,
+  return {before:String(auto.before || ''),after:String(auto.after || ''),
+    beforeScriptId:typeof auto.beforeScriptId === 'string' ? auto.beforeScriptId : '',
+    afterScriptId:typeof auto.afterScriptId === 'string' ? auto.afterScriptId : '',enabled:auto.enabled !== false,
     timeoutMs:Number.isFinite(auto.timeoutMs) ? Math.max(0,auto.timeoutMs) : 5000,
     extractions:Array.isArray(auto.extractions) ? auto.extractions : []};
 }

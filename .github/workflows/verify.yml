@@ -116,6 +116,9 @@ jobs:
       - name: Context creation, primary variables, scripts and relations
         if: ${{ !cancelled() }}
         run: python tests/ui_automation.py 2>&1 | tee artifacts/browser/ui-automation.log
+      - name: Independent scripts, typed results, reuse and persistence
+        if: ${{ !cancelled() }}
+        run: python tests/ui_standalone_scripts.py 2>&1 | tee artifacts/browser/ui-standalone-scripts.log
       - name: Extraction focus, context menus and responsive forms
         if: ${{ !cancelled() }}
         run: python tests/ui_extraction.py 2>&1 | tee artifacts/browser/ui-extraction.log

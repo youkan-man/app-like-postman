@@ -17,6 +17,7 @@ import {bindVariableHover} from './variable-hover.mjs';
 import {historyEntry, historyUrl, sentRequests, createHistoryView} from './sent-history.mjs';
 import {RequestSession} from './request-session.mjs';
 import {bindListSelection} from './list-selection.mjs';
+import {ensureScripts} from './scripts.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio, historyView, listSelection, selectedHistoryEntry = null;
@@ -36,6 +37,7 @@ try {
 }
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 workspace.relations ||= []; workspace.relationRuns ||= [];
+ensureScripts(workspace);
 let revisionStore = new RevisionStore(workspace);
 const requestSession = new RequestSession(workspace, freshTab);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
@@ -45,7 +47,7 @@ const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
   const allowed = {
     editor: ['all','params','headers','authorization','body','settings','scripts'],
-    sidebar: ['collections','environments','history','relations'],
+    sidebar: ['collections','environments','history','relations','scripts'],
     response: ['pretty','raw','headers','cookies','preview']
   };
   return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
@@ -53,8 +55,8 @@ function normalizeNavigation(value) {
 let navigation = normalizeNavigation(null);
 try {navigation = normalizeNavigation(JSON.parse(storage.getItem(navigationKey)) ?? {editor:storage.getItem(editorPageKey)});} catch {}
 let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
-const sidebarSearch = {collections:'', environments:'', history:'', relations:''};
-const sidebarScroll = {collections:0, environments:0, history:0, relations:0};
+const sidebarSearch = {collections:'', environments:'', history:'', relations:'', scripts:''};
+const sidebarScroll = {collections:0, environments:0, history:0, relations:0, scripts:0};
 function saveNavigation() {
   try {storage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
   catch {toast('表示状態を保存できません。入力内容は維持しています。');}
@@ -282,7 +284,7 @@ function caption(title, parent) {const line = element('div', 'section-caption', 
 function updateCounts() {
   const r = active().request, count = list => list.filter(enabled).filter(row => row.key).length;
   $('paramsCount').textContent = count(urlParts(r.url).query) || ''; $('headersCount').textContent = count(rows(r.header)) || '';
-  $('bodyDot').textContent = r.body?.mode && r.body.mode !== 'none' ? '●' : ''; $('scriptDot').textContent = (contextFor(workspace, active()).events.length || r._minipost?.before || r._minipost?.after || r._minipost?.extractions?.length) ? '●' : '';
+  $('bodyDot').textContent = r.body?.mode && r.body.mode !== 'none' ? '●' : ''; $('scriptDot').textContent = (contextFor(workspace, active()).events.length || r._minipost?.before || r._minipost?.after || r._minipost?.beforeScriptId || r._minipost?.afterScriptId || r._minipost?.extractions?.length) ? '●' : '';
 }
 function authEditor(owner, inherited = false, changed = () => {}) {
   const box = element('div');
@@ -658,7 +660,7 @@ function renderSidebar() {
   listSelection?.refresh(); announceSelection();
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
-  $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション'}[side];
+  $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション', scripts:'スクリプト'}[side];
   studio?.syncView(side);
 }
 function chooseSidebar(name) {
@@ -831,7 +833,7 @@ function showArchiveImport(bundle, source = 'ファイル') {
   const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
   box.append(intro, field('インポート方式', mode), warning);
   showModal('MiniPost 全体バックアップを取り込む', box, async () => {
-    if (studio?.isRunning()) throw new Error('実行中のリレーションを停止してから取り込んでください。');
+    if (studio?.isRunning()) throw new Error('実行中の処理を停止してから取り込んでください。');
     if (mode.value === 'merge') revisionStore.capture();
     const next = mode.value === 'merge' ? mergeWorkspace(clone(workspace), contents) : clone(contents);
     if (!next.tabs.some(tab => tab.id === next.activeId)) next.activeId = next.tabs[0]?.id || '';
@@ -1034,7 +1036,7 @@ function showRevisions(key) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
     details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', async () => {
       if (!await confirmAction('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。', {title:'変更履歴を復元', accept:'復元', danger:false})) return;
-      revisionStore.restore(key, entry); requestSession.syncSaved(); for (const draft of requestSession.all()) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); showRevisions(key); toast('復元しました。送信はしていません。');
+      revisionStore.restore(key, entry); requestSession.syncSaved(); for (const draft of requestSession.all()) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); studio?.refresh(); showRevisions(key); toast('復元しました。送信はしていません。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
@@ -1079,10 +1081,11 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
-  if (['environments','relations','history'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
+  if (studio?.scriptKeydown(event))return;
+  if (['environments','relations','history','scripts'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
   if ($('modal').open && ($('modal').matches(':modal') || $('modal').contains(document.activeElement))) return;
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations','history'].includes(side)) {event.preventDefault(); sendRequest();}
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations','history','scripts'].includes(side)) {event.preventDefault(); sendRequest();}
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });

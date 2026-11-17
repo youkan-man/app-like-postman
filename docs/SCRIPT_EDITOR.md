@@ -1,10 +1,16 @@
 # スクリプト編集
 
-送信前・受信後のJavaScriptは構文ハイライト付きのネイティブtextareaで編集します。変更は従来どおりブラウザへ自動保存し、コードを書くだけでは実行しません。
+独立したスクリプトと送信前・受信後のJavaScriptを、構文ハイライト付きのネイティブtextareaで編集します。変更はブラウザへ自動保存し、コードを書くだけでは実行しません。
 
-API名の入力や `pm.response.` のようなドットで候補を表示します。Ctrl+Spaceで明示的に開き、上下キーで選択、TabまたはEnterで確定、Escapeで閉じます。Shift+Tabは前の操作へ移動します。Ctrl+Enterはアプリの送信操作を優先し、候補確定には使いません。補完はカーソルがある識別子全体を置換し、ChromiumではUndoで戻せます。
+左の「スクリプト」では名前・コード・入力を保存し、リクエストを作成せず実行できます。入力形式はJSON／テキストで、コードから `input` として参照します。`return` の値は結果欄、`console` の出力は実行中からログ欄へ表示します。`null` と戻り値なしは区別します。実行を停止しても、それまでに届いたログは残ります。
 
-候補は実装済みの `pm`、`vars`、`response`、`request`、`console`、`JSON` のAPIと、同じスクリプトで既に宣言したローカル識別子です。関数呼び出し中は引数名と現在の引数番号を表示します。文字列、コメント、正規表現・テンプレートリテラル内では候補を抑制します。IME変換中のEnterを補完で消費しません。
+`scripts.list()` と `await scripts.run(idOrName, input)` で保存済み処理を再利用できます。名前が重複する場合はIDで指定します。`store` はJSON型の共有データを保存し、成功時だけ変数とともにワークスペースへ反映します。スクリプト・入力・共有データは全体バックアップにも含まれます。
+
+API名の入力や `pm.response.` のようなドットで候補を表示します。Ctrl+Spaceで明示的に開き、上下キーで選択、TabまたはEnterで確定、Escapeで閉じます。Shift+Tabは前の操作へ移動します。Ctrl+Enterは独立スクリプトの実行、リクエスト画面では送信に使用し、候補確定には使いません。補完はカーソルがある識別子全体を置換し、ChromiumではUndoで戻せます。
+
+候補は実装済みの `input`、`scripts`、`store`、`minipost`、`pm`、`vars`、`response`、`request`、`console`、`JSON` のAPIと、同じスクリプトで既に宣言したローカル識別子です。関数呼び出し中は引数名と現在の引数番号を表示します。文字列、コメント、正規表現・テンプレートリテラル内では候補を抑制します。IME変換中のEnterを補完で消費しません。
+
+リクエストのスクリプト欄では、保存済みスクリプトを送信前／受信後の処理として選択できます。既存の直接入力も維持します。公開されたMiniPost APIを利用するかどうか、どの入力を処理するかはスクリプトごとに決められます。
 
 ## 範囲
 
@@ -14,6 +20,8 @@ API名の入力や `pm.response.` のようなドットで候補を表示しま�
 
 `node --test tests/script-editor.test.mjs` は補完と引数解析の純粋処理を検証します。`python tests/ui_script_editor.py` は通常のHTTPオリジン上で実アプリを操作し、キーボード、Undo、合成IMEイベント、320/390/1440px表示、実Worker実行、失敗時の変数非反映、IndexedDB保存・再読込を確認します。OSのIME候補ウィンドウ自体を操作する試験ではありません。
 
+`python tests/ui_standalone_scripts.py` は、空のワークスペースから独立したスクリプトを作成し、JSON／テキスト入力と戻り値、ID／名前による子スクリプト呼び出し、共有データ、失敗時の非反映、実行中のログと停止、IndexedDB再読込、全体バックアップ復元を実HTTP・実Workerで確認します。明示的なHTTP送信APIと、保存済みスクリプトを送信前後へ接続した場合も確認します。1440/390/320pxの画面を撮影し、横方向のはみ出しも確認します。GitHub ActionsとLocal Relayの両方から実行します。
+
 Local Relayの既存2VMワークフローもこの試験を呼びます。ブラウザ実体はPlaywrightのインストール結果から解決します。アプリはこの試験専用systemd unitで管理し、起動時の識別子、Python/静的ファイルのハッシュ、実配信ファイルを照合します。別プロセスのHTTP 200を起動成功として扱いません。他のポート所有者を強制終了しません。試験用unitの最大実行時間は30分です。
 
-出力は `.local_relay/output/script-editor/`、2VM集計は `.local_relay/output/two-vm-summary.json` に保存します。ローカルのオフラインDOMコンポーネント試験は、Relay上の実HTTP試験と区別してください。
+出力は `.local_relay/output/script-editor/` と `.local_relay/output/standalone-scripts/`、2VM集計は `.local_relay/output/two-vm-summary.json` に保存します。ローカルのオフラインDOMコンポーネント試験は、Relay上の実HTTP試験と区別してください。

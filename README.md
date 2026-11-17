@@ -71,16 +71,56 @@ docker compose up -d --build
 
 ## スクリプト
 
-各リクエストの **スクリプト** で「送信前／受信後」を編集します。`vars.get/set/unset`（`pm.variables`）、`pm.environment`、`pm.globals`、`response.body`、`response.headers`、`pm.response.json()`／`text()`、`pm.test()`、`console.log()` を使用できます。Postmanの全APIや外部ライブラリーに互換対応するものではありません。
+左の **スクリプト** から独立したJavaScriptを作成・編集・実行できます。リクエストやレスポンスがなくても使用でき、名前・コード・入力・実行設定はワークスペースに自動保存されます。全体エクスポート／インポートと明示的なサーバー保存にも含まれます。
+
+入力欄は **JSON／テキスト** を切り替えます。JSONでは配列・オブジェクト・数値・真偽値・`null` の型を保って `input` に渡し、テキストでは入力文字列をそのまま渡します。`return` した値は結果欄に表示されます。例えば、入力を `{"values":[3,5,8]}` にして次を実行すると、結果は `{"total":16,"count":3}` です。
 
 ```javascript
-// 送信前: 一次変数を設定
-vars.set('requestId', 'example-001');
-// 受信後: JSON本文の値を次のリクエストへ渡す
-vars.set('accessToken', response.body.access_token);
+const values = input.values;
+return {
+  total: values.reduce((sum, value) => sum + value, 0),
+  count: values.length
+};
 ```
 
-送信順序は「送信前スクリプト → 変数展開 → HTTP送信 → 自動抽出 → 受信後スクリプト」です。単独のスクリプト実行ボタンはHTTPリクエストを送信しません。実行はDOM・アプリのストレージ・ネットワークへ直接アクセスできない分離Workerで行い、値の変更は公開APIを通して反映します。制限時間の0は無制限です。上部の **実行を停止** で停止できます。失敗したスクリプトの変数変更は反映せず、受信後の失敗でもHTTPレスポンスは残します。
+`await` を使う処理にも対応します。`console.log()`／`warn()`／`error()` は実行中からログ欄に表示され、**停止** で処理を中断できます。独立スクリプトの制限時間は初期値0（無制限）です。戻り値のない実行と `return null` は区別して表示します。
+
+### 再利用と共有データ
+
+`await scripts.run(idOrName, input)` で別の保存済みスクリプトを呼び、その戻り値を受け取れます。`scripts.list()` はIDと名前の一覧を返します。IDでの参照は名前の変更に影響されません。同名のスクリプトが複数ある場合は、名前による呼び出しをエラーとしてIDでの指定を求めます。
+
+```javascript
+const converted = await scripts.run('変換', input);
+store.set('lastResult', converted);
+return converted;
+```
+
+`store.get(key)`／`set(key, value)`／`has(key)`／`delete(key)`／`keys()`／`clear()` は、スクリプト間で共有する保存データを扱います。値はJSONの型を保ち、再読込・全体バックアップ後も利用できます。同じ実行内の子スクリプトからも参照できます。共有データと変数の変更は実行成功時にまとめて反映し、例外・停止時は反映しません。
+
+### MiniPostのデータと機能
+
+必要な処理から `minipost` APIを呼び出せます。
+
+| API | 内容 |
+| --- | --- |
+| `minipost.workspace.read()` | ワークスペースのスナップショットを取得 |
+| `minipost.requests.list()`／`get(reference)` | 保存済みリクエストや下書きの一覧・内容を取得 |
+| `minipost.requests.send(referenceOrRequest, options)` | リクエストを送信して結果を取得 |
+| `minipost.environments.list()`／`get(reference)` | 環境の一覧・内容を取得 |
+| `minipost.variables`／`environment`／`globals` | 一次変数・選択環境・Globalsの取得・変更 |
+| `minipost.scripts`／`minipost.store` | `scripts`／`store` と同じAPI |
+
+データ取得と送信は `await` で結果を受け取ります。コードは分離Workerで実行し、MiniPostとのやり取りには公開APIを使用します。送信済みのHTTP処理はスクリプトを停止しても取り消されません。
+
+`requests.list()` はID・名前・階層を返し、`get()` はIDまたは一意の名前からリクエストと通信設定を取得します。`send()` にはその参照、`get()` の結果、または `{method, url, ...}` 形式のリクエストを渡せます。戻り値は `status`・`headers`・`body` などのレスポンスデータです。送信には同じスクリプトで設定した変数も反映されます。スクリプトからの `send()` は指定したHTTP処理を一度実行し、リクエストの送信前・受信後スクリプトへは自動で再入しません。
+
+### 送信前・受信後との接続
+
+リクエストの **スクリプト** では、送信前／受信後に保存済みスクリプトを選べます。送信前の `input` はリクエスト、受信後の `input` はレスポンスのメタデータです。従来の欄に直接書いたコードも引き続き実行できます。リクエストごとの実行有効／無効と制限時間を使用し、スクリプトの内容を複製せず共有できます。
+
+既存の `vars.get/set/unset`（`pm.variables`）、`pm.environment`、`pm.globals`、`response.body`、`response.headers`、`pm.response.json()`／`text()`、`pm.test()` も維持します。Postmanの全APIや外部ライブラリーとの完全互換ではありません。
+
+送信順序は「送信前スクリプト → 変数展開 → HTTP送信 → 自動抽出 → 受信後スクリプト」です。受信後スクリプトが失敗してもHTTPレスポンスは残ります。
 
 ## リレーション
 

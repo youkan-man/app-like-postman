@@ -34,6 +34,7 @@ python tests/ui_large_binary.py >.local_relay/output/two-vm-large-binary.log 2>&
 python tests/ui_text_url_navigation.py >.local_relay/output/two-vm-text-url-navigation.log 2>&1 || { cat .local_relay/output/two-vm-text-url-navigation.log; exit 1; }
 python tests/ui_binary_workflows.py >.local_relay/output/two-vm-binary-workflows.log 2>&1 || { cat .local_relay/output/two-vm-binary-workflows.log; exit 1; }
 python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
+python tests/ui_standalone_scripts.py >.local_relay/output/two-vm-standalone-scripts.log 2>&1 || { cat .local_relay/output/two-vm-standalone-scripts.log; exit 1; }
 python tests/ui_focus.py >.local_relay/output/two-vm-ui-focus.log 2>&1 || { cat .local_relay/output/two-vm-ui-focus.log; exit 1; }
 python tests/ui_extraction.py >.local_relay/output/two-vm-ui-extraction.log 2>&1 || { cat .local_relay/output/two-vm-ui-extraction.log; exit 1; }
 python tests/ui_automation.py >.local_relay/output/native-ui-automation.log 2>&1 || { cat .local_relay/output/native-ui-automation.log; exit 1; }
@@ -46,6 +47,9 @@ root=pathlib.Path('.local_relay/output')
 focus=json.loads((root/'ui-focus-results.json').read_text())
 extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
+standalone=json.loads((root/'standalone-scripts/results.json').read_text())
+assert standalone['ok'] and standalone['mode']=='native Chromium HTTP' and standalone['native_indexeddb']
+assert not any(standalone[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
 layout=json.loads((root/'layout/results.json').read_text())
@@ -82,6 +86,8 @@ summary['asset_update_checks']=len(asset_update['checks'])
 summary['screenshots']+=len(asset_update['screenshots'])
 summary['layout_checks']=len(layout['checks'])
 summary['screenshots']+=len(layout['screenshots'])
+summary['standalone_script_checks']=len(standalone['checks'])
+summary['screenshots']+=len(standalone['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY
