@@ -1,0 +1,23 @@
+{
+  "branch": "fix/standalone-scripts-20261117",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-17T05:37:55.613199Z",
+    "id": "lrce-37c3d00496b783ec32eccab2",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "b87fdd7b79b0336ffe234757ab21cfafb385df3a4317071c859415ea629c51ce",
+    "sandbox_id": "sb-f564fd7f3a9f",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-f6af9919178d0124-app",
+  "source_sha": "1578d19d6e3c29fc8b208cd7f4757264ef933a05",
+  "started_at": "2026-11-17T02:37:44.120214858Z",
+  "status": "ready",
+  "version": 1
+}

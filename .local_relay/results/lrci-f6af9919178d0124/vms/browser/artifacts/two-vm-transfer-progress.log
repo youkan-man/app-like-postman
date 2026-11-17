@@ -1,0 +1,14 @@
+PASS live progress layout: upload-desktop
+PASS slow native upload shows measured bytes, percentage and progress without shifting the request editor
+PASS live progress layout: upload-320
+PASS 320px progress text and bar remain readable without horizontal page overflow
+PASS live progress layout: target-send-320
+PASS backend-to-target bytes are distinct from completed browser upload and are not reported as overall completion
+PASS switching requests and sending B does not replace A progress or show it on B
+PASS live progress layout: response-wait-desktop
+PASS fully sent bytes switch to indeterminate response waiting, with actual receiver size and SHA-256 verified
+PASS Cancel during response waiting removes progress and never displays success
+PASS an explicit resend starts fresh, completes and removes all progress UI
+PASS a target connection failure clears progress and restores Send without automatic resend
+PASS short requests do not flash a delayed progress bar after they finish
+PASS no browser-native dialogs or uncaught JavaScript errors
