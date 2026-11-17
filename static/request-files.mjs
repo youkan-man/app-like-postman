@@ -29,6 +29,38 @@ function fileKeys(request) {
   return (body.formdata || []).flatMap((row, index) => row?.key && row.type === 'file' &&
     row.disabled !== true && row.enabled !== false ? [`form-${index}`] : []);
 }
+
+function remapFileRows(entries, previous, changed, mapping) {
+  const before = Array.isArray(previous?.body?.formdata) ? previous.body.formdata : [];
+  const after = Array.isArray(changed?.body?.formdata) ? changed.body.formdata : [];
+  if (mapping === undefined) {
+    const unchanged = JSON.stringify(before) === JSON.stringify(after);
+    mapping = after.map((row, index) => unchanged && row?.type === 'file' ? index : null);
+  }
+  if (!Array.isArray(mapping) || mapping.length !== after.length || Array.from(mapping).some((source, index) =>
+    source !== null && (!Number.isInteger(source) || source < 0 || source >= before.length || before[source]?.type !== 'file' || after[index]?.type !== 'file')))
+    throw new Error('スクリプトによる添付ファイルの対応が不正です。');
+  const used = new Set(mapping.filter(source => source !== null));
+  const unbound = after.findIndex((row, index) => row?.type === 'file' && mapping[index] === null);
+  const hasUnclaimedSelection = [...entries.keys()].some(key => {
+    const match = /^form-(\d+)$/.exec(key);
+    return match && before[Number(match[1])]?.type === 'file' && !used.has(Number(match[1]));
+  });
+  if (unbound >= 0 && hasUnclaimedSelection)
+    throw new Error(`ファイル「${after[unbound].key || unbound + 1}」の選択を引き継げません。ファイル行は元のオブジェクトを移動・編集するか、オブジェクトの展開でコピーしてください。`);
+  // Keep binary selections and other slots across ordinary body-mode switches.
+  const result = new Map([...entries].filter(([key]) => !/^form-\d+$/.test(key)));
+  mapping.forEach((source, index) => {
+    if (source !== null && entries.has(`form-${source}`)) result.set(`form-${index}`, entries.get(`form-${source}`));
+  });
+  return result;
+}
+
+/** Preserve selected bytes while a script moves, copies or removes form rows. */
+export function remapScriptAttachments(previous, changed, files = {}, mapping) {
+  return copyAttachments(Object.fromEntries(remapFileRows(new Map(Object.entries(files)), previous, changed, mapping)));
+}
+
 export class RequestFiles {
   constructor({read = readSelectedFile} = {}) {this.entries = new Map(); this.readFile = read;}
   get(id) {
@@ -43,6 +75,24 @@ export class RequestFiles {
   }
   delete(id) {for (const slot of this.entries.get(id)?.values() || []) slot.controller.abort(); this.entries.delete(id);}
   clear() {for (const id of this.entries.keys()) this.delete(id);}
+  plannedRows(id, previous, changed, mapping) {
+    const next = remapFileRows(this.entries.get(id) || new Map(), previous, changed, mapping), used = new Set();
+    for (const [key, slot] of next) {
+      if (!used.has(slot)) {used.add(slot); continue;}
+      if (slot.state !== 'ready') throw new Error('読込中のファイル行は複製できません。読込完了後にもう一度実行してください。');
+      // A duplicated ready selection needs its own cancellation lifecycle.
+      const duplicate = {...slot, names:[...slot.names], files:slot.files.map(file => ({...file})), controller:new AbortController()};
+      duplicate.done = Promise.resolve(duplicate); next.set(key, duplicate);
+    }
+    return next;
+  }
+  validateRows(id, previous, changed, mapping) {this.plannedRows(id, previous, changed, mapping);}
+  remapRows(id, previous, changed, mapping) {
+    const previousSlots = this.entries.get(id), next = this.plannedRows(id, previous, changed, mapping);
+    const kept = new Set(next.values());
+    for (const slot of previousSlots?.values() || []) if (!kept.has(slot)) slot.controller.abort();
+    if (next.size) this.entries.set(id, next); else this.entries.delete(id);
+  }
   /** Move both completed and in-flight selections together with their row. */
   spliceRows(id, at, removed, added) {
     const slots = this.entries.get(id); if (!slots) return;

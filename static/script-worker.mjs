@@ -58,6 +58,93 @@ export async function executeScript(source, context = {}, options = {}) {
   try {
     checkActive();
     const ctx = copy(context);
+    const same = (left, right, seen = new WeakMap()) => {
+      if (Object.is(left, right)) return true;
+      if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false;
+      if (seen.has(left)) return seen.get(left) === right;
+      seen.set(left, right);
+      const keys = Object.keys(left);
+      return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && same(left[key], right[key], seen));
+    };
+    // A parent and every scripts.run() child share this one transaction. Input
+    // remains a value argument; request/response are explicitly mutable state.
+    const request = copy(ctx.request), response = copy(ctx.response);
+    const initialRequest = copy(request), initialResponse = copy(response);
+    // File selections belong to form-data row identities, not to their current
+    // array positions. A Symbol follows ordinary object spread while remaining
+    // absent from JSON and the structured-cloned request returned to the host.
+    const fileRowIdentity = Symbol('MiniPost file row');
+    const initialFormRows = Array.isArray(request?.body?.formdata) ? request.body.formdata : [];
+    const initialFilePositions = initialFormRows.map(row => row?.type === 'file');
+    initialFormRows.forEach((row, index) => {
+      if (row && typeof row === 'object') Object.defineProperty(row, fileRowIdentity, {value:index, enumerable:true});
+    });
+    const fileRows = () => Array.from(Array.isArray(request?.body?.formdata) ? request.body.formdata : [], row => {
+      const source = row?.[fileRowIdentity];
+      return row?.type === 'file' && Number.isInteger(source) && initialFilePositions[source] ? source : null;
+    });
+    const initialFileRows = fileRows();
+    let responseBodySet = false;
+    const bodyChanged = () => response && (responseBodySet || !same(response.body, initialResponse?.body) || response.body_encoding !== initialResponse?.body_encoding);
+    const responseText = () => {
+      checkActive();
+      if (!bodyChanged() && typeof ctx.raw?.body === 'string') return ctx.raw.body;
+      if (typeof response.body === 'string') return response.body;
+      return response.body === undefined ? '' : JSON.stringify(response.body);
+    };
+    const responseJSON = () => {
+      checkActive();
+      if (response.body_encoding === 'base64') throw new Error('バイナリ応答はJSONとして読めません');
+      if (!bodyChanged() && typeof ctx.raw?.body === 'string') return JSON.parse(ctx.raw.body);
+      return typeof response.body === 'string' ? JSON.parse(response.body) : copy(response.body);
+    };
+    const responseHeader = name => {
+      checkActive();
+      const key = Object.keys(response.headers || {}).find(key => key.toLowerCase() === String(name).toLowerCase());
+      const value = key === undefined ? undefined : response.headers[key];
+      return Array.isArray(value) ? value[0] : value;
+    };
+    const removeResponseHeader = name => {
+      checkActive();
+      for (const key of Object.keys(response.headers || {})) if (key.toLowerCase() === String(name).toLowerCase()) delete response.headers[key];
+      if (String(name).toLowerCase() === 'content-type') response.content_type = '';
+    };
+    const setResponseHeader = (name, value) => {
+      checkActive();
+      if (typeof name !== 'string' || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) throw new TypeError('レスポンスヘッダー名が不正です。');
+      const values = Array.isArray(value) ? value : [value];
+      if (!values.length || values.some(item => typeof item !== 'string' || /[\u0000-\u0008\u000a-\u001f\u007f]/.test(item))) throw new TypeError('レスポンスヘッダー値が不正です。');
+      removeResponseHeader(name);
+      if (!response.headers || typeof response.headers !== 'object' || Array.isArray(response.headers)) response.headers = {};
+      Object.defineProperty(response.headers, name.toLowerCase(), {value:copy(value), enumerable:true, configurable:true, writable:true});
+      if (name.toLowerCase() === 'content-type') response.content_type = values[0];
+    };
+    const responseSize = () => {
+      if (!bodyChanged()) return response.size;
+      const value = responseText();
+      return response.body_encoding === 'base64' ? atob(value).length : new TextEncoder().encode(value).byteLength;
+    };
+    if (response && typeof response === 'object') {
+      const methods = {
+        setBody(value, contentType) {
+          checkActive();
+          let body;
+          try { body = jsonValue(value); } catch { throw new TypeError('レスポンス本文には文字列またはJSONの値を指定してください。'); }
+          const type = contentType === undefined ? typeof body === 'string' ? 'text/plain; charset=utf-8' : 'application/json' : contentType;
+          setResponseHeader('content-type', type);
+          response.body = body; response.body_encoding = 'text'; responseBodySet = true;
+          return copy(body);
+        },
+        getHeader:responseHeader, setHeader:setResponseHeader, removeHeader:removeResponseHeader,
+        text:responseText, json:responseJSON,
+        show(view) {
+          checkActive();
+          if (!['pretty','raw','headers','cookies','preview'].includes(view)) throw new TypeError('レスポンスの表示形式が不正です。');
+          response.view = view;
+        }
+      };
+      for (const [name, value] of Object.entries(methods)) Object.defineProperty(response, name, {value, enumerable:false});
+    }
     const maps = {
       primary:new Map(Object.entries(ctx.primary || {})),
       environment:new Map(Object.entries(ctx.environment || {})),
@@ -114,13 +201,13 @@ export async function executeScript(source, context = {}, options = {}) {
       requests:{list:() => call('requests.list', []), get:reference => call('requests.get', [reference]), send:(reference, options) => call('requests.send', [reference, options])},
       environments:{list:() => call('environments.list', []), get:reference => call('environments.get', [reference])},
       workspace:{read:() => call('workspace.read', [])},
-      variables:vars, environment, globals, store
+      variables:vars, environment, globals, store, request, response
     };
     const scriptConsole = Object.fromEntries(['log', 'info', 'debug', 'warn', 'error'].map(level => [level, (...values) => log(level, ...values)]));
     const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
     async function invoke(code, value, id) {
       checkActive();
-      const input = copy(value), request = copy(ctx.request), response = copy(ctx.response), pendingTests = [];
+      const input = copy(value), pendingTests = [];
       const caller = catalog.find(script => script.id === id);
       const bindingId = caller ? caller.bindingId : id == null || id === '' ? ctx.bindingId : undefined;
       const binding = bindingId && ctx.bindings && Object.hasOwn(ctx.bindings, bindingId) ? ctx.bindings[bindingId] : null;
@@ -144,10 +231,10 @@ export async function executeScript(source, context = {}, options = {}) {
       const pm = {
         variables:vars, environment, globals, request,
         response:response ? {
-          code:response.status, status:response.statusText, responseTime:response.elapsed_ms, responseSize:response.size,
-          headers:{get:name => {const value = response.headers?.[String(name).toLowerCase()]; return Array.isArray(value) ? value[0] : value;}, all:() => copy(response.headers || {})},
-          json:() => {if (ctx.raw?.body_encoding === 'base64') throw new Error('バイナリ応答はJSONとして読めません'); return JSON.parse(ctx.raw?.body || '');},
-          text:() => ctx.raw?.body || ''
+          get code() { return response.status; }, get status() { return response.statusText; },
+          get responseTime() { return response.elapsed_ms; }, get responseSize() { return responseSize(); },
+          headers:{get:responseHeader, all:() => {checkActive(); return copy(response.headers || {});}},
+          json:responseJSON, text:responseText
         } : null,
         test,
         expect:actual => ({to:{
@@ -167,7 +254,18 @@ export async function executeScript(source, context = {}, options = {}) {
     }
     const result = await wait(invoke(source, ctx.input, ctx.scriptId));
     checkActive();
-    return {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), logs:copy(logs)};
+    const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), logs:copy(logs)};
+    const attachmentRows = fileRows();
+    if (!same(request, initialRequest) || !same(attachmentRows, initialFileRows)) {
+      output.request = copy(request);
+      output.attachmentRows = attachmentRows;
+    }
+    const replacedBody = responseBodySet && typeof ctx.raw?.body === 'string' && responseText() !== ctx.raw.body;
+    if (!same(response, initialResponse) || replacedBody) {
+      output.response = copy(response);
+      if (replacedBody) output.response.body_replaced = true;
+    }
+    return output;
   } catch (cause) {
     const error = new Error(String(cause?.message ?? cause));
     error.name = cause?.name || 'Error';

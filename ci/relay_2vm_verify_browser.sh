@@ -25,6 +25,8 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_script_response.py >.local_relay/output/two-vm-script-response.log 2>&1 || { cat .local_relay/output/two-vm-script-response.log; exit 1; }
+python tests/ui_script_intelligence.py >.local_relay/output/two-vm-script-intelligence.log 2>&1 || { cat .local_relay/output/two-vm-script-intelligence.log; exit 1; }
 python tests/ui_standalone_scripts.py >.local_relay/output/two-vm-standalone-scripts.log 2>&1 || { cat .local_relay/output/two-vm-standalone-scripts.log; exit 1; }
 python tests/ui_layout.py >.local_relay/output/two-vm-layout.log 2>&1 || { cat .local_relay/output/two-vm-layout.log; exit 1; }
 python tests/ui_asset_update.py >.local_relay/output/two-vm-asset-update.log 2>&1 || { cat .local_relay/output/two-vm-asset-update.log; exit 1; }
@@ -48,6 +50,12 @@ focus=json.loads((root/'ui-focus-results.json').read_text())
 extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 standalone=json.loads((root/'standalone-scripts/results.json').read_text())
+intelligence=json.loads((root/'script-intelligence/results.json').read_text())
+response_scripts=json.loads((root/'script-response/results.json').read_text())
+assert response_scripts['ok'] and response_scripts['mode']=='native Chromium HTTP'
+assert not any(response_scripts[key] for key in ['page_errors','native_dialogs','crashes'])
+assert intelligence['ok'] and intelligence['mode']=='native Chromium HTTP' and intelligence['engine']=='TypeScript Language Service'
+assert not any(intelligence[key] for key in ['page_errors','native_dialogs','crashes','unexpected_requests'])
 assert standalone['ok'] and standalone['mode']=='native Chromium HTTP' and standalone['native_indexeddb']
 assert not any(standalone[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
@@ -88,6 +96,10 @@ summary['layout_checks']=len(layout['checks'])
 summary['screenshots']+=len(layout['screenshots'])
 summary['standalone_script_checks']=len(standalone['checks'])
 summary['screenshots']+=len(standalone['screenshots'])
+summary['script_intelligence_checks']=len(intelligence['checks'])
+summary['screenshots']+=len(intelligence['screenshots'])
+summary['script_response_checks']=len(response_scripts['checks'])
+summary['screenshots']+=len(response_scripts['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

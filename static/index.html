@@ -85,8 +85,8 @@
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
         <section class="response-panel" aria-label="レスポンス">
           <div class="response-heading">
-            <div class="response-meta"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span></div>
-            <div class="response-actions"><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button></div>
+            <div class="response-meta"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseModified" class="metric" hidden>加工済み</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span></div>
+            <div class="response-actions"><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button><button id="responseActions" class="icon-button" aria-label="レスポンスの操作" title="レスポンスの操作" disabled>⋯</button></div>
           </div>
           <div class="response-toolbar">
             <nav id="responseTabs" class="content-tabs response-navigation" role="tablist" aria-label="レスポンス表示形式">

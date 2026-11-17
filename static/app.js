@@ -41,6 +41,7 @@ ensureScripts(workspace);
 let revisionStore = new RevisionStore(workspace);
 const requestSession = new RequestSession(workspace, freshTab);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
+const responsePresentationApplied = new WeakSet();
 const transfers = new TransferProgress(id => {if (active().id === id) paintTransferView($('transferProgress'), transfers.get(id));});
 const navigationKey = 'minipost.navigation.v1';
 const editorPageKey = 'minipost.editor.page.v1';
@@ -974,7 +975,14 @@ function codeView(text, json = false, search = '') {
 function emptyResponse(title, message) {const box = element('div', 'response-empty'); box.append(element('strong', '', title)); if (message) box.append(element('p', '', message)); return box;}
 function renderResponse() {
   const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id) || studio?.responseFor(active());
+  const receiving=requests.has(active().id);
+  if(result&&!receiving&&!responsePresentationApplied.has(result)){
+    responsePresentationApplied.add(result);
+    if(['pretty','raw','headers','cookies','preview'].includes(result.response_view)){responseView=result.response_view;saveNavigation();}
+  }
   $('extractResponse').disabled = !studio?.responseFor(active());
+  $('responseActions').disabled = !result||Boolean(result.error)||receiving;
+  $('responseModified').hidden = !result?.original_response||receiving;
   $('automationError').textContent = result?.automationErrors?.join('\n') || '';
   $('automationError').hidden = !result?.automationErrors?.length;
   document.documentElement.dataset.responseEmpty = String(!result && !requests.has(active().id));
@@ -1100,6 +1108,17 @@ studio = initStudio({
   addDraft:()=>{side='collections';addTab();$('url').focus();},
   findDraft:(collectionId,itemId)=>requestSession.all().find(t=>t.collectionId===collectionId&&t.itemId===itemId),
   filesFor:(tab,signal)=>selectedFiles.snapshot(requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
+  requestFor:tab=>requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId)),
+  isRequestRunning:tab=>requestSession.all().some(t=>(t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))&&requests.has(t.id)),
+  validateRequestReplacement:(tab,request,attachmentRows)=>selectedFiles.validateRows(tab.id,tab.request,request,attachmentRows),
+  replaceRequest:(tab,request,attachmentRows)=>{
+    selectedFiles.remapRows(tab.id,tab.request,request,attachmentRows);
+    tab.request=clone(request);touchTab(tab);if(active().id===tab.id)renderEditor();
+  },
+  replaceResponse:(tab,response)=>{
+    for(const draft of requestSession.all())if(draft.id===tab.id||(tab.itemId&&draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId))responses.set(draft.id,response);
+    renderResponse();
+  },
   saveTab:tab=>{
     const collection=workspace.collections.find(c=>c._mpId===tab.collectionId),item=findItem(collection,tab.itemId)?.item;
     if(item){item.request=clone(tab.request);for(const draft of requestSession.all())if(draft.collectionId===tab.collectionId&&draft.itemId===tab.itemId)draft.request=clone(tab.request);}

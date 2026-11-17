@@ -4,6 +4,7 @@ import {newScript,ensureScripts,parseScriptInput,applyScriptWrites,validScriptDa
 import {createCodeEditor} from './code-editor.mjs';
 import {runScript} from './script-runner.mjs';
 import {makeScriptContext,createScriptHost,formatScriptValue} from './script-host.mjs';
+import {scriptEditorContext} from './script-editor-context.mjs';
 import {confirmAction} from './confirm-dialog.mjs';
 
 export function initScriptWorkspace(api) {
@@ -67,6 +68,7 @@ export function initScriptWorkspace(api) {
     const box=el('div','script-reference');
     const sections=[
       ['入力と結果',[['input','入力欄のJSON値または文字列。'],['return value','値を返します。配列・オブジェクトや非同期処理にも対応します。'],['console.log / warn / error','実行中にログを表示します。']]],
+      ['レスポンスと送信内容',[['response.body = value','受信後の処理やレスポンスの操作から実行すると、変更を表示・コピー・保存へ反映します。'],['response.setBody(value, contentType)','本文と表示形式を置き換えます。'],['response.getHeader / setHeader / removeHeader','レスポンスのヘッダーを取得・変更・削除します。'],['response.show(view)','pretty / raw / headers / cookies / preview の表示へ切り替えます。'],['request.url / request.header / request.body','送信前の変更は実際の送信内容に反映します。手動実行ではリクエストの設定を更新します。']]],
       ['スクリプト',[['scripts.list()','保存済みのID・名前を取得します。'],['await scripts.run(idOrName, input)','別のスクリプトへ入力を渡し、戻り値を受け取ります。同名の場合はIDで指定します。']]],
       ['共有データ',[['store.get(key) / has(key) / keys()','共有データを読み取ります。'],['store.set(key, value) / delete(key) / clear()','JSON値を型を保って保存します。変更は実行全体の成功時に反映します。']]],
       ['MiniPost',[['minipost.workspace.read()','ワークスペースのスナップショットを取得します（await）。'],['minipost.requests.list() / get(idOrName)','リクエストの一覧・設定を取得します（await）。'],['minipost.requests.send(idOrNameOrRequest, options)','1回送信してレスポンスを返します（await）。送信前後の処理は自動で呼びません。'],['minipost.environments.list() / get(idOrName)','環境の一覧・設定を取得します（await）。'],['vars.get / set / unset','一次変数。pm.variables・minipost.variablesでも利用できます。'],['pm.environment / pm.globals','環境・Globalsのget / set / unset / has / toObject。minipostからも利用できます。']]]
@@ -97,7 +99,7 @@ export function initScriptWorkspace(api) {
     const actions=btn('⋯',event=>openItemMenu(event.currentTarget,[...menu(script),null,{label:'共有データ',run:sharedData},{label:'APIリファレンス',run:reference}]),'icon-button');actions.setAttribute('aria-label','スクリプトの操作');
     heading.append(name,runButton,stop,actions);body.append(heading);
     const grid=el('div','standalone-script-grid'),code=el('section','standalone-script-code');
-    code.append(createCodeEditor({value:script.source,language:'javascript',intellisense:true,label:'スクリプトのコード',onChange:value=>{script.source=value;changed();}}).element);
+    code.append(createCodeEditor({value:script.source,language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{script}),label:'スクリプトのコード',onChange:value=>{script.source=value;changed();}}).element);
     const io=el('div','standalone-script-io'),inputSection=el('section','script-input-section'),inputHeading=el('div','script-section-heading');
     const editor=createCodeEditor({value:script.input,language:script.inputFormat==='json'?'json':'text',label:'スクリプトの入力',onChange:value=>{script.input=value;changed();}});
     const format=select([['json','JSON'],['text','テキスト']],script.inputFormat,value=>{script.inputFormat=value;editor.setLanguage(value);changed();});format.setAttribute('aria-label','入力形式');

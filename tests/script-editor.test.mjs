@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {scriptCompletions,highlight} from '../static/code-editor.mjs';
-import {completionContext,signatureHelp,scriptCode} from '../static/script-intelligence.mjs';
+import {highlight} from '../static/code-editor.mjs';
+import {completionContext,signatureHelp,scriptCompletions} from '../static/script-intelligence.mjs';
 const names=text=>scriptCompletions(text).map(item=>item.label);
 test('root and partial member completion',()=>{
   assert.ok(names('pm.').includes('expect'));
   assert.deepEqual(scriptCompletions('pm.exp'),[{label:'expect',insert:'ect'}]);
   assert.ok(names('vars.s').includes('set'));assert.ok(names('console.l').includes('log'));
-  assert.deepEqual(names('unknown.method'),[]);assert.deepEqual(names('p'),['pm']);
+  assert.deepEqual(names('unknown.method'),[]);assert.ok(names('p').includes('pm'));
 });
 test('nested and optional-chain API completion',()=>{
   assert.deepEqual(scriptCompletions('pm.response.js'),[{label:'json',insert:'on'}]);
@@ -58,7 +58,7 @@ test('syntax highlighting escapes HTML and styles actual keywords',()=>{
   const html=highlight('const x = "<unsafe>"; // hello','javascript');
   assert.match(html,/syntax-keyword/);assert.match(html,/syntax-comment/);assert.ok(html.includes('&lt;unsafe&gt;'));
 });
-test('source masks preserve offsets and line endings',()=>{
-  const s='const x="//ab";\n/* c */ vars.';const mask=scriptCode(s);
-  assert.equal(mask.code.length,s.length);assert.equal(mask.code.indexOf('\n'),s.indexOf('\n'));assert.equal(mask.mode,'code');
+test('comments and preceding lines preserve source replacement offsets',()=>{
+  const s='const x="//ab";\n/* c */ vars.se';const result=completionContext(s);
+  assert.equal(result.from,s.length-2);assert.equal(result.to,s.length);assert.equal(result.prefix,'se');
 });

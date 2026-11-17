@@ -1,5 +1,6 @@
 """Native HTTP application acceptance for scripting and completion; never inline."""
 from __future__ import annotations
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -18,16 +19,34 @@ def main():
         server, url = start_server(proxy.Handler)
     out = Path(os.environ.get('ARTIFACT_DIR', tempfile.mkdtemp(prefix='minipost-script-'))) / 'script-editor'
     out.mkdir(parents=True, exist_ok=True)
-    checks, shots, errors = [], [], []
+    checks, shots, errors, dialogs, crashes = [], [], [], [], []
+    page = None
+    completed = False
     def passed(message):
         checks.append(message)
         print('PASS '+message, flush=True)
+
+    @contextmanager
+    def capture_failure():
+        try:
+            yield
+        except Exception:
+            if page and not page.is_closed():
+                try:
+                    page.screenshot(path=str(out/'failure.png'), full_page=True)
+                    shots.append('failure.png')
+                except Exception:
+                    pass
+            raise
+
     try:
-        with sync_playwright() as p:
+        with sync_playwright() as p, capture_failure():
             browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM'), headless=True, args=['--no-sandbox'])
             page = browser.new_page(viewport={'width':1440,'height':1000})
             page.set_default_timeout(10000)
             page.on('pageerror', lambda error: errors.append(str(error)))
+            page.on('dialog', lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+            page.on('crash', lambda: crashes.append('page crashed'))
             page.goto(url, wait_until='domcontentloaded')
             expect(page.locator('#connectionStatus')).to_contain_text('connected')
             page.locator('#editor-tab-scripts').click()
@@ -54,6 +73,8 @@ def main():
             page.locator('#script-tab-after').click()
             after=page.get_by_label('受信後スクリプト',exact=True)
             after.fill('console.l')
+            expect(page.locator('#script-panel-after .source-editor')).to_have_attribute('data-intelligence','ready',timeout=30000)
+            expect(page.locator('#script-panel-after .source-suggestions').get_by_role('option',name='log',exact=True)).to_be_visible()
             after.press('Tab')
             expect(after).to_have_value('console.log')
             after.fill('console.log(response.status);')
@@ -65,10 +86,13 @@ def main():
             expect(page.get_by_label('受信後スクリプト',exact=True)).to_have_value('console.log(response.status);')
             passed('post-script completion and IndexedDB autosave survive an HTTP reload')
             assert not errors, errors
-            passed('no uncaught browser JavaScript errors')
+            assert not dialogs, dialogs
+            assert not crashes, crashes
+            passed('no uncaught browser JavaScript errors, native dialogs or page crashes')
+            completed = True
             browser.close()
     finally:
-        (out/'results.json').write_text(json.dumps({'mode':'native Chromium HTTP','checks':checks,'screenshots':shots,'errors':errors},ensure_ascii=False,indent=2))
+        (out/'results.json').write_text(json.dumps({'ok':completed,'mode':'native Chromium HTTP','checks':checks,'screenshots':shots,'errors':errors,'native_dialogs':dialogs,'crashes':crashes},ensure_ascii=False,indent=2))
         if server:
             server.shutdown();server.server_close()
 

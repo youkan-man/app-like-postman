@@ -12,7 +12,7 @@
       "name": "node-regression",
       "vm": "app",
       "needs": [],
-      "run": "mkdir -p .local_relay/output && node --test tests/*.test.mjs >.local_relay/output/node-regression.log 2>&1"
+      "run": "mkdir -p .local_relay/output && python3 ci/vendor_typescript.py --check >.local_relay/output/vendor-verification.log 2>&1 && node --test tests/*.test.mjs >.local_relay/output/node-regression.log 2>&1"
     },
     {
       "name": "python-regression",

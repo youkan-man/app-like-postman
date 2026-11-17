@@ -85,6 +85,14 @@ return {
 
 `await` を使う処理にも対応します。`console.log()`／`warn()`／`error()` は実行中からログ欄に表示され、**停止** で処理を中断できます。独立スクリプトの制限時間は初期値0（無制限）です。戻り値のない実行と `return null` は区別して表示します。
 
+### 補完と型推論
+
+TypeScriptのJavaScript言語サービスが構文木・スコープ・型を解析し、変数、オブジェクトのプロパティ、関数・メソッドを補完します。別名への代入、分割代入、配列のコールバック、クラスと継承、戻り値からのメソッド連鎖、JSDocの型注釈も解析対象です。配列・文字列・Map・Promiseなどの標準APIには、同梱した型定義を使用します。
+
+入力JSON、共有データ、現在の環境・一次変数・Globals、リクエストと保存スクリプトの名前・IDから動的な辞書を作ります。`store.get()` の戻り値や `input` の要素、`scripts.run()` で呼ぶスクリプトの戻り値も推論し、データやコードの変更・削除を次の解析へ反映します。実行時まで型が決まらない値はJSDocで補えます。
+
+Ctrl/Cmd+Spaceで候補を開き、上下キーで選択、Tab／Enterで確定、Escapeで閉じます。候補には型やメソッドの情報を表示し、呼び出し中は引数の型と現在位置を表示します。解析専用Workerを使用し、補完のために編集中のコードを実行したり、外部サービスへ送信したりしません。言語サービスと標準型定義はローカルに同梱しています。操作・推論の範囲・検証方法は [スクリプト編集](docs/SCRIPT_EDITOR.md) を参照してください。
+
 ### 再利用と共有データ
 
 `await scripts.run(idOrName, input)` で別の保存済みスクリプトを呼び、その戻り値を受け取れます。`scripts.list()` はIDと名前の一覧を返します。IDでの参照は名前の変更に影響されません。同名のスクリプトが複数ある場合は、名前による呼び出しをエラーとしてIDでの指定を求めます。 全体バックアップを追加で取り込む場合は、元のIDと取り込み前に一意だった名前の参照を対応するコピーへ結び付けます。同じバックアップを複数回取り込んでも、それぞれの呼び出し先を維持します。
@@ -109,6 +117,7 @@ return converted;
 | `minipost.environments.list()`／`get(reference)` | 環境の一覧・内容を取得 |
 | `minipost.variables`／`environment`／`globals` | 一次変数・選択環境・Globalsの取得・変更 |
 | `minipost.scripts`／`minipost.store` | `scripts`／`store` と同じAPI |
+| `minipost.request`／`minipost.response` | 現在の実行が扱う `request`／`response` と同じ変更対象。独立スクリプトの通常実行では `null` |
 
 データ取得と送信は `await` で結果を受け取ります。コードは分離Workerで実行し、MiniPostとのやり取りには公開APIを使用します。送信済みのHTTP処理はスクリプトを停止しても取り消されません。
 
@@ -120,7 +129,24 @@ return converted;
 
 既存の `vars.get/set/unset`（`pm.variables`）、`pm.environment`、`pm.globals`、`response.body`、`response.headers`、`pm.response.json()`／`text()`、`pm.test()` も維持します。Postmanの全APIや外部ライブラリーとの完全互換ではありません。
 
-送信順序は「送信前スクリプト → 変数展開 → HTTP送信 → 自動抽出 → 受信後スクリプト」です。受信後スクリプトが失敗してもHTTPレスポンスは残ります。
+送信前スクリプトで `request.method`／`url`／`header`／`body`／`auth` を変更すると、その内容で変数展開とHTTP送信を行います。`pm.request` と `minipost.request` も同じ対象です。自動の送信前処理は送信に使うコピーを変更します。手動で送信前処理を実行した場合は、現在のリクエスト編集へ反映し、通常と同じ自動保存を行います。コレクション登録済みなら保存した設定にも反映します。送信前の `response` は `null` です。受信後のリクエスト変更は送信や保存済み設定へ反映しません。
+
+### レスポンスを加工して表示
+
+受信後スクリプトでは `response.body` を直接編集・置換でき、成功すると加工した内容がそのままレスポンス欄へ反映されます。受信済みのデータに保存したスクリプトを実行するときは、**レスポンスの操作 → スクリプトを実行** で選びます。この操作は対象のリクエスト、レスポンスと、そのメタデータを持つ `input` を渡します。独立スクリプトの通常実行は、入力欄の値を使います。
+
+```javascript
+const source = response.json();
+response.setBody(source.items.map(item => ({id: item.id, name: item.name})));
+response.setHeader('X-Processed', 'true');
+response.show('pretty');
+```
+
+`response.setBody(value, contentType?)` は本文を置き換えて値を返します。Content-Typeの省略時は文字列を `text/plain; charset=utf-8`、ほかのJSON値を `application/json` とし、本文のエンコーディングを `text` にします。`getHeader(name)`／`setHeader(name, value)`／`removeHeader(name)` でヘッダーを扱え、`headers` の直接編集にも対応します。`status`／`statusText`／`content_type`／`body_encoding` も変更できます。`text()`／`json()` は現在の本文を返し、既存の `pm.response` からの読み取りにも変更が反映されます。
+
+`response.show()` には `pretty`／`raw`／`headers`／`cookies`／`preview` を指定できます。HTMLなら `response.setBody(html, 'text/html; charset=utf-8')` と `response.show('preview')` で表示します。表示形式の指定は実行成功時の一度だけで、その後は通常どおり切り替えられます。
+
+送信順序は **送信前スクリプト → 変数展開 → HTTP送信 → 受信後スクリプト → 自動抽出** です。加工後のレスポンスを表示・コピー・保存・抽出・リレーションの後続処理に使用します。子スクリプトも同じ変更対象を共有し、実行全体が失敗・停止したときは、その実行のレスポンス・表示・変数・共有データの変更を反映しません。受信した元データは保持し、**レスポンスの操作 → 受信時のレスポンスに戻す** で戻せます。受信後処理が失敗してもHTTPレスポンスは残ります。
 
 ## リレーション
 

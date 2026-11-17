@@ -40,6 +40,7 @@ jobs:
       - name: Node import and request compilation
         run: |
           mkdir -p artifacts
+          python ci/vendor_typescript.py --check
           node --test tests/*.test.mjs 2>&1 | tee artifacts/node-tests.log
       - name: Python proxy and import-to-HTTP regression
         if: ${{ !cancelled() }}
@@ -119,6 +120,12 @@ jobs:
       - name: Independent scripts, typed results, reuse and persistence
         if: ${{ !cancelled() }}
         run: python tests/ui_standalone_scripts.py 2>&1 | tee artifacts/browser/ui-standalone-scripts.log
+      - name: Request and response script effects, transformed views and restore
+        if: ${{ !cancelled() }}
+        run: python tests/ui_script_response.py 2>&1 | tee artifacts/browser/ui-script-response.log
+      - name: Semantic IntelliSense, dynamic dictionaries and live type updates
+        if: ${{ !cancelled() }}
+        run: python tests/ui_script_intelligence.py 2>&1 | tee artifacts/browser/ui-script-intelligence.log
       - name: Extraction focus, context menus and responsive forms
         if: ${{ !cancelled() }}
         run: python tests/ui_extraction.py 2>&1 | tee artifacts/browser/ui-extraction.log

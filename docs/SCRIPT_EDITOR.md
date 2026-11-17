@@ -6,22 +6,129 @@
 
 `scripts.list()` と `await scripts.run(idOrName, input)` で保存済み処理を再利用できます。名前が重複する場合はIDで指定します。`store` はJSON型の共有データを保存し、成功時だけ変数とともにワークスペースへ反映します。スクリプト・入力・共有データは全体バックアップにも含まれます。
 
-API名の入力や `pm.response.` のようなドットで候補を表示します。Ctrl+Spaceで明示的に開き、上下キーで選択、TabまたはEnterで確定、Escapeで閉じます。Shift+Tabは前の操作へ移動します。Ctrl+Enterは独立スクリプトの実行、リクエスト画面では送信に使用し、候補確定には使いません。補完はカーソルがある識別子全体を置換し、ChromiumではUndoで戻せます。
+## リクエストとレスポンスの加工
 
-候補は実装済みの `input`、`scripts`、`store`、`minipost`、`pm`、`vars`、`response`、`request`、`console`、`JSON` のAPIと、同じスクリプトで既に宣言したローカル識別子です。関数呼び出し中は引数名と現在の引数番号を表示します。文字列、コメント、正規表現・テンプレートリテラル内では候補を抑制します。IME変換中のEnterを補完で消費しません。
+送信前の処理では `request`、受信後の処理では `response` を直接変更できます。`minipost.request` と `pm.request` は `request` と同じ対象、`minipost.response` は `response` と同じ対象です。子スクリプトも同じ変更対象を共有します。`pm.response.json()`／`text()`、ステータスとヘッダーの取得も、その時点までのレスポンスの変更を読み取ります。
 
-リクエストのスクリプト欄では、保存済みスクリプトを送信前／受信後の処理として選択できます。既存の直接入力も維持します。公開されたMiniPost APIを利用するかどうか、どの入力を処理するかはスクリプトごとに決められます。
+独立スクリプトの通常の実行では `request` と `response` は `null` です。受信済みのレスポンスを加工するときは、そのレスポンスの **レスポンスの操作 → スクリプトを実行** から保存したスクリプトを選びます。この実行には対象のリクエスト、レスポンス、レスポンスのメタデータを持つ `input` を渡します。リクエストに設定した受信後スクリプトは、受信のたびに同じ加工を実行します。
 
-## 範囲
+### 送信内容の変更
 
-外部CDNや追加ランタイムに依存しない軽量な補完です。TypeScript言語サービスやPostman完全互換ではありません。ローカル識別子は字句的候補であり、厳密なスコープ解析・型推論・ユーザー定義オブジェクトのメンバー推論は行いません。テンプレート内の補間式も保守的に補完対象外とします。編集中のコードは補完のために評価しません。
+`request.method`、`request.url`、`request.header`、`request.body`、`request.auth` などを変更できます。送信前の `response` は `null` です。
+
+```javascript
+request.url = vars.get('baseUrl') + '/users';
+request.header ??= [];
+request.header.push({
+  key: 'X-Request-Source',
+  value: 'MiniPost',
+  enabled: true
+});
+```
+
+自動の送信前処理では、変更したリクエストを変数展開・HTTP送信に使用します。この処理用のコピーへの変更で、保存した設定を自動で書き換えません。送信前処理を手動で実行した場合は、成功時に現在のリクエスト編集へ反映し、通常の編集と同じ自動保存を行います。コレクションに登録済みなら、その設定にも反映されます。受信後の `request` は参照用です。送信済みのリクエストを変更すると実行エラーになるため、送信内容の変更は送信前処理で行います。
+
+form-dataの既存の行を並べ替えたり、前後に行を追加・削除した場合も、選択済みファイルは元の行に対応付けます。行のプロパティを変更する場合は、既存の行を編集するか `{...row, key: 'newName'}` のようにコピーできます。JSONを経由して行を作り直し、選択済みファイルとの対応を特定できなくなった場合は、別のファイルを推測して送らず実行エラーにします。
+
+### 本文・ヘッダー・表示の変更
+
+JSONを受信した場合、`response.body` は解析したJSON値です。本文を直接代入して置き換えるほか、`response.setBody(value, contentType?)` で本文とContent-Typeをまとめて変更できます。
+
+```javascript
+const source = response.json();
+response.setBody(source.items.map(item => ({
+  id: item.id,
+  name: item.name
+})));
+response.setHeader('X-Processed', 'true');
+response.show('pretty');
+```
+
+| 操作 | 動作 |
+| --- | --- |
+| `response.body = value` | 本文をJSON値または文字列に置き換える。入れ子のプロパティの変更にも対応 |
+| `response.setBody(value, contentType?)` | 本文を置き換え、代入した値を返す。Content-Typeを省略すると文字列は `text/plain; charset=utf-8`、ほかのJSON値は `application/json`。本文のエンコーディングは `text` になる |
+| `response.headers` | 名前から文字列または文字列配列へのマップ。直接編集・置換できる |
+| `response.getHeader(name)` | 大文字・小文字を区別せずヘッダーを取得。複数値なら先頭、存在しなければ `undefined` |
+| `response.setHeader(name, value)` | ヘッダーを設定。文字列配列で複数値を指定できる |
+| `response.removeHeader(name)` | ヘッダーを削除 |
+| `response.status`／`statusText` | 表示・後続処理に使用するステータスと説明を変更 |
+| `response.content_type`／`body_encoding` | 本文のContent-Type・エンコーディングを変更 |
+| `response.text()` | 現在の本文を文字列で取得。本文を変更するまでは受信時の文字列、変更後は文字列をそのまま、ほかのJSON値をJSON文字列として返す |
+| `response.json()` | 現在の本文をJSONとして取得。バイナリ本文や無効なJSONはエラー |
+| `response.show(view)` | 成功時の表示を `pretty`／`raw`／`headers`／`cookies`／`preview` に切り替える |
+
+HTMLを表示するときは `response.setBody(html, 'text/html; charset=utf-8')` と `response.show('preview')` を使用できます。`show()` は実行成功時に一度表示を切り替え、その後は通常の操作で表示形式を選べます。`return` はスクリプトの戻り値で、レスポンスの変更には `response` の代入・メソッドを使用します。
+
+### 反映のタイミングと受信内容の保持
+
+送信順序は **送信前スクリプト → 変数展開 → HTTP送信 → 受信後スクリプト → 自動抽出** です。受信後の加工結果を表示、コピー、保存、自動抽出、リレーションの後続処理へ渡します。受信済みレスポンスの手動加工でも、そのリクエストに設定した抽出ルールを加工後の値へ適用します。抽出先とスクリプトで明示的に設定した一次変数が同じ場合は、スクリプトの値を優先します。1回のスクリプト実行が例外・停止・時間切れで終わった場合、その実行と子スクリプトのリクエスト・レスポンス・表示形式・変数・共有データの変更は反映しません。既に完了した送信前処理やHTTP送信は取り消されません。
+
+加工後も受信時のレスポンスを保持します。**レスポンスの操作 → 受信時のレスポンスに戻す** で元の受信内容を表示できます。受信後スクリプトが失敗した場合も受信したレスポンスは残ります。**受信後スクリプトを編集** から、対象リクエストの設定へ移動できます。
+
+手動スクリプトの実行中に対象のリクエストやレスポンスが更新された場合は、その実行の変更を反映しません。本文を書き換えず、古いレスポンスから変数や共有データだけを作る処理も同じ扱いです。
+
+## 補完と引数表示
+
+識別子の入力や `account.name.` のようなドットで候補を表示します。Ctrl/Cmd+Spaceで明示的に開き、上下キーで選択、TabまたはEnterで確定、Escapeで閉じます。Shift+Tabは前の操作へ移動します。Ctrl/Cmd+Enterは独立スクリプトの実行、リクエスト画面では送信に使用し、候補確定には使いません。補完はカーソルがある識別子全体を置換し、ChromiumではUndoで戻せます。IME変換中のEnterは補完で消費しません。
+
+候補にはプロパティの型やメソッドの情報を表示します。関数呼び出し中は引数名・型・現在の引数番号を表示します。解析中に編集やカーソル位置が変わった場合は、古い結果を挿入しません。読み込み・解析に失敗した場合は、エディター内の「補完を再試行」から再開できます。
+
+### 構文と型の解析
+
+TypeScript 5.9.3のJavaScript言語サービスを使用します。構文木（AST）、宣言の結び付け、型推論を通して、現在のスコープで使える変数とメンバーを求めます。
+
+- オブジェクトと入れ子のプロパティ、別名への代入、分割代入、同名変数のスコープを解析します。
+- 配列のコールバック引数、関数の戻り値、`await` 後の値、クラス・継承・`this` のメンバーを推論します。
+- 配列、文字列、Map、Set、Promise、型付き配列などには標準型定義を使用します。
+- JSDocの `@param`・`@returns`・`@type` などを読み取り、型と引数情報へ反映します。
+- オプショナルチェーンや添字でのプロパティ参照、書きかけのコードも解析します。
+
+コメント、正規表現、通常の文字列本文では候補を表示しません。プロパティ名やAPIの引数に入る文字列は、その型から名前・キーの候補を表示します。テンプレート文字列の `${...}` 内はJavaScriptの式として解析します。
+
+### 動的な辞書
+
+解析時点のワークスペースから型定義と参照辞書を生成します。辞書には名前やデータの構造を使用し、環境変数などの保存値を補完の説明欄へ掲載しません。
+
+| データ | 補完・推論の対象 |
+| --- | --- |
+| JSON／テキスト入力 | `input` の型、入れ子のプロパティ、配列要素の型 |
+| 共有データ | `store.get()` などのキーと、保存値の型 |
+| 一次変数・選択環境・Globals | `vars`、`pm`、`minipost` の変数APIで使用できるキー |
+| 保存スクリプト | ID・一意の名前、呼び出したスクリプトのコードから推論する戻り値 |
+| 保存済みリクエスト・下書き | ID・一意の名前・パス、取得する設定の構造 |
+| 環境 | 環境のID・一意の名前 |
+| 送信前・受信後の処理 | リクエストまたは受信済みレスポンスの `input`、JSON本文とヘッダー |
+| レスポンスの加工 | `response`／`minipost.response` のメソッド、ヘッダー名、`show()` の表示形式、`setBody()` が返す値の型 |
+
+コードや入力、保存データ、名前を変更・削除すると、次の解析で辞書を更新します。`await scripts.run(...)` の戻り値は保存スクリプトの仮想JavaScriptファイルを参照して推論するため、呼び出し先のコード変更も反映します。全体バックアップの追加取り込みで保持した参照先にも対応します。
+
+### 解析と実行の範囲
+
+解析は専用Workerで行い、エディターのメインスレッドで言語サービスを動かしません。言語サービス、ES2023とWorker向けの標準型定義は同梱しており、実行時のCDN取得や外部解析サービスは使用しません。編集中のコードは仮想ファイルとして解析し、補完のために評価・実行しません。
+
+実行言語はJavaScriptです。現在の入力や受信データから得られる型は、その時点の構造に基づく推論です。実行時まで決まらない値や型情報のない処理には `unknown` や `any` が残るため、必要な形をJSDocで指定できます。非常に大きい値や深い構造では解析量を抑え、一部の型を `unknown` として扱う場合があります。この解析上の制御は、スクリプト実行の制限時間や処理するデータを変更しません。
+
+本文やリクエストの形式を置き換える代入は、受信時・編集時と異なる構造でも使用できます。受信データから得た型は実行前の構造のため、大きく変換した後の値を続けて扱う場合は `const converted = response.setBody(...)` のように戻り値を変数へ受け取ると、その新しい構造を推論できます。送信前の補完には前回のレスポンスの本文やヘッダーを持ち込みません。
+
+リクエストのスクリプト欄では、保存済みスクリプトを送信前／受信後の処理として選択できます。既存の直接入力も維持します。MiniPost APIの型定義は実装済みのAPIを対象にしており、Postmanの全APIや外部パッケージの型定義を提供するものではありません。
+
+## 同梱ライブラリーの更新
+
+`python ci/vendor_typescript.py` でTypeScript 5.9.3の配布物を取得し、固定した整合性情報を検証してから、esbuild 0.25.12で同梱ESモジュールを生成します。再生成にはネットワークとnpmが必要ですが、アプリの起動には不要です。
+
+`python ci/vendor_typescript.py --check` は、ネットワークやビルドツールを使用せず、同梱ファイルのハッシュをマニフェストと照合します。ライセンスと第三者通知は `static/vendor-typescript.LICENSE.txt`、`static/vendor-typescript.NOTICE.txt` に同梱しています。
 
 ## 検証
 
-`node --test tests/script-editor.test.mjs` は補完と引数解析の純粋処理を検証します。`python tests/ui_script_editor.py` は通常のHTTPオリジン上で実アプリを操作し、キーボード、Undo、合成IMEイベント、320/390/1440px表示、実Worker実行、失敗時の変数非反映、IndexedDB保存・再読込を確認します。OSのIME候補ウィンドウ自体を操作する試験ではありません。
+`node --test tests/*.test.mjs` に、実言語サービスによる構文・スコープ・型推論、動的辞書と別スクリプトの戻り値、辞書の更新・削除、解析クライアントの非同期制御の検証を含めています。対象は `script-editor.test.mjs`、`script-intelligence.test.mjs`、`script-language-model.test.mjs`、`script-intelligence-client.test.mjs`、`script-editor-context.test.mjs` です。
+
+`python tests/ui_script_editor.py` は通常のHTTPオリジン上で実アプリを操作し、キーボード、Undo、合成IMEイベント、320/390/1440px表示、実Worker実行、失敗時の変数非反映、IndexedDB保存・再読込を確認します。OSのIME候補ウィンドウ自体を操作する試験ではありません。`python tests/ui_script_intelligence.py` は実際の解析Workerを使い、変数・メソッドの補完、ワークスペースからの動的な候補と型推論を確認します。
 
 `python tests/ui_standalone_scripts.py` は、空のワークスペースから独立したスクリプトを作成し、JSON／テキスト入力と戻り値、ID／名前による子スクリプト呼び出し、共有データ、失敗時の非反映、実行中のログと停止、IndexedDB再読込、全体バックアップ復元を実HTTP・実Workerで確認します。明示的なHTTP送信APIと、保存済みスクリプトを送信前後へ接続した場合も確認します。1440/390/320pxの画面を撮影し、横方向のはみ出しも確認します。GitHub ActionsとLocal Relayの両方から実行します。
 
+`python tests/ui_script_response.py` は送信前の変更が実際のHTTPリクエストへ反映されること、受信後の加工結果の表示・コピー・保存・抽出・条件分岐、保存スクリプトによる再加工と復元を確認します。例外・停止・実行中の対象更新による変更の破棄、同じ `show()` の再実行、form-dataの行操作と添付ファイルの対応も対象です。処理単位の回帰試験は `tests/script-response.test.mjs` にあります。
+
 Local Relayの既存2VMワークフローもこの試験を呼びます。ブラウザ実体はPlaywrightのインストール結果から解決します。アプリはこの試験専用systemd unitで管理し、起動時の識別子、Python/静的ファイルのハッシュ、実配信ファイルを照合します。別プロセスのHTTP 200を起動成功として扱いません。他のポート所有者を強制終了しません。試験用unitの最大実行時間は30分です。
 
-出力は `.local_relay/output/script-editor/` と `.local_relay/output/standalone-scripts/`、2VM集計は `.local_relay/output/two-vm-summary.json` に保存します。ローカルのオフラインDOMコンポーネント試験は、Relay上の実HTTP試験と区別してください。
+出力は `.local_relay/output/script-editor/`、`.local_relay/output/script-intelligence/`、`.local_relay/output/script-response/`、`.local_relay/output/standalone-scripts/`、2VM集計は `.local_relay/output/two-vm-summary.json` に保存します。ローカルのオフラインDOMコンポーネント試験は、Relay上の実HTTP試験と区別してください。

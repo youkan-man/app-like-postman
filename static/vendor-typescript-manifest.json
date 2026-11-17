@@ -1,0 +1,19 @@
+{
+  "package": "typescript",
+  "version": "5.9.3",
+  "source_url": "https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz",
+  "source_integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+  "minifier": "esbuild@0.25.12",
+  "library_roots": [
+    "lib.es2023.d.ts",
+    "lib.webworker.d.ts",
+    "lib.webworker.iterable.d.ts",
+    "lib.webworker.asynciterable.d.ts"
+  ],
+  "files": {
+    "vendor-typescript.mjs": "6fd069dec09b19ce71669bfa04a6dbdf4106313884899d37cab99c176dfedacb",
+    "vendor-typescript-libs.mjs": "8964d1a32bf4ee13359e02906c9bc3f449acd7bacb80f2a2385d51ccb89d5087",
+    "vendor-typescript.LICENSE.txt": "527adf9d4c760f7367c2aeffed6a89afba8ba40ea1b0efbc8f56496ad30ea9cf",
+    "vendor-typescript.NOTICE.txt": "f7d7409c091d9d5c09a8bafbc4a27dc30ce2da6e19b7c0f91c59754a7c4b195b"
+  }
+}
