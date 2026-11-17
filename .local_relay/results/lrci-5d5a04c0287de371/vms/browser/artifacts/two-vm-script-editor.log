@@ -1,0 +1,16 @@
+PASS Tab completes without indentation and native Undo restores the previous source
+PASS nested API completion accepts Enter without inserting a newline
+PASS completion replaces the entire identifier when the caret is inside it
+PASS comments and string/template literals do not show API completion
+PASS lexically declared local variable is offered and inserted
+PASS function signature displays the active argument
+PASS Shift+Tab leaves the editor without accepting a suggestion
+PASS IME composition input and Enter are not intercepted by completion
+PASS Ctrl+Enter is left available to the application command handler
+PASS Ctrl+Space, arrow selection and Escape keep accessible active-option state
+PASS pointer completion preserves textarea focus
+PASS syntax colors and completion popup remain visible without overflow at 320–1440px
+PASS edited pre-script executes in the isolated Worker and commits its successful variable write
+PASS a failing assertion keeps partial variable writes out of session state
+PASS post-script completion and IndexedDB autosave survive an HTTP reload
+PASS no uncaught browser JavaScript errors

@@ -217,12 +217,12 @@ def main():
                 page.set_viewport_size({'width':width,'height':height});page.wait_for_function("document.getElementById('navClose').hidden === !matchMedia('(max-width:820px)').matches")
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 buttons=page.locator('#sidebarTabs [role=tab]');boxes=[item.bounding_box() for item in buttons.all()]
-                assert len(boxes)==4 and all(box for box in boxes)
+                assert len(boxes)==5 and all(box for box in boxes)
                 assert max(box['x'] for box in boxes)-min(box['x'] for box in boxes)<1
                 assert buttons.evaluate_all('(items)=>items.every(e=>{const b=e.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;})')
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 buttons.first.focus();page.keyboard.press('ArrowDown');expect(page.locator('[data-sidebar=environments]')).to_have_attribute('aria-selected','true')
-                expect(page.locator('#sidebarTitle')).to_have_text('環境');page.keyboard.press('End');expect(page.locator('[data-sidebar=relations]')).to_have_attribute('aria-selected','true')
+                expect(page.locator('#sidebarTitle')).to_have_text('環境');page.keyboard.press('End');expect(page.locator('[data-sidebar=scripts]')).to_have_attribute('aria-selected','true')
                 page.locator('[data-sidebar=collections]').click();assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');capture('fixed-rail-'+str(width))
             passed('320/390px category rail remains fixed, fully visible and keyboard operable without wrapping or horizontal scroll')
             # Touch input comes through Chromium's input system, not a synthetic DOM drop.

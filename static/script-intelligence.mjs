@@ -7,11 +7,34 @@ const scope = {
   toObject: ['toObject()', '変数をオブジェクトで取得']
 };
 const property = name => [name, 'プロパティ'];
+const scriptLibrary = {
+  list:['list()', '保存したスクリプトの一覧を取得'],
+  run:['run(idOrName, input)', '保存したスクリプトを実行して戻り値を取得（await）']
+};
+const dataStore = {
+  get:['get(key)', '保存データを取得'], has:['has(key)', '保存データの存在を確認'],
+  set:['set(key, value)', 'JSONの値を保存'], delete:['delete(key)', '保存データを削除'],
+  keys:['keys()', '保存データのキー一覧を取得'], clear:['clear()', '保存データをすべて削除']
+};
 export const scriptAPI = {
   pm: Object.fromEntries(['variables','environment','globals','request','response'].map(name=>[name,property(name)]).concat([
     ['test',['test(name, fn)', '名前付きの検証を実行']], ['expect',['expect(actual)', '値のアサーション']]
   ])),
   vars: scope, 'pm.variables': scope, 'pm.environment': scope, 'pm.globals': scope,
+  scripts:scriptLibrary, store:dataStore,
+  minipost:Object.fromEntries(['requests','environments','workspace','variables','environment','globals','scripts','store'].map(name=>[name,property(name)])),
+  'minipost.variables':scope, 'minipost.environment':scope, 'minipost.globals':scope,
+  'minipost.scripts':scriptLibrary, 'minipost.store':dataStore,
+  'minipost.requests':{
+    list:['list()', '保存済みリクエストと下書きを取得（await）'],
+    get:['get(reference)', '指定したリクエストを取得（await）'],
+    send:['send(reference, overrides)', 'リクエストを送信して応答を取得（await）']
+  },
+  'minipost.environments':{
+    list:['list()', '環境の一覧を取得（await）'],
+    get:['get(idOrName)', '指定した環境を取得（await）']
+  },
+  'minipost.workspace':{read:['read()', 'ワークスペースのスナップショットを取得（await）']},
   console: Object.fromEntries(['log','warn','error'].map(name=>[name,[`${name}(...values)`, '実行ログへ出力']])),
   response: Object.fromEntries(['status','statusText','headers','body','elapsed_ms','size','url','content_type','cookies','redirects'].map(name=>[name,property(name)])),
   request: Object.fromEntries(['method','url','header','body','auth'].map(name=>[name,property(name)])),
@@ -22,7 +45,7 @@ export const scriptAPI = {
   'pm.response.headers': {get:['get(name)', 'ヘッダーを取得'], all:['all()', '全ヘッダーを取得']},
   JSON: {parse:['parse(text)', 'JSONを解析'], stringify:['stringify(value, replacer, space)', 'JSONへ変換']}
 };
-const roots = ['pm','vars','console','response','request','JSON'];
+const roots = ['input','scripts','store','minipost','pm','vars','console','response','request','JSON'];
 const identifiers = /[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*/gu;
 const tail = /[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u;
 const wordChar = /[$\u200c\u200d\p{ID_Continue}]/u;

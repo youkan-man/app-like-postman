@@ -1,32 +1,32 @@
 /** Request execution orchestrates pure compilation, isolated scripts and HTTP I/O. */
 import {clone,contextFor,compileRequest} from './core.mjs';
-import {requestAutomation,responseMetadata,extractionWrites,upsertVariable,checkName} from './runtime.mjs';
+import {requestAutomation,responseMetadata,extractionWrites} from './runtime.mjs';
+import {applyScriptWrites} from './scripts.mjs';
 import {throwIfAborted} from './relations.mjs';
 import {runScript} from './script-runner.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {copyAttachments} from './request-files.mjs';
 const valueMap=rows=>Object.fromEntries((rows||[]).filter(r=>r.key&&r.disabled!==true&&r.enabled!==false).map(r=>[r.key,r.value]));
 export async function executeRequest({workspace,tab,files={},primary,environmentId=workspace.environmentId,signal,
-  send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress}) {
+  send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress,scriptCall,onScriptLog}) {
   throwIfAborted(signal);
-  const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request);
+  const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request),scripts=clone(workspace.scripts||[]),bindings=clone(workspace.scriptBindings||{});
   const attachments=copyAttachments(typeof files?.then==='function'?await files:files);throwIfAborted(signal);
   const environment=workspace.environments.find(e=>e.id===environmentId);
   async function run(source,result,phase) {
-    if(!automation.enabled||!source.trim())return;
-    onProgress?.({phase:phase==='before'?'script':'processing'});
-    const ctx=contextFor(view,snapshot,primary.rows);
+    if(!automation.enabled)return;
+    const scriptId=automation[`${phase}ScriptId`];
     try {
-      const output=await script(source,{variables:ctx.vars,primary:primary.snapshot(),environment:valueMap(environment?.values),globals:valueMap(workspace.globals),request:snapshot.request,response:responseMetadata(result),raw:result},{signal,timeoutMs:automation.timeoutMs});
+      let timeoutMs=automation.timeoutMs;
+      if(scriptId){const saved=scripts.find(item=>item.id===scriptId);if(!saved)throw new Error(`スクリプトが見つかりません: ${scriptId}`);source=saved.source;timeoutMs=saved.timeoutMs;}
+      if(!source.trim())return;
+      onProgress?.({phase:phase==='before'?'script':'processing'});
+      const ctx=contextFor(view,snapshot,primary.rows),metadata=responseMetadata(result);
+      const output=await script(source,{variables:ctx.vars,primary:primary.snapshot(),environment:valueMap(environment?.values),globals:valueMap(workspace.globals),request:snapshot.request,response:metadata,raw:result,
+        scripts:clone(scripts),bindings:clone(bindings),bindingId:automation.scriptBindingId,data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
+      {signal,timeoutMs,onCall:scriptCall,onLog:entry=>onScriptLog?.({phase,...entry})});
       throwIfAborted(signal);
-      const writes=output.writes;
-      if(writes.environment.length&&!environment)throw new Error('環境を書き換えるには環境を選択してください。');
-      for(const list of Object.values(writes))for(const row of list)checkName(row.key);
-      const update=(list,changes)=>{for(const row of changes){if(row.remove){for(let i=list.length-1;i>=0;i--)if(list[i].key===row.key)list.splice(i,1);}else upsertVariable(list,row.key,row.value);}};
-      primary.apply(writes.primary);
-      if(environment)update(environment.values,writes.environment);
-      update(workspace.globals,writes.globals);
-      onVariables(Boolean(writes.environment.length||writes.globals.length));onScript({phase,logs:output.logs,error:null});
+      onVariables(applyScriptWrites(workspace,primary,environment,output));onScript({phase,logs:output.logs,result:output.result,error:null});
     } catch(error){onScript({phase,logs:error.logs||[],error:error.message});throw error;}
   }
   await run(automation.before,null,'before');

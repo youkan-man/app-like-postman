@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_standalone_scripts.py >.local_relay/output/two-vm-standalone-scripts.log 2>&1 || { cat .local_relay/output/two-vm-standalone-scripts.log; exit 1; }
 python tests/ui_layout.py >.local_relay/output/two-vm-layout.log 2>&1 || { cat .local_relay/output/two-vm-layout.log; exit 1; }
 python tests/ui_asset_update.py >.local_relay/output/two-vm-asset-update.log 2>&1 || { cat .local_relay/output/two-vm-asset-update.log; exit 1; }
 python tests/ui_sent_values.py >.local_relay/output/two-vm-sent-values.log 2>&1 || { cat .local_relay/output/two-vm-sent-values.log; exit 1; }
@@ -46,6 +47,9 @@ root=pathlib.Path('.local_relay/output')
 focus=json.loads((root/'ui-focus-results.json').read_text())
 extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
+standalone=json.loads((root/'standalone-scripts/results.json').read_text())
+assert standalone['ok'] and standalone['mode']=='native Chromium HTTP' and standalone['native_indexeddb']
+assert not any(standalone[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
 layout=json.loads((root/'layout/results.json').read_text())
@@ -82,6 +86,8 @@ summary['asset_update_checks']=len(asset_update['checks'])
 summary['screenshots']+=len(asset_update['screenshots'])
 summary['layout_checks']=len(layout['checks'])
 summary['screenshots']+=len(layout['screenshots'])
+summary['standalone_script_checks']=len(standalone['checks'])
+summary['screenshots']+=len(standalone['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

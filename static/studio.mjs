@@ -5,6 +5,9 @@ import {PrimaryVariables,RESPONSE_KEY,extractVariableNames,upsertVariable,respon
 import {createCodeEditor} from './code-editor.mjs';
 import {executeRequest} from './execution.mjs';
 import {runScript} from './script-runner.mjs';
+import {initScriptWorkspace} from './script-workspace.mjs';
+import {applyScriptWrites} from './scripts.mjs';
+import {createScriptHost,makeScriptContext,formatScriptValue} from './script-host.mjs';
 import {newRelation,newStep,runRelation,OPERATORS,NEXT,END} from './relations.mjs';
 import {requestKey} from './revisions.mjs';
 export function initStudio(api) {
@@ -13,11 +16,14 @@ export function initStudio(api) {
   let storeWarning=false;
   const storageError=()=>{if(!storeWarning){storeWarning=true;toast('セッションの保存容量を超えました。値と受信結果は画面上に保持しています。');}};
   let session=null;try {session=sessionStorage;}catch {}
-  const primary=new PrimaryVariables(session,storageError),snapshots=new Map(),scriptLogs=new Map();
+  const primary=new PrimaryVariables(session,storageError),snapshots=new Map(),scriptLogs=new Map(),scriptPhases=new Map();
   try {for(const [key,value] of JSON.parse(session?.getItem(RESPONSE_KEY)||'[]')) snapshots.set(key,value);}catch {}
   let envSelection=w().environmentId||'',relationId='',surfaceKey='',creationContext=null,controller=null,running=null;
   const manualControllers=new Set();
     w().relations ||= [];w().relationRuns ||= [];
+  const scriptWorkspace=initScriptWorkspace({...api,primary,openScripts:()=>{surfaceKey='';setSurface('scripts');},runningChanged:refreshStop,
+    recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
+  function refreshStop(){$('stopRelationGlobal').hidden=!(controller||manualControllers.size||scriptWorkspace.isRunning());}
   function setSurface(side){api.setSide(side);api.renderSidebar();syncView(side);api.closeNavigation();}
   function changedEnvironment(){persist();api.renderEnvironments();}
   function rememberResponse(tab,result){
@@ -28,9 +34,14 @@ export function initStudio(api) {
   function responseFor(tab){return snapshots.get(requestKey(w(),tab));}
   function transferResponse(before,after){if(snapshots.has(before)){snapshots.set(after,snapshots.get(before));snapshots.delete(before);}}
   function forgetResponse(key){snapshots.delete(key);scriptLogs.delete(key);try{session?.setItem(RESPONSE_KEY,JSON.stringify([...snapshots]));}catch{storageError();}}
-  function noteScript(tab,entry){scriptLogs.set(requestKey(w(),tab),entry);const log=$('scriptLog');if(log&&requestKey(w(),api.active())===requestKey(w(),tab))log.textContent=entry.error||entry.logs?.map(r=>r.message).join('\n')||'完了';}
+  function scriptLogText(entry){return [...(entry?.logs||[]).map(row=>row.message),...(entry?.error?[entry.error]:entry&&Object.hasOwn(entry,'result')?[formatScriptValue(entry.result)]:[])].join('\n');}
+  function noteScript(tab,entry){scriptLogs.set(requestKey(w(),tab),entry);const log=$('scriptLog');if(log&&requestKey(w(),api.active())===requestKey(w(),tab))log.textContent=scriptLogText(entry)||'完了';}
   async function execute(tab,{signal,environmentId=w().environmentId,files={},onProgress}={}) {
-    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
+    const host=createScriptHost({workspace:w(),primary,environmentId,filesFor:api.filesFor,onResponse:(sent,result,env)=>{rememberResponse(sent,result);api.recordBackground(sent,result,env);}});
+    const live={};
+    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,scriptCall:host,
+      onScriptLog:({phase,...entry})=>{(live[phase]||=[]).push(entry);noteScript(tab,{phase,logs:live[phase]});},
+      onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
     rememberResponse(tab,result);return result;
   }
   function scopeRows(){if(envSelection==='primary')return primary.rows;if(envSelection==='globals')return w().globals;return w().environments.find(e=>e.id===envSelection)?.values;}
@@ -72,6 +83,7 @@ export function initStudio(api) {
     body.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('input,textarea,select,tr'))return;event.preventDefault();openItemMenu(body,[{label:'変数を追加',run:()=>addVariable(envSelection)}],event);};
   }
   function renderSidebarSection(side){
+    if(side==='scripts'){scriptWorkspace.sidebar();return true;}
     if(!['environments','relations'].includes(side))return false;
     const root=$('sidebarContent'),query=$('search').value.toLowerCase();root.replaceChildren();
     $('sidebarAdd').hidden=false;$('clearHistory').hidden=true;
@@ -93,9 +105,10 @@ export function initStudio(api) {
   }
   function syncView(side,force=false){
     $('addTab').disabled=side==='history';$('addTab').title=side==='history'?'送信履歴はリクエスト送信時に追加されます':'選択中のカテゴリに追加';
-    const kind=['environments','relations','history'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
-    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations'].includes(kind);
+    const kind=['environments','relations','history','scripts'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
+    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations','scripts'].includes(kind);
     $('historyPage').hidden=kind!=='history';
+    if(kind==='scripts'){surfaceKey='scripts';scriptWorkspace.render(force);return;}
     if(kind==='history'){surfaceKey='';api.renderHistoryPage();return;}
     if(kind==='request'){surfaceKey='';return;}
     if(kind==='environments'&&!['globals','primary'].includes(envSelection)&&!w().environments.some(e=>e.id===envSelection))envSelection=w().environmentId||'';
@@ -126,6 +139,7 @@ export function initStudio(api) {
   function creationMenu(anchor,event,root=false){
     const side=api.side();if(side==='history')return;let actions;
     if(side==='environments')actions=[{label:'環境を作成',run:()=>createEnvironment()},{label:envSelection==='primary'?'一次変数を追加':envSelection==='globals'?'Globalsに変数を追加':'表示中の環境に変数を追加',disabled:!scopeRows(),run:()=>addVariable()}];
+    else if(side==='scripts')actions=[{label:'スクリプトを作成',run:()=>scriptWorkspace.create()}];
     else if(side==='relations')actions=[{label:'リレーションを作成',run:()=>createRelation()},{label:'表示中のリレーションにステップを追加',disabled:!w().relations?.some(r=>r.id===relationId),run:()=>addStep(w().relations.find(r=>r.id===relationId))}];
     else {
       const context=root?null:creationContext;
@@ -243,29 +257,37 @@ export function initStudio(api) {
     tools.append(field('制限時間 ms（0=無制限）',input(config.timeoutMs,'スクリプト制限時間',v=>{config.timeoutMs=Math.max(0,Number(v)||0);save();},'number')));root.append(tools);
     const phases=el('div','content-tabs script-phase-tabs');phases.setAttribute('role','tablist');phases.setAttribute('aria-label','スクリプトの実行タイミング');root.append(phases);
     const phaseNodes=[];
-    function selectPhase(name){for(const item of phaseNodes){item.panel.hidden=item.phase!==name;item.tab.setAttribute('aria-selected',String(item.phase===name));item.tab.tabIndex=item.phase===name?0:-1;}}
+    function selectPhase(name){scriptPhases.set(requestKey(w(),tab),name);for(const item of phaseNodes){item.panel.hidden=item.phase!==name;item.tab.setAttribute('aria-selected',String(item.phase===name));item.tab.tabIndex=item.phase===name?0:-1;}}
     for(const [phase,title] of [['before','送信前'],['after','受信後']]){
       const panel=el('div','script-phase-panel');panel.id='script-panel-'+phase;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','script-tab-'+phase);
       const tabButton=btn(title,()=>selectPhase(phase));tabButton.id='script-tab-'+phase;tabButton.setAttribute('role','tab');tabButton.setAttribute('aria-controls',panel.id);phases.append(tabButton);phaseNodes.push({phase,panel,tab:tabButton});root.append(panel);
       const header=el('div','section-tools');header.append(el('h3','',title));
       const run=btn('このスクリプトを実行',async()=>{
-        const result=responseFor(tab);if(phase==='after'&&!result)return toast('レスポンスを受信してから実行してください。');
+        const result=responseFor(tab);
         const manual=new AbortController();manualControllers.add(manual);$('stopRelationGlobal').hidden=false;run.disabled=true;
         try {
-          const ctx=contextFor(w(),tab,primary.rows),env=ctx.environment;
-          const out=await runScript(config[phase],{variables:ctx.vars,primary:primary.snapshot(),environment:Object.fromEntries(rows(env?.values).filter(enabled).map(r=>[r.key,r.value])),globals:Object.fromEntries(rows(w().globals).filter(enabled).map(r=>[r.key,r.value])),request:tab.request,response:responseMetadata(result),raw:result},{timeoutMs:config.timeoutMs,signal:manual.signal});
-          if(out.writes.environment.length&&!env)throw new Error('環境を選択してください。');
-          for(const changes of Object.values(out.writes))for(const row of changes)checkName(row.key);
-          primary.apply(out.writes.primary);
-          for(const [target,changes] of [[env?.values,out.writes.environment],[w().globals,out.writes.globals]])for(const row of changes){if(row.remove){for(let at=target.length-1;at>=0;at--)if(target[at].key===row.key)target.splice(at,1);}else upsertVariable(target,row.key,row.value);}
-          if(out.writes.environment.length||out.writes.globals.length)persist();noteScript(tab,{phase,logs:out.logs});toast('スクリプトを実行しました。リクエストは送信していません。');
-        }catch(error){noteScript(tab,{phase,error:error.message,logs:[]});toast(error.message);}finally{manualControllers.delete(manual);$('stopRelationGlobal').hidden=!controller&&!manualControllers.size;run.disabled=false;}
-      },'button');header.append(run);panel.append(header,createCodeEditor({value:config[phase],language:'javascript',intellisense:true,label:`${title}スクリプト`,onChange:value=>{config[phase]=value;save();}}).element);
+          const ctx=contextFor(w(),tab,primary.rows),env=ctx.environment,scriptId=config[`${phase}ScriptId`],saved=scriptId?w().scripts.find(item=>item.id===scriptId):null;
+          if(scriptId&&!saved)throw new Error('選択したスクリプトが見つかりません。');
+          const live=[];noteScript(tab,{phase,logs:live});
+          const context=makeScriptContext(w(),primary,{tab,result,input:phase==='before'?clone(tab.request):responseMetadata(result),scriptId});
+          const host=createScriptHost({workspace:w(),primary,filesFor:api.filesFor,onResponse:(sent,response,envId)=>{rememberResponse(sent,response);api.recordBackground(sent,response,envId);}});
+          const out=await runScript(saved?saved.source:config[phase],context,{timeoutMs:saved?saved.timeoutMs:config.timeoutMs,signal:manual.signal,onCall:host,onLog:entry=>{live.push(entry);noteScript(tab,{phase,logs:live});}});
+          if(applyScriptWrites(w(),primary,env,out))persist();noteScript(tab,{phase,logs:out.logs,result:out.result});
+        }catch(error){noteScript(tab,{phase,error:error.message,logs:error.logs||[]});toast(error.message);}finally{manualControllers.delete(manual);refreshStop();run.disabled=false;}
+      },'button');header.append(run);panel.append(header);
+      const scriptId=config[`${phase}ScriptId`],saved=scriptId?w().scripts.find(item=>item.id===scriptId):null;
+      const picker=el('div','script-hook-picker');
+      const options=[['','このリクエストのコード'],...w().scripts.map(script=>[script.id,script.name])];
+      if(scriptId&&!saved)options.push([scriptId,'削除されたスクリプト']);
+      const choose=select(options,scriptId||'',value=>{config[`${phase}ScriptId`]=value;save();api.renderEditor();});choose.setAttribute('aria-label',`${title}に実行するスクリプト`);picker.append(choose);
+      if(saved)picker.append(btn('編集',()=>scriptWorkspace.open(saved.id),'button'));
+      else if(!scriptId)picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
+      panel.append(picker,createCodeEditor({value:saved?saved.source:config[phase],language:'javascript',intellisense:true,readOnly:Boolean(scriptId),label:`${title}スクリプト`,onChange:value=>{if(!scriptId){config[phase]=value;save();}}}).element);
     }
-    selectPhase('before');
+    selectPhase(scriptPhases.get(requestKey(w(),tab))||'before');
     phases.onkeydown=event=>{const current=phaseNodes.findIndex(item=>item.tab===event.target);if(current<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?1:(current+1)%2;phaseNodes[next].tab.click();phaseNodes[next].tab.focus();};
     const help=el('details','script-api'),summary=el('summary','','利用できるAPI');help.append(summary,el('code','','vars.get(name) / vars.set(name, value) / vars.unset(name) / response.body / response.headers / pm.variables / pm.environment / pm.globals / pm.response.json() / pm.test(name, fn)'));
-    root.append(help);const log=el('pre','script-log');log.id='scriptLog';log.setAttribute('role','status');const prior=scriptLogs.get(requestKey(w(),tab));log.textContent=prior?.error||prior?.logs?.map(r=>r.message).join('\n')||'';root.append(log);
+    root.append(help);const log=el('pre','script-log');log.id='scriptLog';log.setAttribute('role','status');const prior=scriptLogs.get(requestKey(w(),tab));log.textContent=scriptLogText(prior);root.append(log);
     if(config.extractions.length){const rules=el('div','extraction-rules');rules.append(el('h3','','受信時の自動抽出'));for(const rule of config.extractions){const line=el('div','extraction-rule'),checkbox=el('input');checkbox.type='checkbox';checkbox.checked=rule.enabled!==false;checkbox.onchange=()=>{rule.enabled=checkbox.checked;save();};line.append(checkbox,input(rule.name,'抽出する変数名',v=>{rule.name=v;save();}),input(rule.path,'抽出元のパス',v=>{rule.path=v;save();}),select([['keep','欠損時: 前値維持'],['empty','欠損時: 空文字'],['error','欠損時: エラー']],rule.missing||'keep',v=>{rule.missing=v;save();}),btn('削除',()=>{config.extractions=config.extractions.filter(r=>r!==rule);save();api.renderEditor();},'text-button'));rules.append(line);}root.append(rules);}
     const imported=contextFor(w(),tab).events;
     if(imported.length){const details=el('details','imported-scripts');details.append(el('summary','','インポート済みスクリプト（自動実行しません）'));for(const event of imported){const source=Array.isArray(event.script?.exec)?event.script.exec.join('\n'):event.script?.exec||'';const section=el('section','scripts-block');section.append(el('h4','',event.listen||'Script'),el('pre','',source),btn('編集欄へコピー',()=>{const key=event.listen==='prerequest'?'before':'after';config[key]+=(config[key]?'\n':'')+source;save();api.renderEditor();},'button'));details.append(section);}root.append(details);}
@@ -333,7 +355,7 @@ export function initStudio(api) {
     editor.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('.relation-step,input,select'))return;event.preventDefault();openItemMenu(editor,[{label:'ステップを追加',run:()=>addStep(relation)}],event);};
     page.append(editor);const log=el('section','relation-log');log.id='relationRunLog';log.setAttribute('aria-live','polite');page.append(log);renderRunLog();
   }
-  function stopRelation(){controller?.abort();for(const manual of manualControllers)manual.abort();}
+  function stopRelation(){controller?.abort();for(const manual of manualControllers)manual.abort();scriptWorkspace.stop();}
   function renderRunLog(){
     const root=$('relationRunLog');if(!root)return;
     const run=running?.relationId===relationId?running:[...(w().relationRuns||[])].reverse().find(r=>r.relationId===relationId);
@@ -356,13 +378,14 @@ export function initStudio(api) {
       const result=await runRelation(relation,{workspace:w(),primary:()=>primary.snapshot(),variables:tab=>contextFor({...w(),environmentId:chosenEnv},tab,primary.rows).vars,signal:controller.signal,
         execute:async(tab,{signal})=>{const response=await execute(tab,{signal,environmentId:chosenEnv,files:api.filesFor(tab,signal)});api.recordBackground(tab,response,chosenEnv);return response;},onProgress:run=>{running=run;renderRunLog();}});
       w().relationRuns.push(clone(result));persist();
-    }catch(error){running={relationId:relation.id,name:relation.name,status:'failed',entries:[],error:error.message};toast(error.message);}finally{controller=null;$('stopRelationGlobal').hidden=!manualControllers.size;renderRunLog();}
+    }catch(error){running={relationId:relation.id,name:relation.name,status:'failed',entries:[],error:error.message};toast(error.message);}finally{controller=null;refreshStop();renderRunLog();}
   }
   $('stopRelationGlobal').onclick=stopRelation;
   $('extractResponse').onclick=()=>responseExtraction(api.active());
   $('sidebarContent').addEventListener('contextmenu',event=>{if(event.defaultPrevented||event.target.closest('.tree-row,.history-entry,input'))return;event.preventDefault();creationMenu($('sidebarContent'),event,true);});
   return {primary,execute,rememberResponse,responseFor,transferResponse,forgetResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,
     createEnvironment,creationMenu,createItem,captureContext,requestActions,draftActions,renderScripts,responseExtraction,addRequestToRelation,
-    isRunning:()=>Boolean(controller||manualControllers.size),
-    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];},refresh(){surfaceKey='';syncView(api.side());}};
+    scriptKeydown:scriptWorkspace.keydown,
+    isRunning:()=>Boolean(controller||manualControllers.size||scriptWorkspace.isRunning()),
+    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];scriptPhases.clear();scriptWorkspace.reset();},refresh(){surfaceKey='';scriptWorkspace.invalidate();syncView(api.side());}};
 }
