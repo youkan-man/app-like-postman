@@ -1,0 +1,34 @@
+PASS native Enter inserts a newline while the real language Worker is loading, and the stale response stays discarded after it loads
+PASS Tab completes without indentation and native Undo restores the previous source
+PASS typing a complete return keyword or local name never consumes the first newline as a no-op completion
+PASS explicit Ctrl+Space can inspect a complete identifier after automatic no-op suggestions are suppressed
+PASS arrow navigation, refocusing and clicking existing code keep closed automatic completion lists closed
+PASS Tab indents selected lines without deleting source or indenting the following line, with native Undo/Redo and Shift+Tab outdent
+PASS fallback Tab supports Undo/Redo and native typing then Backspace permanently discards the previous redo branch
+PASS native Enter opens an indented line between braces and preserves the indentation on subsequent lines
+PASS normally typed source remains visible without an unsolicited popup at desktop, 390 px and 320 px
+PASS nested API completion accepts Enter without inserting a newline
+PASS completion replaces the entire identifier when the caret is inside it
+PASS comments and string/template literals do not show API completion
+PASS a local variable resolved by the language service is offered and inserted
+PASS nested object types survive aliasing and destructuring in member completion
+PASS block scope and shadowed variables select the actual binding without leaking closed-scope names
+PASS array callbacks infer element members and chained results retain standard string methods
+PASS class instances, inherited methods and this members are resolved from syntax and types
+PASS function return values and awaited async return values provide inferred members
+PASS template interpolations are parsed as code and suggestions do not execute the edited source
+PASS JSDoc enriches a user-defined function signature and identifies its current argument
+PASS function signature displays the active argument
+PASS Shift+Tab leaves the editor without accepting a suggestion
+PASS IME composition input and Enter are not intercepted by completion
+PASS Ctrl+Enter is left available to the application command handler
+PASS Ctrl+Space, arrow selection and Escape keep accessible active-option state
+PASS stale edits or blur cannot reopen an old completion list
+PASS PageUp and PageDown invalidate completion at the previous caret position without changing source
+PASS pointer completion preserves textarea focus
+PASS syntax colors and completion popup remain visible without overflow at 320–1440px
+PASS JSON formatting stays in the native edit history: Undo restores the exact typed body and selection, and Redo reapplies it
+PASS edited pre-script executes in the isolated Worker and commits its successful variable write
+PASS a failing assertion keeps partial variable writes out of session state
+PASS post-script completion and IndexedDB autosave survive an HTTP reload
+PASS no uncaught browser JavaScript errors, native dialogs or page crashes
