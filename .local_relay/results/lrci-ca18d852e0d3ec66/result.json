@@ -1,0 +1,37 @@
+{
+  "branch": "fix/editor-usability-20261117",
+  "cleanup_verified": true,
+  "ended_at": "2026-11-17T08:41:49.674436331Z",
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-ca18d852e0d3ec66",
+  "source_sha": "2576e4febaba660926ffa213d7e077ef6f70c819",
+  "started_at": "2026-11-17T08:39:09.232748743Z",
+  "status": "cancelled",
+  "version": 1,
+  "vms": {
+    "app": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-dcf332fecb4d",
+      "environment_id": "lrce-e38a01ebc2d6c1fe1ccd745b",
+      "expires_at": "2026-11-17T11:39:23.4303Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "port": 8080
+    },
+    "browser": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-43f26864d4dc",
+      "environment_id": "lrce-b67480f6f2ef2537cba22dd9",
+      "expires_at": "2026-11-17T11:39:23.434576Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "port": 18081
+    }
+  }
+}
