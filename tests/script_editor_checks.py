@@ -181,9 +181,11 @@ def check_editor(page, area, root, passed, capture):
         area.press('Enter')
         expect(area).to_have_value('pm.response.js\n')
     finally:
-        page.context.unroute(worker_pattern, hold_worker)
-        for request in worker_requests:
-            request.continue_()
+        try:
+            for request in worker_requests:
+                request.continue_()
+        finally:
+            page.context.unroute(worker_pattern, hold_worker)
     analysed()
     expect(suggestions).to_be_hidden()
     passed('native Enter inserts a newline while the real language Worker is loading, and the stale response stays discarded after it loads')

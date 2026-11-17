@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
 python tests/ui_script_response.py >.local_relay/output/two-vm-script-response.log 2>&1 || { cat .local_relay/output/two-vm-script-response.log; exit 1; }
 python tests/ui_script_intelligence.py >.local_relay/output/two-vm-script-intelligence.log 2>&1 || { cat .local_relay/output/two-vm-script-intelligence.log; exit 1; }
 python tests/ui_standalone_scripts.py >.local_relay/output/two-vm-standalone-scripts.log 2>&1 || { cat .local_relay/output/two-vm-standalone-scripts.log; exit 1; }
@@ -36,7 +37,6 @@ python tests/ui_transfer_progress.py >.local_relay/output/two-vm-transfer-progre
 python tests/ui_large_binary.py >.local_relay/output/two-vm-large-binary.log 2>&1 || { cat .local_relay/output/two-vm-large-binary.log; exit 1; }
 python tests/ui_text_url_navigation.py >.local_relay/output/two-vm-text-url-navigation.log 2>&1 || { cat .local_relay/output/two-vm-text-url-navigation.log; exit 1; }
 python tests/ui_binary_workflows.py >.local_relay/output/two-vm-binary-workflows.log 2>&1 || { cat .local_relay/output/two-vm-binary-workflows.log; exit 1; }
-python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
 python tests/ui_focus.py >.local_relay/output/two-vm-ui-focus.log 2>&1 || { cat .local_relay/output/two-vm-ui-focus.log; exit 1; }
 python tests/ui_extraction.py >.local_relay/output/two-vm-ui-extraction.log 2>&1 || { cat .local_relay/output/two-vm-ui-extraction.log; exit 1; }
 python tests/ui_automation.py >.local_relay/output/native-ui-automation.log 2>&1 || { cat .local_relay/output/native-ui-automation.log; exit 1; }
