@@ -139,8 +139,11 @@ def main():
                 ready()
 
             def side(name):
-                if page.locator('#toggleSidebar').get_attribute('aria-expanded') != 'true':
-                    page.locator('#toggleSidebar').click()
+                toggle = page.locator('#toggleSidebar')
+                if toggle.get_attribute('aria-expanded') != 'true':
+                    toggle.click()
+                expect(toggle).to_have_attribute('aria-expanded', 'true')
+                expect(page.locator('#navigation')).to_be_visible()
                 page.locator(f'#sidebarTabs [data-sidebar="{name}"]').click()
                 expect(page.locator('#sidebarContent')).to_have_attribute('data-side', name)
 
@@ -489,6 +492,11 @@ def main():
             passed('filtered history deletion removes only the visible selected entry and leaves drafts empty')
 
             page.set_viewport_size({'width': 320, 'height': 720})
+            # The workbench's media-query change handler closes mobile navigation
+            # and publishes its dialog role/expanded state. Wait for that state
+            # before side() decides whether the real toggle needs to be clicked.
+            expect(page.locator('#navigation')).to_have_attribute('role', 'dialog')
+            expect(page.locator('#toggleSidebar')).to_have_attribute('aria-expanded', 'false')
             side('history')
             history('history-4').locator('[data-select-open]').press('Control+a')
             selected(['history:history-1', 'history:history-3', 'history:history-4'])
