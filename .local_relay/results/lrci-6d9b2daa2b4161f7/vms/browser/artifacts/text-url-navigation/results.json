@@ -1,0 +1,34 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "raw Unicode/space/plus/JSON URL stays readable across send, selection, save and reload; receiver matches",
+    "params with reserved delimiters remain one value; frontend never percent-encodes their display",
+    "keyboard context menu explicitly encodes/decodes selection; encoded URL sends without a second escape",
+    "invalid manual decoding reports an inline error without changing the URL or opening a browser dialog",
+    "lower sibling edge, physical gap and upper sibling edge share one empty insertion line, key and geometry",
+    "releasing in the shared gap inserts the source exactly once at that position and preserves its ID",
+    "moving a folder child out keeps the insertion line at the actual row gap while its source remains visible",
+    "mouse dragging supports inside-folder placement and before/after ordering with stable item IDs",
+    "self-descendant drops and Escape leave collections unchanged",
+    "cross-collection folder move preserves active editor, descendant IDs and existing revisions",
+    "moving a selected binary request keeps its bytes and relation references; actual receiver hash matches",
+    "keyboard grab/Home/Enter moves the same request and preserves its relation target",
+    "320/390px category rail remains fixed, fully visible and keyboard operable without wrapping or horizontal scroll",
+    "touch drag on the grip moves a request without converting ordinary row scrolling into a drag",
+    "moved hierarchy, stable references, active request and revision history survive reload",
+    "keyboard End scrolls the actual gap after an expanded collection into view; Escape preserves the order",
+    "no browser-native dialogs or uncaught page exceptions"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "screenshots": [
+    "text-url-desktop.png",
+    "collection-shared-gap-during-drag.png",
+    "collection-folder-inside-desktop.png",
+    "collection-folder-exit-gap.png",
+    "collection-move-desktop.png",
+    "fixed-rail-390.png",
+    "fixed-rail-320.png",
+    "collection-keyboard-end.png"
+  ]
+}

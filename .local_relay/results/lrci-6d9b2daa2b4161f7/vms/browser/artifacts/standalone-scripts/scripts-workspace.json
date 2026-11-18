@@ -1,0 +1,279 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-18T06:03:10.675Z",
+  "workspace": {
+    "version": 2,
+    "collections": [],
+    "environments": [],
+    "globals": [],
+    "tabs": [],
+    "activeId": "",
+    "environmentId": "",
+    "history": [],
+    "collapsed": [],
+    "theme": "light",
+    "relations": [],
+    "relationRuns": [],
+    "scripts": [
+      {
+        "id": "mp-1794981782856-oblz9gldp7c",
+        "name": "データ集計",
+        "source": "const values = await scripts.run(\"mp-1794981785047-nsfiaarvb8s\", input); return {values, previous: store.get('lastSummary')};",
+        "input": "[4,9]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1794981785047-nsfiaarvb8s",
+        "name": "倍にする",
+        "source": "return input.map(value => value * 2);",
+        "input": "[1,2]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1794981786522-mnznuawmnlq",
+        "name": "倍にする",
+        "source": "return \"duplicate\";",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      }
+    ],
+    "scriptData": {
+      "lastSummary": {
+        "values": [
+          2,
+          4,
+          6
+        ],
+        "count": 3,
+        "valid": true
+      }
+    },
+    "scriptBindings": {},
+    "revisions": {
+      "script:mp-1794981782856-oblz9gldp7c": [
+        {
+          "id": "mp-1794981783077-icv0d8r414c",
+          "at": "2026-11-18T06:03:03.077Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981783560-1zov0mm5pgci",
+          "at": "2026-11-18T06:03:03.560Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = input.values.map(Number); return {total: values.reduce((a,b) => a+b, 0), values, enabled: false, empty: null};",
+            "input": "{\"values\":[3,\"5\",8]}",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981784626-tu3gwmmhiqd",
+          "at": "2026-11-18T06:03:04.626Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('invalidInputRan', true); return input;",
+            "input": "{broken",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981786327-ke0vc2tc8jn",
+          "at": "2026-11-18T06:03:06.327Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const byName = await scripts.run('倍にする', input); const byId = await scripts.run(\"mp-1794981785047-nsfiaarvb8s\", [5]); return {byName, byId, count: scripts.list().length};",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981788314-5nnygdb81xh",
+          "at": "2026-11-18T06:03:08.314Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {values: input, count: input.length, valid: true}); return store.get('lastSummary');",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981788835-z9bbvu05hpi",
+          "at": "2026-11-18T06:03:08.835Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {wrong: true}); store.set('failedWrite', 1); vars.set('failedWrite', 'x'); console.log('before failure'); throw new Error('intentional rollback');",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981789207-7e6gntud1pt",
+          "at": "2026-11-18T06:03:09.207Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "console.log('running-before-stop'); store.set('cancelledWrite', true); await new Promise(resolve => setTimeout(resolve, 60000)); return 'too late';",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981789902-lwgusk08sw",
+          "at": "2026-11-18T06:03:09.902Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = await scripts.run(\"mp-1794981785047-nsfiaarvb8s\", input); return {values, previous: store.get('lastSummary')};",
+            "input": "[4,9]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1794981785047-nsfiaarvb8s": [
+        {
+          "id": "mp-1794981785268-gduvcpesf76",
+          "at": "2026-11-18T06:03:05.268Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981785782-2ft7bdu70tj",
+          "at": "2026-11-18T06:03:05.782Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return input.map(value => value * 2);",
+            "input": "[1,2]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1794981786522-mnznuawmnlq": [
+        {
+          "id": "mp-1794981786743-b6jwka14v9d",
+          "at": "2026-11-18T06:03:06.743Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1794981787210-nglnfn4ifv8",
+          "at": "2026-11-18T06:03:07.210Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return \"duplicate\";",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "all",
+      "sidebar": "scripts",
+      "response": "pretty"
+    }
+  }
+}
