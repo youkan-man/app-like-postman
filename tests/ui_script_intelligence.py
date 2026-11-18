@@ -301,23 +301,60 @@ def main():
             # Keep the existing popup open: no focus call, typing or Ctrl+Space
             # may disguise a resize-placement failure by re-creating it.
             expect(suggestions).to_be_visible()
-            page.wait_for_function('''() => {
+            measure_resize = '''() => {
                 const root = document.querySelector('.standalone-script-code .source-editor');
+                if (!root) return {ok:false, reason:'editor missing'};
                 const popup = root.querySelector('.source-suggestions');
                 const area = root.querySelector('textarea'), highlighted = root.querySelector('.source-highlight');
-                const editor = root.getBoundingClientRect(), box = popup.getBoundingClientRect();
+                if (!popup || !area || !highlighted) return {ok:false, reason:'editor elements missing'};
+                const rect = element => {
+                    const box = element.getBoundingClientRect();
+                    return {left:box.left, top:box.top, right:box.right, bottom:box.bottom,
+                            width:box.width, height:box.height};
+                };
+                const editor = rect(root), box = rect(popup);
                 // This fixture is one ASCII line without tabs. Measure its
                 // actual rendered font independently of the popup-placement
                 // helper so an on-screen popup cannot hide off-screen code.
                 const style = getComputedStyle(area), canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d'); context.font = style.font;
                 const left = parseFloat(style.paddingLeft), right = parseFloat(style.paddingRight);
-                const caret = left + context.measureText(area.value.slice(0, area.selectionEnd)).width - area.scrollLeft;
-                return !popup.hidden && box.left >= editor.left && box.right <= editor.right + 1 &&
-                    box.top >= editor.top && box.bottom <= editor.bottom + 1 &&
-                    area.scrollLeft > 0 && caret >= left - 1 && caret <= area.clientWidth - right + 1 &&
-                    Math.abs(highlighted.scrollLeft - area.scrollLeft) <= 1;
-            }''')
+                const unscrolledCaret = left + context.measureText(area.value.slice(0, area.selectionEnd)).width;
+                const caret = unscrolledCaret - area.scrollLeft;
+                const maxScroll = Math.max(0, area.scrollWidth - area.clientWidth);
+                // A native textarea may omit trailing padding from scrollWidth.
+                // At EOF require the desired margin or its actual scroll limit,
+                // while independently requiring the caret inside the viewport.
+                const requiredScroll = Math.min(maxScroll,
+                    Math.max(0, unscrolledCaret - (area.clientWidth - right - 2)));
+                const popupWithinEditor = !popup.hidden && box.left >= editor.left && box.right <= editor.right + 1 &&
+                    box.top >= editor.top && box.bottom <= editor.bottom + 1;
+                const caretWithinViewport = caret >= left - 1 && caret <= area.clientWidth + 1;
+                const caretFollowed = area.scrollLeft > 0 && area.scrollLeft >= requiredScroll - 1;
+                const scrollSynchronized = Math.abs(highlighted.scrollLeft - area.scrollLeft) <= 1;
+                return {ok:popupWithinEditor && caretWithinViewport && caretFollowed && scrollSynchronized,
+                    popupWithinEditor, caretWithinViewport, caretFollowed, scrollSynchronized,
+                    unscrolledCaret, caret, maxScroll, requiredScroll,
+                    scrollLeft:area.scrollLeft, scrollWidth:area.scrollWidth, clientWidth:area.clientWidth,
+                    highlightScrollLeft:highlighted.scrollLeft, highlightScrollWidth:highlighted.scrollWidth,
+                    paddingLeft:left, paddingRight:right, font:style.font, canvasFont:context.font,
+                    selectionStart:area.selectionStart, selectionEnd:area.selectionEnd, sourceLength:area.value.length,
+                    editorRect:editor, popupRect:box, textareaRect:rect(area), popupHidden:popup.hidden,
+                    textareaFocused:document.activeElement === area,
+                    activeElement:{tag:document.activeElement?.tagName,
+                        label:document.activeElement?.getAttribute('aria-label'), className:document.activeElement?.className}};
+            }'''
+            try:
+                page.wait_for_function('() => (' + measure_resize + ')().ok')
+            finally:
+                try:
+                    resize_metrics = page.evaluate(measure_resize)
+                except Exception as error:
+                    resize_metrics = {'ok': False, 'measurement_error': str(error)}
+                resize_metrics['check'] = 'intelligence-live-resize-390'
+                print(json.dumps(resize_metrics, ensure_ascii=False), flush=True)
+                (out / 'intelligence-live-resize-390-metrics.json').write_text(
+                    json.dumps(resize_metrics, ensure_ascii=False, indent=2))
             capture('intelligence-live-resize-390')
             option.click()
             expect(area).to_have_value(' ' * 60 + 'input.orders[0].customer.name')
