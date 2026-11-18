@@ -1,0 +1,38 @@
+PASS native Enter inserts a newline while the real language Worker is loading, and the stale response stays discarded after it loads
+PASS Tab completes without indentation and native Undo restores the previous source
+PASS Home toggles between indentation and column zero while Shift+Home preserves the selection anchor
+PASS Backspace removes one indentation stop, preserves ordinary character deletion and restores indentation with Undo
+PASS Ctrl+/ toggles selected JavaScript line comments losslessly, excludes a following column-zero line and supports Undo/Redo
+PASS Alt+Up/Down moves the selected line block with its selection and Undo history, and document boundaries are no-ops
+PASS Shift+Alt+Up/Down duplicates exactly the selected lines, selects the new copy and reverses in one Undo
+PASS Ctrl+F seeds the selected text, Enter/Shift+Enter and buttons navigate matches with wrapping, and Escape restores editor focus
+PASS Ctrl+H replaces one match, advances to the next, retains replacement-field focus after the final match and supports one Undo
+Traceback (most recent call last):
+  File "/workspace/tests/ui_script_editor.py", line 143, in <module>
+    main()
+  File "/workspace/tests/ui_script_editor.py", line 99, in main
+    check_editor(page,area,root,passed,capture)
+  File "/workspace/tests/script_editor_checks.py", line 467, in check_editor
+    check_workflow_editing(page, area, root, passed, capture)
+  File "/workspace/tests/script_editor_checks.py", line 382, in check_workflow_editing
+    expect(area).to_have_value(replaced)
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 19893, in to_have_value
+    self._sync(self._impl_obj.to_have_value(value=value, timeout=timeout))
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 481, in to_have_value
+    await self._expect_impl(
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 85, in _expect_impl
+    raise AssertionError(
+AssertionError: Locator expected to have Value 'const $& = 21;
+return $& + $&;'
+Actual value: const total = 21;
+return total + total; 
+Call log:
+  - Expect "to_have_value" with timeout 5000ms
+  - waiting for get_by_label("送信前スクリプト", exact=True)
+    9 × locator resolved to <textarea wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="送信前スクリプト" aria-autocomplete="list" class="code-editor source-input" aria-controls="script-suggestions-1" aria-describedby="script-signature-1"></textarea>
+      - unexpected value "const total = 21;
+return total + total;"
+

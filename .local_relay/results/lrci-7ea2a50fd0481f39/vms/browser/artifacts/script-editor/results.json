@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "native Enter inserts a newline while the real language Worker is loading, and the stale response stays discarded after it loads",
+    "Tab completes without indentation and native Undo restores the previous source",
+    "Home toggles between indentation and column zero while Shift+Home preserves the selection anchor",
+    "Backspace removes one indentation stop, preserves ordinary character deletion and restores indentation with Undo",
+    "Ctrl+/ toggles selected JavaScript line comments losslessly, excludes a following column-zero line and supports Undo/Redo",
+    "Alt+Up/Down moves the selected line block with its selection and Undo history, and document boundaries are no-ops",
+    "Shift+Alt+Up/Down duplicates exactly the selected lines, selects the new copy and reverses in one Undo",
+    "Ctrl+F seeds the selected text, Enter/Shift+Enter and buttons navigate matches with wrapping, and Escape restores editor focus",
+    "Ctrl+H replaces one match, advances to the next, retains replacement-field focus after the final match and supports one Undo"
+  ],
+  "screenshots": [
+    "failure.png"
+  ],
+  "errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}
