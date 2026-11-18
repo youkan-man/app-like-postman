@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "popupWithinEditor": true,
+  "caretWithinViewport": true,
+  "caretFollowed": true,
+  "scrollSynchronized": true,
+  "unscrolledCaret": 634.501953125,
+  "caret": 371.501953125,
+  "maxScroll": 263,
+  "requiredScroll": 263,
+  "scrollLeft": 263,
+  "scrollWidth": 635,
+  "clientWidth": 372,
+  "highlightScrollLeft": 263,
+  "highlightScrollWidth": 643,
+  "paddingLeft": 8,
+  "paddingRight": 8,
+  "font": "12px / 19.8px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+  "canvasFont": "12px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+  "selectionStart": 87,
+  "selectionEnd": 87,
+  "sourceLength": 87,
+  "editorRect": {
+    "left": 8,
+    "top": 144,
+    "right": 382,
+    "bottom": 523.796875,
+    "width": 374,
+    "height": 379.796875
+  },
+  "popupRect": {
+    "left": 13,
+    "top": 172.796875,
+    "right": 377,
+    "bottom": 206.234375,
+    "width": 364,
+    "height": 33.4375
+  },
+  "textareaRect": {
+    "left": 9,
+    "top": 145,
+    "right": 381,
+    "bottom": 500.796875,
+    "width": 372,
+    "height": 355.796875
+  },
+  "popupHidden": false,
+  "textareaFocused": true,
+  "activeElement": {
+    "tag": "TEXTAREA",
+    "label": "スクリプトのコード",
+    "className": "code-editor source-input"
+  },
+  "check": "intelligence-live-resize-390"
+}

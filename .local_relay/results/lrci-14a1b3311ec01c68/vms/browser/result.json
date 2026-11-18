@@ -1,0 +1,23 @@
+{
+  "branch": "feat/editor-workflow-20261118",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-18T08:08:48.342151Z",
+    "id": "lrce-cfcb020ee124d2fb46942fd1",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-0e4ec9f5bf99",
+    "source_generation": 4
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-14a1b3311ec01c68-browser",
+  "source_sha": "56546cbbb59e0456d5b0ff496477f054140f8b8b",
+  "started_at": "2026-11-18T05:43:21.779378529Z",
+  "status": "ready",
+  "version": 1
+}
