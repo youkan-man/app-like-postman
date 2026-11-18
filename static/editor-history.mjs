@@ -22,21 +22,52 @@ function replay(source, entry, reverse) {
   return source.slice(0, entry.from) + inserted + source.slice(entry.from + removed.length);
 }
 
-function plan(entry, reverse) {
-  const removed = reverse ? entry.inserted : entry.removed, inserted = reverse ? entry.removed : entry.inserted;
-  const saved = reverse ? entry.beforeSelection : entry.afterSelection;
-  return {from:entry.from, to:entry.from + removed.length, text:inserted,
+function plan(before, after, saved) {
+  const {from, removed, inserted} = delta(before, after);
+  return {from, to:from + removed.length, text:inserted,
     selectionStart:saved.start, selectionEnd:saved.end, selectionDirection:saved.direction};
+}
+
+function typingChange(before, after, entry, {inputType, timestamp}) {
+  const start = entry.beforeSelection, end = entry.afterSelection;
+  if (!Number.isFinite(timestamp) || end.start !== end.end) return null;
+  let from = start.start, to = start.end, inserted = 0, canJoin = start.start === start.end;
+  if (inputType === 'insertText') {
+    inserted = after.length - before.length + to - from;
+    if (inserted <= 0 || end.start !== from + inserted) return null;
+    // A selected replacement or a multi-character fill starts a typing group;
+    // later adjacent characters may join it, but it never joins an older group.
+    canJoin &&= inserted === (after.codePointAt(from) > 0xFFFF ? 2 : 1);
+  } else if (canJoin && (inputType === 'deleteContentBackward' || inputType === 'deleteContentForward')) {
+    const removed = before.length - after.length;
+    if (removed <= 0) return null;
+    if (inputType === 'deleteContentBackward') from -= removed; else to += removed;
+    if (from < 0 || to > before.length || end.start !== from) return null;
+  } else return null;
+  // Anchor the operation at its caret, not at the ambiguous minimal delta for
+  // repeated text (inserting "a" inside "aaa" can otherwise look like appending).
+  if (before.slice(0, from) !== after.slice(0, from) || before.slice(to) !== after.slice(from + inserted)) return null;
+  return {inputType, timestamp, from, to, inserted, canJoin};
+}
+
+function adjacent(previous, next, beforeSelection) {
+  const saved = previous.entry.afterSelection;
+  return next.canJoin && previous.inputType === next.inputType && next.timestamp > previous.timestamp && next.timestamp - previous.timestamp <= 1000 &&
+    saved.start === beforeSelection.start && saved.end === beforeSelection.end && saved.direction === beforeSelection.direction &&
+    (next.inputType === 'insertText' ? next.from === previous.from + previous.inserted :
+      next.inputType === 'deleteContentBackward' ? next.to === previous.from : next.from === previous.from);
 }
 
 export function createTextHistory({maxEntries=500, maxText=4_000_000}={}) {
   const limit = (value, fallback) => Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : fallback;
   maxEntries = limit(maxEntries, 500); maxText = limit(maxText, 4_000_000);
   const entries = [];
-  let cursor = 0, retainedText = 0, current = null;
+  let cursor = 0, retainedText = 0, current = null, groupSequence = 0, group = null;
+
+  function breakGroup() {group = null;}
 
   function reset(source) {
-    entries.length = 0; cursor = 0; retainedText = 0; current = asText(source);
+    entries.length = 0; cursor = 0; retainedText = 0; current = asText(source); breakGroup();
   }
 
   function matches(source) {
@@ -44,16 +75,19 @@ export function createTextHistory({maxEntries=500, maxText=4_000_000}={}) {
     reset(source); return false;
   }
 
-  function record(before, after, beforeSelection, afterSelection) {
+  function record(before, after, beforeSelection, afterSelection, options={}) {
     before = asText(before); after = asText(after);
     if (current === null) current = before;
     if (before !== current) {reset(after); return false;}
-    if (before === after) return false;
+    if (before === after) {breakGroup(); return false;}
     // Editing after Undo creates a new branch; no discarded Redo can reappear
     // just because later text happens to equal one of its earlier states.
     for (const entry of entries.splice(cursor)) retainedText -= entry.removed.length + entry.inserted.length;
     const entry = {...delta(before, after), beforeSelection:selection(beforeSelection, before.length),
       afterSelection:selection(afterSelection, after.length)};
+    const typing = typingChange(before, after, entry, options);
+    entry.group = group && typing && entries.at(-1) === group.entry && adjacent(group, typing, entry.beforeSelection) ? group.entry.group : ++groupSequence;
+    group = typing ? {...typing, entry} : null;
     entries.push(entry); cursor = entries.length; current = after;
     retainedText += entry.removed.length + entry.inserted.length;
     // Preserve the most recent edit even when that one edit exceeds a budget.
@@ -65,16 +99,24 @@ export function createTextHistory({maxEntries=500, maxText=4_000_000}={}) {
   }
 
   function step(source, reverse) {
-    source = asText(source);
+    breakGroup(); source = asText(source);
     if (!matches(source) || (reverse ? cursor === 0 : cursor === entries.length)) return null;
-    const entry = entries[reverse ? cursor - 1 : cursor], next = replay(source, entry, reverse);
-    if (next === null) {reset(source); return null;}
-    cursor += reverse ? -1 : 1; current = next;
-    return plan(entry, reverse);
+    const id = entries[reverse ? cursor - 1 : cursor].group;
+    let position = cursor, next = source, saved;
+    while (reverse ? position > 0 : position < entries.length) {
+      const entry = entries[reverse ? position - 1 : position];
+      if (entry.group !== id) break;
+      next = replay(next, entry, reverse);
+      if (next === null) {reset(source); return null;}
+      saved = reverse ? entry.beforeSelection : entry.afterSelection;
+      position += reverse ? -1 : 1;
+    }
+    cursor = position; current = next;
+    return plan(source, next, saved);
   }
 
   function reconcile(before, after, inputType) {
-    before = asText(before); after = asText(after);
+    breakGroup(); before = asText(before); after = asText(after);
     if (before !== current || !['historyUndo','historyRedo'].includes(inputType)) {reset(after); return null;}
     const reverse = inputType === 'historyUndo';
     let position = cursor, candidate = before;
@@ -95,5 +137,5 @@ export function createTextHistory({maxEntries=500, maxText=4_000_000}={}) {
     reset(after); return null;
   }
 
-  return {record, undo:source => step(source, true), redo:source => step(source, false), reconcile, reset};
+  return {record, undo:source => step(source, true), redo:source => step(source, false), reconcile, reset, breakGroup};
 }

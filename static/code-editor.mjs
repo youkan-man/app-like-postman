@@ -20,7 +20,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   const client=intellisense?createScriptIntelligenceClient():null;
   let completion=null, selected=0, composing=false, applying=false, generation=0, detailGeneration=0;
   let timer, loadingTimer, detailTimer, query=null, state='idle', disposed=false;
-  let knownValue=area.value,fallbackMode=false,pendingInputSelection=null,lastSelection=selection();
+  let knownValue=area.value,fallbackMode=false,pendingInputSelection=null,lastSelection=selection(),compositionEdit=null;
   const history=createTextHistory();history.reset(area.value);
   let search,diagnostics,hintInfo=null,renderedSource=null,renderedLanguage=null,highlightHTML='',lineStarts=[0];
   const enabled=()=>intellisense&&!readOnly&&language==='javascript';
@@ -185,7 +185,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   function selection(){return {start:area.selectionStart,end:area.selectionEnd,direction:area.selectionDirection};}
   function restoreSelection(saved){area.setSelectionRange(saved.start,saved.end,saved.direction);}
   function select(start,end,{focus=false}={}){
-    invalidate();if(focus)area.focus({preventScroll:true});
+    history.breakGroup();invalidate();if(focus)area.focus({preventScroll:true});
     area.setSelectionRange(start,end);lastSelection=selection();ensureCaretVisible({force:true});
   }
   function notifyInput(inputType='insertReplacementText'){
@@ -238,6 +238,15 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   search=createEditorSearch({root,area,readOnly,edit,select});
   diagnostics=createEditorDiagnostics({root,area,select,onUpdate:paint});
   status.insertBefore(search.button,sourceStatus);status.insertBefore(diagnostics.button,sourceStatus);
+  // Browsers can discard this textarea's Redo when another field is edited.
+  // Our source journal remains authoritative across searches and other panes.
+  function foreignInput(event){
+    const target=event.target;
+    const editable=target?.tagName==='TEXTAREA'||target?.isContentEditable||
+      (target?.tagName==='INPUT'&&['text','search','email','url','tel','password','number'].includes(target.type));
+    if(editable&&target!==area&&!readOnly){fallbackMode=true;history.breakGroup();}
+  }
+  document.addEventListener('input',foreignInput,true);
   retry.onclick=()=>{area.focus({preventScroll:true});update(true,0);};
   area.addEventListener('beforeinput',event=>{
     if(applying)return;
@@ -248,10 +257,10 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   });
   area.addEventListener('input',event=>{
     const previous=knownValue;knownValue=area.value;
-    if(!applying){
+    if(!applying&&!composing&&!event.isComposing){
       if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){
         const saved=history.reconcile(previous,area.value,event.inputType);if(saved)restoreSelection(saved);
-      }else history.record(previous,area.value,pendingInputSelection||lastSelection,selection());
+      }else history.record(previous,area.value,pendingInputSelection||lastSelection,selection(),{inputType:event.inputType,timestamp:event.timeStamp});
       pendingInputSelection=null;lastSelection=selection();
     }
     invalidate();diagnostics.clear();search.refresh();onChange(area.value);
@@ -261,15 +270,19 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     update(false,75,typed);
   });
   area.addEventListener('scroll',()=>{sync();place();search.position();diagnostics.position();});
-  area.addEventListener('focus',()=>update(false,100,false));
-  area.addEventListener('click',()=>update(false,75,false));
+  area.addEventListener('focus',()=>{history.breakGroup();update(false,100,false);});
+  area.addEventListener('click',()=>{history.breakGroup();update(false,75,false);});
   area.addEventListener('select',()=>{
+    if(lastSelection.start!==area.selectionStart||lastSelection.end!==area.selectionEnd)history.breakGroup();
     lastSelection=selection();
     if(!applying&&query&&(query.selectionStart!==area.selectionStart||query.selectionEnd!==area.selectionEnd))invalidate();
   });
-  area.addEventListener('compositionstart',()=>{composing=true;invalidate();diagnostics.clear();});
-  area.addEventListener('compositionend',()=>{composing=false;paint();update();});
-  area.addEventListener('blur',()=>invalidate());
+  area.addEventListener('compositionstart',()=>{compositionEdit={source:area.value,selection:selection()};composing=true;history.breakGroup();invalidate();diagnostics.clear();});
+  area.addEventListener('compositionend',()=>{
+    if(compositionEdit)history.record(compositionEdit.source,area.value,compositionEdit.selection,selection());
+    compositionEdit=null;pendingInputSelection=null;lastSelection=selection();composing=false;paint();update();
+  });
+  area.addEventListener('blur',()=>{history.breakGroup();invalidate();});
   area.addEventListener('keyup',event=>{if(!composing&&(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(event.key)||(['ArrowUp','ArrowDown'].includes(event.key)&&suggestions.hidden))){ensureCaretVisible();update(false,75,false);}});
   area.addEventListener('keydown',event=>{
     if(composing||event.isComposing||event.keyCode===229)return;
@@ -302,7 +315,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     }
     if(event.key==='Home'&&plain){
       const plan=smartHomeSelection(area.value,area.selectionStart,area.selectionEnd,{extend:event.shiftKey,direction:area.selectionDirection});
-      if(plan){event.preventDefault();event.stopPropagation();invalidate();area.setSelectionRange(plan.selectionStart,plan.selectionEnd,plan.selectionDirection);lastSelection=selection();ensureCaretVisible();}return;
+      if(plan){event.preventDefault();event.stopPropagation();history.breakGroup();invalidate();area.setSelectionRange(plan.selectionStart,plan.selectionEnd,plan.selectionDirection);lastSelection=selection();ensureCaretVisible();}return;
     }
     if(event.key==='Backspace'&&plain&&!event.shiftKey&&!readOnly){
       const plan=smartBackspaceEdit(area.value,area.selectionStart,area.selectionEnd);
@@ -315,9 +328,9 @@ export function createCodeEditor({value='',language='text',label='コード',onC
       return;
     }
     if(event.key==='Enter'&&plain&&!readOnly){event.preventDefault();event.stopPropagation();edit(newlineEdit(area.value,area.selectionStart,area.selectionEnd,{language}));return;}
-    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)||event.ctrlKey||event.metaKey)invalidate();
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)||event.ctrlKey||event.metaKey){history.breakGroup();invalidate();}
   });
-  function dispose(){if(disposed)return;disposed=true;invalidate();resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
+  function dispose(){if(disposed)return;disposed=true;invalidate();document.removeEventListener('input',foreignInput,true);resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
   root.append(pre,area,status,suggestions,hint);paint();
   return {element:root,textarea:area,
     setLanguage(next){invalidate();diagnostics.clear();language=next;root.dataset.language=next;setState('idle');paint();},

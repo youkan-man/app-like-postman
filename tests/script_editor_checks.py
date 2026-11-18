@@ -382,7 +382,22 @@ def check_workflow_editing(page, area, root, passed, capture):
     expect(area).to_have_value(replaced)
     area.press('Control+z')
     expect(area).to_have_value(source)
-    passed('Replace All inserts dollar patterns literally as one Undo/Redo transaction, and a zero-match search preserves editor history')
+    assert selection() == original_selection
+
+    # Search fields have their own native edits. Returning to the code must
+    # still group a continuously typed replacement word into one Undo unit.
+    area.press_sequentially('answer', delay=8)
+    typed = source.replace('total', 'answer', 1)
+    expect(area).to_have_value(typed)
+    area.press('Control+z')
+    expect(area).to_have_value(source)
+    assert selection() == original_selection
+    area.press('Control+Shift+z')
+    expect(area).to_have_value(typed)
+    area.press('Control+z')
+    expect(area).to_have_value(source)
+    assert selection() == original_selection
+    passed('Replace All preserves literal dollar patterns and editor history across zero-match search, while a continuously typed replacement word remains one Undo/Redo operation')
 
     area.press('Control+h')
     expect(query).to_have_value('total')
