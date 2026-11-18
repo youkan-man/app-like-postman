@@ -1,0 +1,35 @@
+PASS a failed language Worker fetch exposes retry and recovers without losing source or textarea focus
+PASS live JSON input supplies nested property types and semantic completion preserves native Undo
+PASS completion inside an identifier preserves UTF-16 positions after supplementary Unicode characters
+PASS array callback, destructuring and aliases propagate input types into standard method completion
+PASS shared data contributes typed member and quoted-key completions through an API alias
+PASS variable, request and environment dictionaries use actual workspace names without displaying secret values
+PASS saved script references complete by name and ID, and their inferred return types continue through await and indexing
+PASS rapid edits discard stale language-service answers and accept only the current source completion
+PASS changing JSON fields or switching to text updates the same live Worker dictionary without a reload
+PASS edited shared data adds new keys and types and removes stale keys from completion
+PASS renaming and editing another saved script refreshes reference names and its return type in the existing editor
+PASS completion analyzes source without executing edited code or sending HTTP requests
+PASS real TypeScript syntax errors show exact ranges, navigate with F8/Shift+F8 or the error button at every width, and clear after correction without executing source
+PASS the same source editor still executes JavaScript normally when the user explicitly runs it
+Traceback (most recent call last):
+  File "/workspace/tests/ui_script_intelligence.py", line 355, in <module>
+    main()
+  File "/workspace/tests/ui_script_intelligence.py", line 304, in main
+    page.wait_for_function('''() => {
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 11595, in wait_for_function
+    self._sync(
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_page.py", line 1110, in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_frame.py", line 878, in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/minipost-e2e-venv/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 15000ms exceeded.
