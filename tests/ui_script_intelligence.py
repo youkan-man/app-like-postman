@@ -236,6 +236,55 @@ def main():
             assert forbidden_requests == [], forbidden_requests
             passed('completion analyzes source without executing edited code or sending HTTP requests')
 
+            if page.locator('#toggleSidebar').get_attribute('aria-expanded') == 'true':
+                page.locator('#toggleSidebar').click()
+            area, root = editor()
+            area.fill('const first = ;\nconst second = ;')
+            expect(root).to_have_attribute('data-intelligence', 'ready', timeout=20000)
+            diagnostic_button = root.locator('.source-diagnostics-toggle')
+            problem = page.locator('.source-problem')
+            expect(diagnostic_button).to_have_text('構文エラー 2件')
+            expect(root.locator('.source-diagnostic')).to_have_count(2)
+            area.press('Control+Home')
+            area.press('F8')
+            assert area.evaluate('element => [element.selectionStart, element.selectionEnd]') == [14, 15]
+            expect(problem).to_be_visible()
+            expect(problem.locator('.source-problem-message')).to_contain_text('Expression expected.')
+            area.press('F8')
+            assert area.evaluate('element => [element.selectionStart, element.selectionEnd]') == [31, 32]
+            area.press('Shift+F8')
+            assert area.evaluate('element => [element.selectionStart, element.selectionEnd]') == [14, 15]
+            diagnostic_button.click()
+            assert area.evaluate('element => [element.selectionStart, element.selectionEnd]') == [31, 32]
+            for width, height in [(1440, 900), (390, 844), (320, 720)]:
+                page.set_viewport_size({'width': width, 'height': height})
+                expect(problem).to_be_visible()
+                page.wait_for_function('''() => {
+                    const panel = document.querySelector('.source-problem');
+                    if (!panel || panel.hidden) return false;
+                    const box = panel.getBoundingClientRect();
+                    return box.left >= 0 && box.top >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+                }''')
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                capture('intelligence-diagnostics-' + str(width))
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            close_problem = problem.get_by_role('button', name='構文エラーを閉じる', exact=True)
+            close_problem.focus()
+            expect(close_problem).to_be_focused()
+            page.keyboard.press('Escape')
+            expect(problem).to_be_hidden()
+            expect(area).to_be_focused()
+            assert area.evaluate('element => [element.selectionStart, element.selectionEnd]') == [31, 32]
+            area.press('F8')
+            expect(problem).to_be_visible()
+            area.fill('const first = 1;\nconst second = 2;')
+            expect(problem).to_be_hidden()
+            expect(root).to_have_attribute('data-intelligence', 'ready', timeout=20000)
+            expect(diagnostic_button).to_be_hidden()
+            expect(root.locator('.source-diagnostic')).to_have_count(0)
+            assert forbidden_requests == [], forbidden_requests
+            passed('real TypeScript syntax errors show exact ranges, navigate with F8/Shift+F8 or the error button at every width, and clear after correction without executing source')
+
             page.get_by_label('スクリプトのコード', exact=True).fill('return {total: input.orders.reduce((sum, item) => sum + item.price, 0)};')
             page.locator('#runStandaloneScript').click()
             expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'success')
@@ -255,15 +304,25 @@ def main():
             page.wait_for_function('''() => {
                 const root = document.querySelector('.standalone-script-code .source-editor');
                 const popup = root.querySelector('.source-suggestions');
+                const area = root.querySelector('textarea'), highlighted = root.querySelector('.source-highlight');
                 const editor = root.getBoundingClientRect(), box = popup.getBoundingClientRect();
+                // This fixture is one ASCII line without tabs. Measure its
+                // actual rendered font independently of the popup-placement
+                // helper so an on-screen popup cannot hide off-screen code.
+                const style = getComputedStyle(area), canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d'); context.font = style.font;
+                const left = parseFloat(style.paddingLeft), right = parseFloat(style.paddingRight);
+                const caret = left + context.measureText(area.value.slice(0, area.selectionEnd)).width - area.scrollLeft;
                 return !popup.hidden && box.left >= editor.left && box.right <= editor.right + 1 &&
-                    box.top >= editor.top && box.bottom <= editor.bottom + 1;
+                    box.top >= editor.top && box.bottom <= editor.bottom + 1 &&
+                    area.scrollLeft > 0 && caret >= left - 1 && caret <= area.clientWidth - right + 1 &&
+                    Math.abs(highlighted.scrollLeft - area.scrollLeft) <= 1;
             }''')
             capture('intelligence-live-resize-390')
             option.click()
             expect(area).to_have_value(' ' * 60 + 'input.orders[0].customer.name')
             page.set_viewport_size({'width': 1440, 'height': 900})
-            passed('an already-open completion popup follows a live viewport resize and remains pointer-selectable')
+            passed('live viewport resizing keeps the actual caret and source visible, synchronizes highlighting and preserves the open pointer-selectable completion popup')
 
             source = 'const customer = input.orders[0].customer;\nconst total = input.orders.reduce(\n  (sum, order) => sum + order.price, 0\n);\n\ncustomer.'
             for width, height in [(1440, 900), (390, 844), (320, 720)]:

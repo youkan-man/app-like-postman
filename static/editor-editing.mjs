@@ -195,3 +195,152 @@ export function newlineEdit(source, start, end, {indent='  ', language='text'}={
   const caret = start + eol.length + inner.length;
   return {from:start, to, text, selectionStart:caret, selectionEnd:caret};
 }
+
+function validTabSize(value) {
+  return Number.isInteger(value) && value > 0 && value <= 32 ? value : 2;
+}
+
+function lineEnding(source, position) {
+  return source[position] === '\r' ? (source[position + 1] === '\n' ? '\r\n' : '\r') : source[position] === '\n' ? '\n' : '';
+}
+
+function selectedLines(source, start, end) {
+  const from = lineStart(source, start);
+  let last = lineStart(source, end);
+  if (end > start && last === end) last = lineStart(source, end - (source[end - 2] === '\r' && source[end - 1] === '\n' ? 2 : 1));
+  return {from, last, to:lineEnd(source, last)};
+}
+
+/** Backspace in indentation removes one visual tab stop, never code. */
+export function smartBackspaceEdit(source, start, end, {tabSize=2}={}) {
+  ({source, start, end} = range(source, start, end));
+  if (start !== end || start === 0) return null;
+  const beginning = lineStart(source, start), prefix = source.slice(beginning, start);
+  if (!prefix || /[^\t ]/.test(prefix)) return null;
+  tabSize = validTabSize(tabSize);
+  const target = Math.floor((width(prefix, tabSize) - 1) / tabSize) * tabSize;
+  let index = 0, column = 0;
+  while (column < target) {
+    column += prefix[index] === '\t' ? tabSize - column % tabSize : 1;
+    index++;
+  }
+  const from = beginning + index;
+  return {from, to:start, text:'', selectionStart:from, selectionEnd:from};
+}
+
+/** Home moves between the first nonblank character and column zero. */
+export function smartHomeSelection(source, start, end, {extend=false, direction='none'}={}) {
+  ({source, start, end} = range(source, start, end));
+  const backward = direction === 'backward';
+  const focus = backward ? start : end, anchor = backward ? end : start;
+  const beginning = lineStart(source, focus), finish = lineEnd(source, focus);
+  const prefix = source.slice(beginning, finish).match(horizontal)[0];
+  const content = beginning + prefix.length < finish ? beginning + prefix.length : beginning;
+  const target = focus === content ? beginning : content;
+  if (!extend) return {selectionStart:target, selectionEnd:target, selectionDirection:'none'};
+  return {selectionStart:Math.min(anchor, target), selectionEnd:Math.max(anchor, target),
+    selectionDirection:target < anchor ? 'backward' : target > anchor ? 'forward' : 'none'};
+}
+
+function indentColumns(prefix, tabSize, minimum, maximum) {
+  const columns = new Map(minimum === 0 ? [[0, 0]] : []);
+  let column = 0;
+  for (let index = 0; index < prefix.length; index++) {
+    column += prefix[index] === '\t' ? tabSize - column % tabSize : 1;
+    if (column > maximum) break;
+    if (column >= minimum) columns.set(column, index + 1);
+  }
+  return columns;
+}
+
+/** Toggle line comments without introducing invalid comments into JSON/text. */
+export function toggleLineCommentEdit(source, start, end, {language='text', tabSize=2}={}) {
+  const marker = language === 'javascript' ? '//' : language === 'graphql' ? '#' : null;
+  if (!marker) return null;
+  ({source, start, end} = range(source, start, end));
+  tabSize = validTabSize(tabSize);
+  const block = selectedLines(source, start, end), lines = [];
+  for (let position = block.from; position <= block.last;) {
+    const finish = lineEnd(source, position), text = source.slice(position, finish);
+    const prefix = text.match(horizontal)[0];
+    lines.push({position, finish, prefix, content:text.slice(prefix.length)});
+    if (finish === source.length) break;
+    position = finish + lineEnding(source, finish).length;
+  }
+  // Keep spacing-only separators inside a selected code block unchanged.
+  const nonblank = lines.filter(line => line.content.length);
+  const targets = nonblank.length ? nonblank : lines;
+  const remove = nonblank.length > 0 && nonblank.every(line => line.content.startsWith(marker));
+  const changes = [];
+  if (remove) {
+    for (const line of targets) {
+      const from = line.position + line.prefix.length;
+      const to = from + marker.length + (source[from + marker.length] === ' ' ? 1 : 0);
+      changes.push({from, to, text:''});
+    }
+  } else {
+    // Align at a shared indentation column. Never split/convert an existing tab
+    // merely to put a comment inside its visual width; toggling is lossless.
+    const minimum = targets.reduce((result, line) => Math.min(result, width(line.prefix, tabSize)), Infinity);
+    // Every tab-stop boundary is reachable in every prefix. Only the final
+    // partial stop can differ, so retain at most tabSize + 1 columns per line.
+    const base = Math.floor(minimum / tabSize) * tabSize;
+    const columns = targets.map(line => indentColumns(line.prefix, tabSize, base, minimum));
+    let shared = new Set(columns[0].keys());
+    for (const positions of columns.slice(1)) shared = new Set([...shared].filter(column => positions.has(column)));
+    let column = base;
+    for (const value of shared) column = Math.max(column, value);
+    for (let index = 0; index < targets.length; index++) {
+      const from = targets[index].position + columns[index].get(column);
+      changes.push({from, to:from, text:marker + ' '});
+    }
+  }
+  return applyChanges(source, start, end, changes);
+}
+
+/** Move or duplicate whole touched lines while keeping the selection in them. */
+export function moveLinesEdit(source, start, end, {direction='down', duplicate=false}={}) {
+  ({source, start, end} = range(source, start, end));
+  if (direction !== 'up' && direction !== 'down') return null;
+  const block = selectedLines(source, start, end);
+  const content = source.slice(block.from, block.to), following = lineEnding(source, block.to);
+  const previousEnd = block.from - (source[block.from - 2] === '\r' && source[block.from - 1] === '\n' ? 2 : 1);
+  const previousStart = block.from ? lineStart(source, previousEnd) : 0;
+  const preceding = block.from ? source.slice(previousEnd, block.from) : '';
+  let from, to, text, movedStart, movedEnding;
+  if (duplicate) {
+    const separator = following || preceding || source.match(/\r\n|\r|\n/)?.[0] || '\n';
+    if (direction === 'up') {
+      from = to = block.from; text = content + separator;
+      movedStart = block.from; movedEnding = separator;
+    } else {
+      from = to = block.to; text = separator + content;
+      movedStart = block.to + separator.length; movedEnding = following;
+    }
+  } else {
+    // A terminal newline is retained; its empty position is not swapped with a
+    // content line. An explicitly present blank line before it remains movable.
+    if (block.from === source.length && block.from > 0) return null;
+    if (direction === 'up') {
+      if (!block.from) return null;
+      from = previousStart; to = block.to;
+      text = content + preceding + source.slice(previousStart, previousEnd);
+      movedStart = previousStart; movedEnding = preceding;
+    } else {
+      const nextStart = block.to + following.length;
+      if (!following || nextStart >= source.length) return null;
+      const nextEnd = lineEnd(source, nextStart), next = source.slice(nextStart, nextEnd);
+      from = block.from; to = nextEnd;
+      text = next + following + content;
+      movedStart = block.from + next.length + following.length;
+      movedEnding = lineEnding(source, nextEnd);
+    }
+  }
+  function translate(position) {
+    // A selection through the next column-zero stays through the moved line's
+    // newline, even when the adjacent line uses a different line-ending width.
+    if (position > block.to) return movedStart + content.length + movedEnding.length;
+    return movedStart + Math.max(0, Math.min(content.length, position - block.from));
+  }
+  return {from, to, text, selectionStart:translate(start), selectionEnd:translate(end)};
+}

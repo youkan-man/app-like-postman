@@ -1,7 +1,10 @@
-/** Highlighted native textarea; completion edits use the browser undo history. */
+/** Highlighted native textarea with semantic intelligence and transactional edits. */
 import {createScriptIntelligenceClient} from './script-intelligence-client.mjs';
 import {highlight} from './code-highlighter.mjs';
-import {indentEdit,newlineEdit} from './editor-editing.mjs';
+import {indentEdit,newlineEdit,smartBackspaceEdit,smartHomeSelection,toggleLineCommentEdit,moveLinesEdit} from './editor-editing.mjs';
+import {createTextHistory} from './editor-history.mjs';
+import {createEditorSearch} from './editor-search.mjs';
+import {createEditorDiagnostics} from './editor-diagnostics.mjs';
 export {highlight};
 let editorSequence=0;
 export function createCodeEditor({value='',language='text',label='コード',onChange=()=>{},readOnly=false,intellisense=false,intelligenceContext=()=>({})}={}) {
@@ -17,10 +20,9 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   const client=intellisense?createScriptIntelligenceClient():null;
   let completion=null, selected=0, composing=false, applying=false, generation=0, detailGeneration=0;
   let timer, loadingTimer, detailTimer, query=null, state='idle', disposed=false;
-  let knownValue=area.value;
-  // Native undo retains the text. Remember only our compound edits to restore
-  // the user's original selection instead of the temporary replacement range.
-  const editHistory=[];
+  let knownValue=area.value,fallbackMode=false,pendingInputSelection=null,lastSelection=selection();
+  const history=createTextHistory();history.reset(area.value);
+  let search,diagnostics,hintInfo=null,renderedSource=null,renderedLanguage=null,highlightHTML='',lineStarts=[0];
   const enabled=()=>intellisense&&!readOnly&&language==='javascript';
   if(intellisense){area.setAttribute('aria-autocomplete','list');area.setAttribute('aria-controls',suggestions.id);area.setAttribute('aria-describedby',hint.id);}
   function close(){suggestions.hidden=true;completion=null;area.removeAttribute('aria-activedescendant');clearTimeout(detailTimer);detailGeneration++;}
@@ -31,39 +33,74 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   }
   function invalidate({hideHint=true}={}){
     generation++;clearTimeout(timer);clearTimeout(loadingTimer);client?.cancel();close();query=null;
-    if(hideHint)hint.hidden=true;
+    if(hideHint){hint.hidden=true;hintInfo=null;}
     if(state!=='error')setState('idle');
   }
   function sync(){pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;}
-  function paint(){pre.innerHTML=highlight(area.value,language)+'\n';sourceStatus.textContent=`${language.toUpperCase()} · ${area.value.split('\n').length} 行`;sync();}
+  function paint(){
+    if(renderedSource!==area.value||renderedLanguage!==language){
+      renderedSource=area.value;renderedLanguage=language;highlightHTML=highlight(area.value,language)+'\n';
+      lineStarts=[0];for(let i=0;i<area.value.length;i++)if(area.value.charCodeAt(i)===10)lineStarts.push(i+1);
+    }
+    pre.innerHTML=highlightHTML;diagnostics?.decorate(pre);
+    sourceStatus.textContent=`${language.toUpperCase()} · ${lineStarts.length} 行`;sync();
+  }
+  function activePosition(){return area.selectionDirection==='backward'?area.selectionStart:area.selectionEnd;}
+  function lineIndex(position){
+    let low=0,high=lineStarts.length;
+    while(low+1<high){const middle=(low+high)>>>1;if(lineStarts[middle]<=position)low=middle;else high=middle;}
+    return low;
+  }
   // Mirror only to measure the caret. It never participates in input or layout.
-  function caret(){
+  function caret(position=activePosition()){
     const mirror=document.createElement('div'), style=getComputedStyle(area);
-    mirror.style.cssText='position:absolute;visibility:hidden;pointer-events:none;white-space:pre;left:0;top:0;';
-    for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','tabSize','paddingLeft','paddingTop'])mirror.style[key]=style[key];
-    mirror.textContent=area.value.slice(0,area.selectionStart);
+    const index=lineIndex(position),line=parseFloat(style.lineHeight)||22;
+    mirror.style.cssText='position:absolute;visibility:hidden;pointer-events:none;white-space:pre;width:max-content;left:0;top:0;';
+    for(const key of ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','tabSize','paddingLeft'])mirror.style[key]=style[key];
+    mirror.textContent=area.value.slice(lineStarts[index],position);
     const mark=document.createElement('span');mark.textContent='\u200b';mirror.append(mark);root.append(mirror);
-    const result={x:mark.offsetLeft-area.scrollLeft,y:mark.offsetTop-area.scrollTop,line:parseFloat(style.lineHeight)||22};mirror.remove();return result;
+    const result={x:mark.offsetLeft-area.scrollLeft,y:(parseFloat(style.paddingTop)||0)+index*line-area.scrollTop,line};mirror.remove();return result;
+  }
+  function ensureCaretVisible({force=false}={}){
+    if(!root.isConnected||!area.clientWidth||!area.clientHeight||(!force&&document.activeElement!==area))return;
+    const pos=caret(),style=getComputedStyle(area);
+    const left=parseFloat(style.paddingLeft)||0,right=area.clientWidth-(parseFloat(style.paddingRight)||0)-2;
+    const top=parseFloat(style.paddingTop)||0,bottom=area.clientHeight-(parseFloat(style.paddingBottom)||0);
+    if(pos.x<left)area.scrollLeft+=pos.x-left;else if(pos.x>right)area.scrollLeft+=pos.x-right;
+    if(pos.y<top)area.scrollTop+=pos.y-top;else if(pos.y+pos.line>bottom)area.scrollTop+=pos.y+pos.line-bottom;
+    sync();
   }
   function place(){
-    if(suggestions.hidden)return;
+    if(suggestions.hidden&&!hintInfo)return;
     const pos=caret();
-    const available=Math.max(30,area.clientHeight-(hint.hidden?0:hint.offsetHeight+4));
-    suggestions.style.maxHeight=`${Math.max(28,Math.min(180,Math.floor(area.clientHeight/2),available-8))}px`;
-    const width=suggestions.offsetWidth, height=suggestions.offsetHeight;
-    let top=pos.y+pos.line;
-    if(top+height>available-4)top=pos.y-height;
-    suggestions.style.left=`${Math.max(4,Math.min(pos.x,root.clientWidth-width-4))}px`;
-    suggestions.style.top=`${Math.max(4,Math.min(top,available-height-4))}px`;
-    suggestions.style.bottom='auto';
+    const edge=area.clientHeight-4,above=Math.max(0,pos.y-4),below=Math.max(0,edge-pos.y-pos.line);
+    hint.hidden=!hintInfo||(!suggestions.hidden&&area.clientHeight<160);
+    let available=edge;
+    if(!hint.hidden){
+      hint.style.maxHeight=`${Math.max(0,Math.min(72,Math.max(above,below)))}px`;
+      hint.style.bottom='auto';
+      const height=hint.offsetHeight;
+      if(height>Math.max(above,below)||Math.max(above,below)<24)hint.hidden=true;
+      else if(suggestions.hidden)hint.style.top=`${below>=height?pos.y+pos.line:pos.y-height}px`;
+      else if(pos.y+pos.line<edge-height-4){hint.style.top=`${edge-height}px`;available=edge-height-4;}
+      else hint.hidden=true;
+    }
+    if(!suggestions.hidden){
+      const belowList=Math.max(0,available-pos.y-pos.line),room=Math.max(above,belowList);
+      suggestions.style.maxHeight=`${Math.max(0,Math.min(180,room))}px`;
+      const width=suggestions.offsetWidth,height=suggestions.offsetHeight;
+      const top=belowList>=height?pos.y+pos.line:Math.max(4,pos.y-height);
+      suggestions.style.left=`${Math.max(4,Math.min(pos.x,root.clientWidth-width-4))}px`;
+      suggestions.style.top=`${top}px`;suggestions.style.bottom='auto';
+    }
   }
   // A pane or viewport can shrink while the list is open. Its absolute caret
   // coordinates must be clamped again, otherwise overflow:hidden clips it.
   const resizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>{
     // Workspace navigation removes editor nodes without an explicit dispose.
     // Cancel their queued parses so an abandoned editor cannot delay the new one.
-    if(!root.isConnected){invalidate();resizeObserver.disconnect();return;}
-    place();
+    if(!root.isConnected){dispose();return;}
+    ensureCaretVisible();place();search?.position();diagnostics?.position();
   }):null;
   resizeObserver?.observe(root);
   resizeObserver?.observe(area);
@@ -74,13 +111,14 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(loadDetails)loadSelectedDetails();
   }
   function showHint(info){
+    hintInfo=info;
     hint.hidden=!info;
     hint.textContent=info?`${info.signature} · 引数 ${info.argument+1}${info.description?' — '+info.description:''}`:'';
     hint.title=hint.textContent;
   }
   function current(snapshot){
     return !disposed&&root.isConnected&&enabled()&&!composing&&!applying&&document.activeElement===area&&
-      snapshot.generation===generation&&area.value===snapshot.source&&area.selectionStart===snapshot.position&&area.selectionEnd===snapshot.position;
+      snapshot.generation===generation&&area.value===snapshot.source&&area.selectionStart===snapshot.selectionStart&&area.selectionEnd===snapshot.selectionEnd;
   }
   function detailText(item){return item.signature&&item.signature!==item.label?item.signature:item.description||item.kind||'';}
   function loadSelectedDetails(){
@@ -100,8 +138,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   }
   function renderCompletion(result,snapshot){
     completion=result;query=snapshot;selected=0;suggestions.replaceChildren();
-    if(!completion){close();return;}
-    if(!completion.items?.length){close();return;}
+    if(!completion?.items?.length){close();place();return;}
     const fragment=document.createDocumentFragment();
     for(const [index,item] of completion.items.entries()){
       const option=document.createElement('button');option.type='button';option.className='source-suggestion';option.id=`${suggestions.id}-${index}`;option.tabIndex=-1;option.setAttribute('role','option');option.setAttribute('aria-label',item.label);option.title=[item.signature,item.description].filter(Boolean).join('\n');
@@ -114,14 +151,13 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   }
   function update(explicit=false,delay=75,showCompletion=true){
     invalidate();
-    if(!enabled()||composing||applying||disposed||document.activeElement!==area||area.selectionStart!==area.selectionEnd)return;
+    if(!enabled()||composing||applying||disposed||document.activeElement!==area)return;
     const ticket=generation;setState('pending');
     loadingTimer=setTimeout(()=>{if(ticket===generation&&state==='pending')setState('loading');},250);
     timer=setTimeout(async()=>{
       if(ticket!==generation)return;
       if(!root.isConnected||document.activeElement!==area){invalidate();return;}
-      if(area.selectionStart!==area.selectionEnd){invalidate();return;}
-      const snapshot={generation:ticket,source:area.value,position:area.selectionStart,context:null};
+      const snapshot={generation:ticket,source:area.value,position:activePosition(),selectionStart:area.selectionStart,selectionEnd:area.selectionEnd,context:null};
       query=snapshot;
       try{
         snapshot.context=typeof intelligenceContext==='function'?intelligenceContext():intelligenceContext||{};
@@ -130,7 +166,8 @@ export function createCodeEditor({value='',language='text',label='コード',onC
           if(ticket===generation){clearTimeout(loadingTimer);setState('idle');}
           return;
         }
-        let offered=showCompletion?result?.completion:null;
+        const collapsed=snapshot.selectionStart===snapshot.selectionEnd;
+        let offered=showCompletion&&collapsed?result?.completion:null;
         // A fully typed name must not make the next Enter/Tab a no-op. Explicit
         // Ctrl+Space still lets the user inspect every semantic candidate.
         if(!explicit&&offered?.items?.some(item=>{
@@ -138,7 +175,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
           return Number.isInteger(from)&&Number.isInteger(to)&&to>from&&
             snapshot.source.slice(from,to)===(item.insertText??item.label);
         }))offered=null;
-        clearTimeout(loadingTimer);setState('ready');showHint(result?.signature);renderCompletion(offered,snapshot);
+        clearTimeout(loadingTimer);setState('ready');diagnostics.set(result?.diagnostics||[],snapshot.source);showHint(collapsed?result?.signature:null);renderCompletion(offered,snapshot);
       }catch(error){
         if(error.name==='AbortError'||!current(snapshot))return;
         clearTimeout(loadingTimer);close();showHint(null);setState('error',error);
@@ -147,6 +184,10 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   }
   function selection(){return {start:area.selectionStart,end:area.selectionEnd,direction:area.selectionDirection};}
   function restoreSelection(saved){area.setSelectionRange(saved.start,saved.end,saved.direction);}
+  function select(start,end,{focus=false}={}){
+    invalidate();if(focus)area.focus({preventScroll:true});
+    area.setSelectionRange(start,end);lastSelection=selection();ensureCaretVisible({force:true});
+  }
   function notifyInput(inputType='insertReplacementText'){
     area.dispatchEvent(typeof InputEvent==='function'?new InputEvent('input',{bubbles:true,inputType}):new Event('input',{bubbles:true}));
   }
@@ -157,32 +198,34 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     const after=before.slice(0,from)+text+before.slice(to);
     const afterSelection={start:plan.selectionStart??from+text.length,end:plan.selectionEnd??from+text.length,direction:plan.selectionDirection??beforeSelection.direction};
     applying=true;invalidate();
-    let native=false;
     try{
       area.focus({preventScroll:true});
       if(after!==before){
-        for(const record of editHistory)if(record.undone)record.discarded=true;
         area.setSelectionRange(from,to);
-        // This participates in the browser's existing textarea undo stack.
-        try{native=document.execCommand('insertText',false,text);}catch{}
-        if(area.value===before){area.setRangeText(text,from,to,'end');native=false;}
+        // Keep the browser's normal grouping until its editing API is unavailable.
+        // Once a fallback is needed, every edit uses the same ordered journal.
+        let native=false;
+        if(!fallbackMode)try{native=document.execCommand('insertText',false,text);}catch{}
+        if(!native||area.value===before)fallbackMode=true;
+        if(area.value===before)area.setRangeText(text,from,to,'end');
         if(knownValue!==area.value)notifyInput();
-        editHistory.push({before,after:area.value,beforeSelection,afterSelection,native,undone:false,discarded:false});
-        let retained=editHistory.reduce((size,item)=>size+item.before.length+item.after.length,0);
-        while(editHistory.length>1&&(editHistory.length>32||retained>4_000_000)){
-          const removed=editHistory.shift();retained-=removed.before.length+removed.after.length;
-        }
       }
-      restoreSelection(afterSelection);sync();
+      restoreSelection(afterSelection);history.record(before,area.value,beforeSelection,selection());
+      lastSelection=selection();pendingInputSelection=null;ensureCaretVisible();search?.refresh();
     }finally{applying=false;}
     update(false,75,false);
     return true;
   }
-  function fallbackHistory(redo){
-    const record=[...editHistory].reverse().find(item=>!item.native&&!item.discarded&&item.undone===redo&&(redo?item.before:item.after)===area.value);
-    if(!record)return false;
+  function performHistory(redo){
+    const plan=redo?history.redo(area.value):history.undo(area.value);
+    if(!plan)return false;
     applying=true;invalidate();
-    try{area.value=redo?record.after:record.before;restoreSelection(redo?record.afterSelection:record.beforeSelection);notifyInput(redo?'historyRedo':'historyUndo');}
+    try{
+      area.setRangeText(plan.text,plan.from,plan.to,'end');
+      restoreSelection({start:plan.selectionStart,end:plan.selectionEnd,direction:plan.selectionDirection});
+      notifyInput(redo?'historyRedo':'historyUndo');lastSelection=selection();pendingInputSelection=null;
+      ensureCaretVisible();search?.refresh();
+    }
     finally{applying=false;}
     update(false,75,false);return true;
   }
@@ -192,35 +235,48 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<from||to>area.value.length){invalidate();return;}
     edit({from,to,text,selectionDirection:'none'});
   }
+  search=createEditorSearch({root,area,readOnly,edit,select});
+  diagnostics=createEditorDiagnostics({root,area,select,onUpdate:paint});
+  status.insertBefore(search.button,sourceStatus);status.insertBefore(diagnostics.button,sourceStatus);
   retry.onclick=()=>{area.focus({preventScroll:true});update(true,0);};
+  area.addEventListener('beforeinput',event=>{
+    if(applying)return;
+    if(fallbackMode&&!readOnly&&event.cancelable&&(event.inputType==='historyUndo'||event.inputType==='historyRedo')){
+      event.preventDefault();event.stopPropagation();performHistory(event.inputType==='historyRedo');return;
+    }
+    pendingInputSelection=selection();
+  });
   area.addEventListener('input',event=>{
     const previous=knownValue;knownValue=area.value;
-    if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){
-      const redo=event.inputType==='historyRedo';
-      const record=[...editHistory].reverse().find(item=>(redo?item.before:item.after)===previous&&(redo?item.after:item.before)===area.value);
-      if(record){record.undone=!redo;restoreSelection(redo?record.afterSelection:record.beforeSelection);}
-    }else if(!applying){
-      // Typing a new branch after Undo permanently invalidates the old Redo.
-      for(const record of editHistory)if(record.undone)record.discarded=true;
+    if(!applying){
+      if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){
+        const saved=history.reconcile(previous,area.value,event.inputType);if(saved)restoreSelection(saved);
+      }else history.record(previous,area.value,pendingInputSelection||lastSelection,selection());
+      pendingInputSelection=null;lastSelection=selection();
     }
-    invalidate();paint();onChange(area.value);
+    invalidate();diagnostics.clear();search.refresh();onChange(area.value);
     if(event.isComposing||composing||applying)return;
+    ensureCaretVisible();
     const typed=!event.inputType||event.inputType.startsWith('insert')||event.inputType.startsWith('delete');
     update(false,75,typed);
   });
-  area.addEventListener('scroll',()=>{sync();place();});
+  area.addEventListener('scroll',()=>{sync();place();search.position();diagnostics.position();});
   area.addEventListener('focus',()=>update(false,100,false));
   area.addEventListener('click',()=>update(false,75,false));
-  area.addEventListener('select',()=>{if(!applying&&(area.selectionStart!==area.selectionEnd||(query&&query.position!==area.selectionStart)))invalidate();});
-  area.addEventListener('compositionstart',()=>{composing=true;invalidate();});
+  area.addEventListener('select',()=>{
+    lastSelection=selection();
+    if(!applying&&query&&(query.selectionStart!==area.selectionStart||query.selectionEnd!==area.selectionEnd))invalidate();
+  });
+  area.addEventListener('compositionstart',()=>{composing=true;invalidate();diagnostics.clear();});
   area.addEventListener('compositionend',()=>{composing=false;paint();update();});
   area.addEventListener('blur',()=>invalidate());
-  area.addEventListener('keyup',event=>{if(!composing&&(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(event.key)||(['ArrowUp','ArrowDown'].includes(event.key)&&suggestions.hidden)))update(false,75,false);});
+  area.addEventListener('keyup',event=>{if(!composing&&(['ArrowLeft','ArrowRight','Home','End','PageUp','PageDown'].includes(event.key)||(['ArrowUp','ArrowDown'].includes(event.key)&&suggestions.hidden))){ensureCaretVisible();update(false,75,false);}});
   area.addEventListener('keydown',event=>{
     if(composing||event.isComposing||event.keyCode===229)return;
-    if(!readOnly&&(event.ctrlKey||event.metaKey)&&!event.altKey&&['z','y'].includes(event.key.toLowerCase())){
+    if(search.handleKeydown(event)){diagnostics.close();return;}
+    if(!readOnly&&fallbackMode&&(event.ctrlKey||event.metaKey)&&!event.altKey&&['z','y'].includes(event.key.toLowerCase())){
       const redo=event.key.toLowerCase()==='y'||event.shiftKey;
-      if(fallbackHistory(redo)){event.preventDefault();event.stopPropagation();return;}
+      event.preventDefault();event.stopPropagation();performHistory(redo);return;
     }
     if(enabled()&&(event.ctrlKey||event.metaKey)&&(event.code==='Space'||event.key===' ')){event.preventDefault();event.stopPropagation();update(true,0);return;}
     const plain=!event.ctrlKey&&!event.metaKey&&!event.altKey;
@@ -230,7 +286,28 @@ export function createCodeEditor({value='',language='text',label='コード',onC
       if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();event.stopPropagation();selected=(selected+(event.key==='ArrowDown'?1:-1)+completion.items.length)%completion.items.length;highlightSelected();return;}
       if(event.key==='Enter'||event.key==='Tab'){event.preventDefault();event.stopPropagation();apply(selected);return;}
     }
-    if(event.key==='Escape'){invalidate();return;}
+    if(event.key==='Escape'){
+      const consumed=search.isOpen()||diagnostics.isOpen()||!hint.hidden;
+      if(search.isOpen())search.close();else if(diagnostics.isOpen())diagnostics.close({focus:true});
+      invalidate();if(consumed){event.preventDefault();event.stopPropagation();}return;
+    }
+    if(event.key==='F8'&&plain&&diagnostics.next(event.shiftKey?-1:1)){event.preventDefault();event.stopPropagation();return;}
+    if(!readOnly&&(event.ctrlKey||event.metaKey)&&!event.altKey&&(event.key==='/'||event.code==='Slash')){
+      const plan=toggleLineCommentEdit(area.value,area.selectionStart,area.selectionEnd,{language});
+      if(plan){event.preventDefault();event.stopPropagation();edit(plan);}return;
+    }
+    if(!readOnly&&event.altKey&&!event.ctrlKey&&!event.metaKey&&['ArrowUp','ArrowDown'].includes(event.key)){
+      event.preventDefault();event.stopPropagation();
+      edit(moveLinesEdit(area.value,area.selectionStart,area.selectionEnd,{direction:event.key==='ArrowUp'?'up':'down',duplicate:event.shiftKey}));return;
+    }
+    if(event.key==='Home'&&plain){
+      const plan=smartHomeSelection(area.value,area.selectionStart,area.selectionEnd,{extend:event.shiftKey,direction:area.selectionDirection});
+      if(plan){event.preventDefault();event.stopPropagation();invalidate();area.setSelectionRange(plan.selectionStart,plan.selectionEnd,plan.selectionDirection);lastSelection=selection();ensureCaretVisible();}return;
+    }
+    if(event.key==='Backspace'&&plain&&!event.shiftKey&&!readOnly){
+      const plan=smartBackspaceEdit(area.value,area.selectionStart,area.selectionEnd);
+      if(plan){event.preventDefault();event.stopPropagation();edit(plan);return;}
+    }
     if(event.key==='Tab'&&plain&&!readOnly){
       const plan=indentEdit(area.value,area.selectionStart,area.selectionEnd,{direction:event.shiftKey?'backward':'forward'});
       invalidate();
@@ -240,15 +317,16 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(event.key==='Enter'&&plain&&!readOnly){event.preventDefault();event.stopPropagation();edit(newlineEdit(area.value,area.selectionStart,area.selectionEnd,{language}));return;}
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)||event.ctrlKey||event.metaKey)invalidate();
   });
+  function dispose(){if(disposed)return;disposed=true;invalidate();resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
   root.append(pre,area,status,suggestions,hint);paint();
   return {element:root,textarea:area,
-    setLanguage(next){invalidate();language=next;root.dataset.language=next;setState('idle');paint();},
+    setLanguage(next){invalidate();diagnostics.clear();language=next;root.dataset.language=next;setState('idle');paint();},
     setValue(next){
       next=String(next??'');
       const saved=selection(),scroll={top:area.scrollTop,left:area.scrollLeft};
       edit({from:0,to:area.value.length,text:next,selectionStart:Math.min(saved.start,next.length),selectionEnd:Math.min(saved.end,next.length),selectionDirection:saved.direction});
-      area.scrollTop=scroll.top;area.scrollLeft=scroll.left;sync();
+      area.scrollTop=scroll.top;area.scrollLeft=scroll.left;ensureCaretVisible();sync();
     },
-    dispose(){disposed=true;invalidate();resizeObserver?.disconnect();client?.dispose();}
+    dispose
   };
 }
