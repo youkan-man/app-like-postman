@@ -124,7 +124,10 @@ export function createEditorSearch({root, area, readOnly=false, edit, select}) {
     if (!all && matches.length) {
       const index = matches.findIndex(match => match.from >= after); choose(index < 0 ? 0 : index);
     }
-    if (isOpen() && panel.contains(focus)) focus.focus({preventScroll:true});
+    if (isOpen() && panel.contains(focus)) {
+      // The final replacement disables its button; keep typing in the panel.
+      (focus.disabled ? replacement : focus).focus({preventScroll:true});
+    }
     position();
   }
   function setReplacing(visible) {

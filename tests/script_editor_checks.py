@@ -319,7 +319,38 @@ def check_workflow_editing(page, area, root, passed, capture):
     area.press('Control+z')
     expect(area).to_have_value(source)
     assert selection()[:2] == [first, first + 5]
-    passed('Ctrl+H replaces one selected match from the replacement field, advances to the next match and supports one Undo')
+
+    # Replacing the final match disables its action button. Focus must return
+    # to an enabled search control instead of falling into the source editor.
+    single_source = 'return total;'
+    area.fill(single_source)
+    area.press('Control+Home')
+    for _ in 'return ':
+        area.press('ArrowRight')
+    for _ in 'total':
+        area.press('Shift+ArrowRight')
+    area.press('Control+h')
+    expect(query).to_have_value('total')
+    replacement.fill('count')
+    replace_one = panel.get_by_role('button', name='選択した一致を置換', exact=True)
+    replace_one.click()
+    expect(area).to_have_value('return count;')
+    expect(panel.locator('.source-search-count')).to_have_text('0 件')
+    expect(replace_one).to_be_disabled()
+    expect(replacement).to_be_focused()
+    replacement.press('Escape')
+    expect(area).to_be_focused()
+    area.press('Control+z')
+    expect(area).to_have_value(single_source)
+    assert selection()[:2] == [7, 12]
+
+    area.fill(source)
+    area.press('Control+Home')
+    for _ in range(first):
+        area.press('ArrowRight')
+    for _ in 'total':
+        area.press('Shift+ArrowRight')
+    passed('Ctrl+H replaces one match, advances to the next, retains replacement-field focus after the final match and supports one Undo')
 
     area.press('Control+h')
     expect(query).to_have_value('total')
@@ -330,8 +361,9 @@ def check_workflow_editing(page, area, root, passed, capture):
     replaced = source.replace('total', '$&')
     expect(area).to_have_value(replaced)
     expect(panel).to_be_visible()
-    expect(replace_all).to_be_focused()
-    replace_all.press('Escape')
+    expect(replace_all).to_be_disabled()
+    expect(replacement).to_be_focused()
+    replacement.press('Escape')
     expect(area).to_be_focused()
     area.press('Control+z')
     expect(area).to_have_value(source)
