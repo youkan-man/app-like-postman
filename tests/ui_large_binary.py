@@ -108,7 +108,7 @@ def main():
             page.screenshot(path=str(out/'binary-512MiB-desktop.png'),full_page=True);shots.append('binary-512MiB-desktop.png')
             # Same bounded path for multipart; verify the complete actual wire body
             # including both file parts, Unicode names and generated framing.
-            page.locator('input[name=bodyMode][value=formdata]').check()
+            page.get_by_label('本文の形式', exact=True).select_option('formdata')
             body=page.locator('#request-fields-body')
             body.get_by_role('button',name='＋ 行を追加',exact=True).click()
             body.get_by_label('Key 1',exact=True).fill('firmware')
@@ -128,7 +128,7 @@ def main():
             records.append({'mode':'multipart','file_mib':384,'receiver':result})
             passed('384 MiB multipart plus empty file: complete wire length and SHA-256 match')
             # Throttle real upload traffic to create a deterministic Cancel window.
-            page.locator('input[name=bodyMode][value=file]').check()
+            page.get_by_label('本文の形式', exact=True).select_option('file')
             count=len(DigestHandler.records);prior_chunks=page.evaluate('__uploadChunks')
             cdp.send('Network.enable')
             cdp.send('Network.emulateNetworkConditions',{'offline':False,'latency':1,'downloadThroughput':-1,'uploadThroughput':4*1024*1024})

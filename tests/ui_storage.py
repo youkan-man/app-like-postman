@@ -31,7 +31,7 @@ def main():
         server, url = start_server(proxy.Handler)
         out = Path(os.environ.get('ARTIFACT_DIR', temp)) / 'storage'
         out.mkdir(parents=True, exist_ok=True)
-        checks, errors = [], []
+        checks, errors, dialog_metrics = [], [], []
         def passed(text):
             checks.append(text); print('PASS ' + text, flush=True)
         try:
@@ -115,7 +115,29 @@ def main():
                 expect(page.locator('#modalMessage')).to_contain_text('既存のワークスペースは維持')
                 assert page.evaluate(READ) == before
                 page.evaluate('() => {IDBObjectStore.prototype.put = window.__put;}')
-                page.screenshot(path=str(out / 'restore-failure-preserved.png'), full_page=True)
+                for width, height, name in [(1440, 900, 'restore-failure-preserved'), (320, 720, 'restore-failure-320')]:
+                    page.set_viewport_size({'width': width, 'height': height})
+                    for identifier in ['modalMessage', 'cancelModal', 'modalSubmit']:
+                        expect(page.locator('#' + identifier)).to_be_in_viewport(ratio=1)
+                    metrics = page.locator('#modal').evaluate('''node => {
+                        const box=node.getBoundingClientRect(),body=node.querySelector('#modalBody');
+                        const cancel=node.querySelector('#cancelModal').getBoundingClientRect();
+                        const submit=node.querySelector('#modalSubmit').getBoundingClientRect();
+                        return {width:innerWidth,height:innerHeight,top:box.top,bottom:box.bottom,
+                            left:box.left,right:box.right,dialog_height:box.height,
+                            body_scroll_width:body.scrollWidth,body_client_width:body.clientWidth,
+                            document_width:document.documentElement.scrollWidth,
+                            cancel_top:cancel.top,submit_top:submit.top,cancel_right:cancel.right,submit_left:submit.left};
+                    }''')
+                    dialog_metrics.append(metrics)
+                    assert metrics['left'] >= 0 and metrics['right'] <= width, metrics
+                    assert metrics['top'] >= 0 and metrics['bottom'] <= height, metrics
+                    assert metrics['body_scroll_width'] <= metrics['body_client_width'], metrics
+                    assert metrics['document_width'] <= width, metrics
+                    assert abs(metrics['cancel_top'] - metrics['submit_top']) <= 1, metrics
+                    assert metrics['cancel_right'] <= metrics['submit_left'], metrics
+                    page.screenshot(path=str(out / (name + '.png')), full_page=True)
+                page.set_viewport_size({'width': 1440, 'height': 900})
                 page.locator('#closeModal').click()
                 expect(page.locator('#url')).to_have_value('https://example.test/keep-on-failure')
                 passed('aborting the second IndexedDB write preserves both live and durable workspace')
@@ -128,7 +150,9 @@ def main():
                 passed('a separate browser profile remains empty until explicit server import')
                 other.close()
                 assert not errors, errors
-                (out / 'result.json').write_text(json.dumps({'checks': checks, 'errors': errors, 'native_indexeddb': True}, ensure_ascii=False, indent=2))
+                (out / 'result.json').write_text(json.dumps({'checks': checks, 'errors': errors, 'native_indexeddb': True,
+                    'dialog_metrics': dialog_metrics,
+                    'screenshots': ['server-restore-desktop.png', 'server-restore-phone.png', 'restore-failure-preserved.png', 'restore-failure-320.png']}, ensure_ascii=False, indent=2))
                 browser.close()
         finally:
             server.shutdown(); server.server_close(); proxy.WORKSPACE_FILE = original

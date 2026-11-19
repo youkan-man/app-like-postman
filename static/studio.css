@@ -23,6 +23,10 @@
 .variables-page .kv-table th:nth-child(3) {width:43%;}
 .variables-page .kv-table input:not([type=checkbox]) {width:100%;}
 .variables-page .table-add {margin-top:8px;}
+.variables-page-heading {flex-wrap:nowrap;margin-bottom:8px;}
+.variables-page-heading h1 {flex-shrink:0;margin-right:0;}
+.variables-page-heading > input {flex:1;min-width:0;}
+.variables-page-heading > button {flex-shrink:0;}
 .source-editor {position:relative;display:grid;grid-template-rows:minmax(0,1fr)22px;min-width:0;width:100%;height:clamp(280px,38vh,580px);min-height:260px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;tab-size:2;}
 .source-editor .source-input,.source-editor .source-highlight {grid-area:1/1;margin:0;padding:10px 12px;min-width:0;min-height:0;width:100%;height:100%;border:0;border-radius:0;font:inherit;line-height:inherit;letter-spacing:normal;white-space:pre;overflow-wrap:normal;word-break:normal;text-align:left;tab-size:2;}
 .source-editor .source-highlight {pointer-events:none;overflow:hidden;color:var(--text);background:transparent;}
@@ -41,19 +45,16 @@
 :root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section-body > :not(.source-editor):not(.script-phase-panel) {flex-shrink:0;}
 :root[data-editor-page=scripts] .script-phase-panel {display:flex;flex-direction:column;flex:1 0 auto;min-width:0;min-height:0;}
 :root[data-editor-page=scripts] .script-phase-panel .section-tools {flex-shrink:0;}
-:root:is([data-editor-page=body],[data-editor-page=scripts]) .source-editor {flex:1 0 104px;height:auto;min-height:104px;resize:none;}
-.body-toolbar {flex-shrink:0;gap:7px 12px;}
+:root:is([data-editor-page=body],[data-editor-page=scripts]) .editor-section-body .source-editor {flex:1 0 104px;height:auto;min-height:104px;resize:none;}
+.body-toolbar {flex-shrink:0;}
 .section-tools,.script-tools {display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;margin:8px 0;}
 .section-tools h2,.section-tools h3 {font-size:13px;font-weight:650;margin:0 auto 0 0;}
-.script-tools .form-field {max-width:220px;margin:0 0 0 auto;}
-.script-tools .form-field label {font-size:11px;}
-.script-tools .settings-line {margin:0;}
-:root[data-editor-page=scripts] .script-tools {margin:4px 0;gap:4px 12px;}
-:root[data-editor-page=scripts] .script-tools .form-field {display:flex;flex-direction:row;align-items:center;gap:6px;max-width:none;min-width:0;}
-:root[data-editor-page=scripts] .script-tools .form-field label {margin:0;white-space:nowrap;}
-:root[data-editor-page=scripts] .script-tools .form-field input {width:80px;min-width:0;min-height:30px;padding:5px 6px;}
-:root[data-editor-page=scripts] .script-phase-tabs {margin-top:4px;}
-:root[data-editor-page=scripts] .script-phase-panel .section-tools {margin:4px 0;}
+.script-tools {margin:0 0 4px;gap:4px 8px;border-bottom:1px solid var(--line);}
+.script-tools .form-field {display:flex;flex-direction:row;align-items:center;gap:6px;max-width:none;min-width:0;margin:0 0 0 auto;}
+.script-tools .form-field label {font-size:11px;margin:0;white-space:nowrap;}
+.script-tools .form-field input {width:80px;min-width:0;min-height:30px;padding:5px 6px;}
+.script-tools .settings-line {margin:0;white-space:nowrap;}
+.script-tools > .text-button {flex-shrink:0;padding:4px 6px;}
 /* Very short windows keep each pane scrollable when its controls alone are
    taller than the available split. The workspace and footer stay on screen. */
 @media (max-height:560px) {
@@ -62,8 +63,6 @@
   .request-editor > .editor-content {flex:1 0 160px;min-height:160px;}
   .response-panel > .response-content {flex:1 0 80px;min-height:80px;}
 }
-.script-api {margin:8px 0;color:var(--muted);line-height:1.6;font-size:12px;}
-.script-api code {display:block;padding:8px 0;white-space:normal;overflow-wrap:anywhere;}
 .script-log {margin:6px 0;max-height:150px;overflow:auto;white-space:pre-wrap;color:var(--text);}
 .script-log:empty {display:none;}
 .imported-scripts pre {max-height:150px;overflow:auto;white-space:pre-wrap;}
@@ -88,13 +87,16 @@
 .extraction-candidate {display:grid;grid-template-columns:20px minmax(0,1fr) minmax(0,2fr);align-items:center;gap:8px;padding:6px 0;}
 .extraction-candidate label {min-width:0;overflow-wrap:anywhere;}
 .extraction-candidate input[type=text] {min-width:0;width:100%;padding:6px;}
-.relation-settings {display:flex;flex-wrap:wrap;align-items:end;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px;}
+.relation-page-heading {display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto auto;gap:6px;margin-bottom:8px;}
+.relation-page-heading h1 {margin:0;}
+.relation-page-heading > input {width:100%;min-width:0;}
+.relation-settings {display:flex;flex-wrap:wrap;align-items:end;gap:6px 12px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px;}
 .relation-settings .form-field {margin:0;min-width:110px;max-width:210px;}
 .relation-settings .form-field label {font-size:11px;}
 .relation-settings input,.relation-settings select {padding:6px;min-height:30px;}
 .relation-settings .settings-line {margin:0 0 6px;}
 .relation-editor {min-width:0;}
-.relation-step {border:1px solid var(--line);border-left:3px solid var(--line);border-radius:3px;margin:0 0 9px;padding:8px 10px;background:var(--surface);}
+.relation-step {border:1px solid var(--line);border-left:3px solid var(--line);border-radius:3px;margin:0 0 6px;padding:8px 10px;background:var(--surface);}
 .relation-step.running {border-left-color:var(--accent);background:var(--accent-bg);}
 .relation-step.drop-target {outline:2px solid var(--accent);}
 .relation-step-heading {display:flex;align-items:center;gap:7px;}
@@ -102,18 +104,21 @@
 .step-number {width:22px;flex:0 0 22px;color:var(--accent);}
 .relation-step-heading > select {flex:1;min-width:0;padding:6px 8px;}
 .relation-step-heading .icon-button {min-width:28px;width:28px;min-height:29px;}
-.step-timing {display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:7px 0 0 34px;}
-.step-timing .form-field {display:flex;align-items:center;gap:5px;margin:0;}
+.step-timing {display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:6px 0 0 34px;}
+.step-timing .form-field {display:flex;flex-direction:row;align-items:center;gap:5px;min-width:0;margin:0;}
 .step-timing .form-field label {font-size:11px;white-space:nowrap;margin:0;}
 .step-timing input[type=number] {width:76px;padding:5px 6px;min-height:28px;}
 .step-timing .settings-line {margin:0 0 0 auto;font-size:12px;}
-.step-branch {display:grid;grid-template-columns:minmax(140px,1fr) minmax(130px,1.3fr) minmax(80px,.7fr) minmax(100px,1fr);gap:8px;border-top:1px solid var(--subtle);padding-top:8px;margin-top:8px;}
+.step-branch {display:grid;grid-template-columns:minmax(140px,1fr) minmax(130px,1.3fr) minmax(80px,.7fr) minmax(100px,1fr);gap:6px;border-top:1px solid var(--subtle);padding-top:6px;margin-top:6px;}
 .step-branch > input,.step-branch > select {width:100%;padding:6px;}
-.step-branch .form-field {display:flex;align-items:center;gap:7px;margin:0;grid-column:span 2;}
-.step-branch .form-field label {font-size:11px;white-space:nowrap;}
-.step-branch .form-field select {width:100%;padding:5px;}
-.step-branch .text-button {grid-column:1/-1;justify-self:start;}
-.relation-log {margin-top:14px;border-top:1px solid var(--line);padding-top:8px;min-width:0;overflow:auto;}
+.step-branch-path {display:flex;align-items:center;gap:3px;min-width:0;}
+.step-branch-path input {flex:1;min-width:0;width:100%;padding:6px;}
+.step-branch-path .icon-button {flex-shrink:0;width:28px;min-width:28px;}
+.step-branch .form-field {display:flex;flex-direction:row;align-items:center;gap:6px;min-width:0;margin:0;grid-column:span 2;}
+.step-branch .form-field label {font-size:11px;white-space:nowrap;margin:0;}
+.step-branch .form-field select {flex:1;min-width:0;width:100%;padding:5px;}
+.relation-log {margin-top:8px;border-top:1px solid var(--line);padding-top:8px;min-width:0;overflow:auto;}
+.relation-log .section-tools {margin:0 0 6px;}
 .run-table {width:100%;font-size:12px;border-collapse:collapse;}
 .run-table th,.run-table td {text-align:left;padding:6px 8px;border-bottom:1px solid var(--subtle);overflow-wrap:anywhere;}
 .run-table th {color:var(--muted);font-size:11px;font-weight:600;}
@@ -130,13 +135,16 @@
  .workspace-note {font-size:11px;}
  .source-editor {min-height:260px;height:320px;}
  .source-editor .source-input,.source-editor .source-highlight {padding:8px;font-size:12px;}
- .script-tools .form-field {max-width:160px;}
+ .variables-page-heading > input {min-width:0;}
+ .relation-page-heading {grid-template-columns:auto auto minmax(0,1fr) auto;}
+ .relation-page-heading > input {grid-column:2/-1;}
  .metadata-row {grid-template-columns:minmax(0,1fr) max-content minmax(0,1fr);gap:6px;padding:6px 5px;font-size:12px;}
  .extraction-rule {grid-template-columns:18px 1fr 1fr;}
  .extraction-rule select {grid-column:2;}
- .step-timing {gap:6px;}
- .step-timing .form-field {gap:3px;}
- .step-timing input[type=number] {width:88px;max-width:100%;}
+ .step-timing {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px;}
+ .step-timing .form-field {justify-content:space-between;gap:4px;}
+ .step-timing input[type=number] {flex:0 1 76px;min-width:0;width:76px;max-width:100%;}
+ .step-timing .settings-line {justify-self:end;margin:0;}
  .relation-settings {gap:7px;}
  .relation-settings .form-field {flex:1 1 120px;max-width:none;}
  .relation-step {padding:7px 6px;}
@@ -151,9 +159,7 @@
  #stopRelationGlobal {font-size:11px;padding:5px;}
 }
 @media(forced-colors:active) {.source-highlight {display:none;}.source-editor .source-input {color:CanvasText;-webkit-text-fill-color:CanvasText;}}
-.script-phase-tabs {border-bottom:1px solid var(--line);margin-top:8px;}
-.script-phase-panel .section-tools {justify-content:flex-end;}
-.script-phase-panel .section-tools h3 {display:none;}
+.script-phase-tabs {flex-shrink:0;margin:0;}
 
 /* Confirmation is a separate top-layer dialog, never a native browser alert. */
 .app-confirm {width:min(480px,calc(100vw - 24px));margin:auto;padding:16px;border-radius:4px;background:var(--surface);color:var(--text);}

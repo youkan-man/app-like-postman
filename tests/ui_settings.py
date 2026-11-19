@@ -19,7 +19,7 @@ def main():
     app, app_url = start_server(proxy.Handler)
     out = Path(os.environ.get('ARTIFACT_DIR', tempfile.mkdtemp(prefix='minipost-settings-'))) / 'settings'
     out.mkdir(parents=True, exist_ok=True)
-    checks, errors, images = [], [], []
+    checks, errors, images, dialog_metrics = [], [], [], []
 
     def passed(name):
         checks.append(name)
@@ -234,6 +234,28 @@ def main():
             modal.get_by_label('Value 1', exact=True).fill('scope-live')
             modal.get_by_label('Token', exact=True).fill('scope-token')
             saved()
+            for width, height in [(1440, 900), (320, 720)]:
+                page.set_viewport_size({'width': width, 'height': height})
+                modal.get_by_label('Name', exact=True).scroll_into_view_if_needed()
+                for label in ['Name', 'Value 1', 'Token']:
+                    expect(modal.get_by_label(label, exact=True)).to_be_in_viewport(ratio=1)
+                for label in ['行 1 の操作', '行 1 を削除']:
+                    expect(modal.get_by_role('button', name=label, exact=True)).to_be_in_viewport(ratio=1)
+                expect(page.locator('#closeModal')).to_be_in_viewport(ratio=1)
+                metrics = modal.evaluate('''node => {
+                    const box=node.getBoundingClientRect(),body=node.querySelector('#modalBody');
+                    return {width:innerWidth,height:innerHeight,top:box.top,bottom:box.bottom,
+                        left:box.left,right:box.right,dialog_height:box.height,
+                        body_scroll_width:body.scrollWidth,body_client_width:body.clientWidth,
+                        document_width:document.documentElement.scrollWidth};
+                }''')
+                dialog_metrics.append(metrics)
+                assert metrics['left'] >= 0 and metrics['right'] <= width, metrics
+                assert metrics['top'] >= 0 and metrics['bottom'] <= height, metrics
+                assert metrics['body_scroll_width'] <= metrics['body_client_width'], metrics
+                assert metrics['document_width'] <= width, metrics
+                capture(f'collection-settings-{width}')
+            page.set_viewport_size({'width': 1600, 'height': 980})
             result = send()
             assert dict(result['headers'])['Authorization'] == 'Bearer scope-token'
             assert 'scope=scope-live' in result['path']
@@ -318,7 +340,7 @@ def main():
             passed('no uncaught browser JavaScript errors')
             browser.close()
     finally:
-        (out / 'results.json').write_text(json.dumps({'passed': len(checks), 'checks': checks, 'screenshots': images, 'page_errors': errors,
+        (out / 'results.json').write_text(json.dumps({'passed': len(checks), 'checks': checks, 'screenshots': images, 'dialog_metrics': dialog_metrics, 'page_errors': errors,
             'target': 'real loopback HTTP', 'storage_failure_test': 'Storage.setItem only; HTTP not mocked'}, ensure_ascii=False, indent=2))
         for server in (app, echo):
             server.shutdown(); server.server_close()

@@ -12,9 +12,9 @@ from script_editor_checks import check_editor
 
 def check_json_formatting(page, passed, capture):
     page.locator('#editor-tab-body').click()
-    raw_mode = page.locator('#editorContent').get_by_role('radio', name='raw', exact=True)
-    raw_mode.check()
-    expect(raw_mode).to_be_checked()
+    body_mode = page.get_by_label('本文の形式', exact=True)
+    body_mode.select_option('raw')
+    expect(body_mode).to_have_value('raw')
     page.get_by_label('本文のフォーマット', exact=True).select_option('json')
     area = page.get_by_label('Raw body', exact=True)
     original = '{"name":"Ada","enabled":true,"items":[1,2]}'

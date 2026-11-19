@@ -25,6 +25,7 @@ def main():
     temp = tempfile.TemporaryDirectory(prefix='minipost-ribbon-server-')
     original_file, server, url = proxy.WORKSPACE_FILE, None, os.environ.get('MINIPOST_REMOTE_URL')
     checks, screenshots, errors, dialogs, crashes, requests = [], [], [], [], [], []
+    density_metrics = []
     page, completed = None, False
 
     def passed(message):
@@ -154,8 +155,11 @@ def main():
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modal')).not_to_be_visible()
                 close_navigation()
-                page.get_by_label('リボンの参照キー', exact=True).fill(key)
-                page.get_by_label('リボンの参照キー', exact=True).press('Tab')
+                page.get_by_role('button', name='リボンの操作', exact=True).click()
+                page.get_by_role('menuitem', name='リボンの設定', exact=True).click()
+                page.locator('#modal').get_by_label('リボンの参照キー', exact=True).fill(key)
+                page.locator('#modalSubmit').click()
+                expect(page.locator('#modal')).not_to_be_visible()
                 return next(item['id'] for item in current_scope()['ribbons'] if item['key'] == key)
 
             def open_ribbon(identifier):
@@ -242,7 +246,8 @@ def main():
             draft_a = create_draft(request_a, 'request-a', initial=True)
             main_id = create_ribbon('操作パネル', 'main')
             owner_a = owner_state(request_a)['id']
-            page.locator('.ribbon-editor-tools').get_by_role('button', name='グループを追加', exact=True).click()
+            page.locator('.ribbon-editor-tools').get_by_role('button', name='項目を追加 ▾', exact=True).click()
+            page.get_by_role('menuitem', name='グループを追加', exact=True).click()
             page.locator('#modal').get_by_label('グループ名', exact=True).fill('操作')
             page.locator('#modalSubmit').click()
             toggle_id = add_control('チェック', 'ready', '結果を表示')
@@ -543,15 +548,15 @@ def main():
                     passed(f'{width} px mobile reaches and executes the last ribbon action without horizontal scrolling')
 
                 open_ribbon(main_id)
-                choose(run_id)
                 expect(page.locator('#customRibbon')).not_to_be_visible()
                 expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
-                expect(props.get_by_label('項目のラベル', exact=True)).to_have_value('集計を実行')
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
                 page.locator('.ribbon-page-title').scroll_into_view_if_needed()
                 capture(f'ribbon-overview-{width}x{height}')
                 page.locator('#ribbonCanvas').scroll_into_view_if_needed()
                 capture(f'ribbon-editor-{width}x{height}')
+                choose(run_id)
+                expect(props.get_by_label('項目のラベル', exact=True)).to_have_value('集計を実行')
                 props.scroll_into_view_if_needed()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
                 if width < 740:
@@ -564,8 +569,11 @@ def main():
                 if width < 740:
                     mobile_context.locator('[data-ribbon-back-to-list]').click()
                     expect(page.locator('#ribbonCanvas')).to_be_in_viewport()
+                    expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
+                    expect(props).not_to_be_visible()
                     choose(run_id)
                     expect(props).to_be_in_viewport()
+                    expect(page.locator('#ribbonCanvas')).not_to_be_visible()
                     expect(mobile_context).to_be_visible()
                     expect(mobile_context).to_contain_text(request_a)
                     expect(mobile_context).to_contain_text('集計を実行')
@@ -619,6 +627,67 @@ def main():
             assert control_state(workspace, b_count, owner_b)['value'] == 3
             assert control_state(workspace, copy_count, owner_copy)['value'] == 21
             passed('explicit legacy import creates an independently executable request copy without changing the archive or other requests')
+
+            # A one-button ribbon exposes framing overhead that a full panel can
+            # hide. Create it through the current request menu and measure the
+            # rendered controls without shrinking their text or touch target.
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            operate()
+            sidebar('collections')
+            page.locator('#addTab').click()
+            new_request = page.get_by_role('menuitem', name='リクエストを作成', exact=True)
+            single_request = '単一ボタンのリクエスト'
+            if new_request.is_visible():
+                new_request.click()
+            else:
+                page.get_by_role('menuitem', name='この階層にリクエストを追加', exact=True).click()
+                page.locator('#modal').get_by_label('追加する名前', exact=True).fill(single_request)
+                page.locator('#modalSubmit').click()
+                expect(page.locator('#modal')).not_to_be_visible()
+            close_navigation()
+            page.locator('#requestName').fill(single_request)
+            page.locator('#url').fill('https://example.invalid/single-button')
+            saved()
+            single_ribbon = create_ribbon('実行', 'single')
+            single_button = add_control('ボタン', 'run', '実行')
+            for width, height in [(1440, 900), (390, 844), (320, 720)]:
+                page.set_viewport_size({'width': width, 'height': height})
+                operate()
+                expect(page.locator('#requestName')).to_have_value(single_request)
+                bar = page.locator('#customRibbon')
+                expect(bar).to_be_visible()
+                expect(bar.get_by_role('button')).to_have_count(1)
+                expect(bar.locator('.ribbon-live-heading')).not_to_be_visible()
+                expect(bar.locator('.ribbon-live-group-name')).not_to_be_visible()
+                expect(page.get_by_label('表示するリボン', exact=True)).not_to_be_visible()
+                live(single_button).scroll_into_view_if_needed()
+                metrics = bar.evaluate('''node => {
+                    const ribbon = node.getBoundingClientRect();
+                    const button = node.querySelector('[data-ribbon-input]');
+                    const control = button.getBoundingClientRect();
+                    return {width:innerWidth, height:innerHeight,
+                        ribbon_height:ribbon.height, button_height:control.height,
+                        overhead:ribbon.height-control.height,
+                        space_above:control.top-ribbon.top, space_below:ribbon.bottom-control.bottom,
+                        button_font_size:parseFloat(getComputedStyle(button).fontSize),
+                        document_width:document.documentElement.scrollWidth};
+                }''')
+                density_metrics.append(metrics)
+                assert metrics['ribbon_height'] <= metrics['button_height'] + 18, metrics
+                assert metrics['button_height'] >= (36 if width < 740 else 32), metrics
+                assert metrics['button_font_size'] >= 13, metrics
+                assert metrics['document_width'] <= width, metrics
+                expect(live(single_button)).to_be_in_viewport(ratio=1)
+                capture(f'single-button-live-{width}x{height}')
+
+                open_ribbon(single_ribbon)
+                first_item = page.locator(f'#ribbonCanvas [data-control-id="{single_button}"]')
+                expect(first_item).to_be_in_viewport(ratio=1)
+                expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
+                metrics['editor_item'] = first_item.evaluate('node => {const b=node.getBoundingClientRect();return {top:b.top,bottom:b.bottom,height:b.height};}')
+                capture(f'single-button-editor-{width}x{height}')
+            passed('one-button ribbons keep framing within 18 px of the readable button and show the first editor item immediately on desktop and mobile')
             assert not errors and not dialogs and not crashes, (errors, dialogs, crashes)
             assert not requests, requests
             passed('request-owned ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends')
@@ -626,7 +695,7 @@ def main():
             browser.close()
     finally:
         (out / 'results.json').write_text(json.dumps({'ok': completed, 'mode': 'native Chromium HTTP', 'native_indexeddb': True,
-            'checks': checks, 'screenshots': screenshots, 'page_errors': errors, 'native_dialogs': dialogs, 'crashes': crashes,
+            'checks': checks, 'screenshots': screenshots, 'density_metrics': density_metrics, 'page_errors': errors, 'native_dialogs': dialogs, 'crashes': crashes,
             'unexpected_requests': requests}, ensure_ascii=False, indent=2))
         if server:
             server.shutdown()

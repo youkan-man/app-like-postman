@@ -92,14 +92,14 @@ def main():
             assert json.loads(target.read_text())['method'] == 'POST'
             passed('response highlighting, search and lossless download')
 
-            page.locator('input[name=bodyMode][value=file]').check()
+            page.get_by_label('本文の形式', exact=True).select_option('file')
             with page.expect_file_chooser() as chooser:
                 page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='ファイルを選択', exact=True).click()
             chooser.value.set_files({'name': 'payload.bin', 'mimeType': 'application/octet-stream', 'buffer': b'\x00\x01\xff'})
             send(); assert body_json()['body_base64'] == 'AAH/'
             passed('binary file upload through browser and Python proxy')
 
-            page.locator('input[name=bodyMode][value=formdata]').check()
+            page.get_by_label('本文の形式', exact=True).select_option('formdata')
             page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
             page.locator('section.editor-section[data-pane=body]').get_by_label('Key 1', exact=True).fill('metadata'); page.locator('section.editor-section[data-pane=body]').get_by_label('Value 1', exact=True).fill('hello {{label}}')
             page.locator('section.editor-section[data-pane=body]').get_by_role('button', name='＋ 行を追加').click()
@@ -111,7 +111,7 @@ def main():
             assert 'hello workspace' in payload['body']; assert 'filename="a.bin"' in payload['body']; assert 'boundary=' in dict(payload['headers'])['Content-Type']
             passed('multipart text variables and actual file bytes')
 
-            page.locator('input[name=bodyMode][value=raw]').check(); page.keyboard.press('Control+s')
+            page.get_by_label('本文の形式', exact=True).select_option('raw'); page.keyboard.press('Control+s')
             open_request('Cookie response'); send(); page.locator('#response-tab-cookies').click()
             expect(page.locator('.kv-readonly')).to_contain_text('a=1'); expect(page.locator('.kv-readonly')).to_contain_text('b=2')
             passed('separate duplicate Set-Cookie response rows')

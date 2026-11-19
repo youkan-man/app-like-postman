@@ -23,6 +23,7 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
         checks = []
         errors = []
+        dialog_metrics = []
 
         def passed(text):
             checks.append(text)
@@ -53,14 +54,36 @@ def main():
                 env = {'name': 'QA backup', '_postman_variable_scope': 'environment',
                        'values': [{'key': 'key', 'value': 'test-local-only'}]}
 
-                def import_one(data):
+                def import_one(data, capture_input=False):
                     page.locator('#import').click()
+                    if capture_input:
+                        page.set_viewport_size({'width': 320, 'height': 720})
+                        modal = page.locator('#modal')
+                        expect(modal.get_by_role('button', name='JSONファイルを選択', exact=True)).to_be_in_viewport(ratio=1)
+                        expect(modal.get_by_role('button', name='フォルダーを選択', exact=True)).to_be_in_viewport(ratio=1)
+                        expect(modal.get_by_label('インポートJSON', exact=True)).to_be_in_viewport(ratio=1)
+                        expect(page.locator('#cancelModal')).to_be_in_viewport(ratio=1)
+                        expect(page.locator('#modalSubmit')).to_be_in_viewport(ratio=1)
+                        metrics = modal.evaluate('''node => {
+                            const box=node.getBoundingClientRect(),body=node.querySelector('#modalBody');
+                            return {width:innerWidth,height:innerHeight,top:box.top,bottom:box.bottom,
+                                left:box.left,right:box.right,dialog_height:box.height,
+                                body_scroll_width:body.scrollWidth,body_client_width:body.clientWidth,
+                                document_width:document.documentElement.scrollWidth};
+                        }''')
+                        dialog_metrics.append(metrics)
+                        assert metrics['left'] >= 0 and metrics['right'] <= 320, metrics
+                        assert metrics['top'] >= 0 and metrics['bottom'] <= 720, metrics
+                        assert metrics['body_scroll_width'] <= metrics['body_client_width'], metrics
+                        assert metrics['document_width'] <= 320, metrics
+                        page.screenshot(path=str(out / 'import-input-320.png'), full_page=True)
+                        page.set_viewport_size({'width': 1440, 'height': 900})
                     page.get_by_label('インポートJSON').fill(json.dumps(data))
                     page.locator('#modalSubmit').click()
                     expect(page.locator('#modalTitle')).to_have_text('インポート完了')
                     page.locator('#modalSubmit').click()
 
-                import_one(collection)
+                import_one(collection, capture_input=True)
                 import_one(env)
                 assert server_workspace()[0] == 404
                 state = page.evaluate('JSON.parse(localStorage.getItem("minipost.workspace.v2"))')
@@ -194,8 +217,8 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 assert not errors, errors
                 passed('backup UI and context actions produce no browser exceptions or viewport overflow')
-                (out / 'result.json').write_text(json.dumps({'checks': checks, 'errors': errors,
-                    'screenshots': ['whole-backup-desktop.png', 'whole-backup-phone.png']}, ensure_ascii=False, indent=2))
+                (out / 'result.json').write_text(json.dumps({'checks': checks, 'errors': errors, 'dialog_metrics': dialog_metrics,
+                    'screenshots': ['import-input-320.png', 'whole-backup-desktop.png', 'whole-backup-phone.png']}, ensure_ascii=False, indent=2))
                 browser.close()
         finally:
             for server in (app, echo):

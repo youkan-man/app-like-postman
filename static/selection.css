@@ -7,11 +7,15 @@
 }
 #addTab {flex:0 0 auto; height:auto; margin:0;}
 #requestDirty {white-space:nowrap; font-size:.85rem;}
-.revision-toolbar {display:flex; align-items:center; flex-wrap:wrap; gap:12px; justify-content:space-between;}
+.revision-toolbar {display:flex; align-items:center; gap:8px; margin-bottom:6px; min-width:0;}
+.revision-toolbar > strong {display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; font-weight:600;}
 .revision-entry {border-bottom:1px solid var(--line); padding:12px 0;}
 .revision-entry summary {cursor:pointer; overflow-wrap:anywhere;}
 .revision-value {max-height:340px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere;}
-.settings-history {margin-top:12px;}
+.revision-panel .revision-entry {padding:8px; border-radius:0;}
+.revision-panel .revision-entry + .revision-entry {border-top:0;}
+.revision-panel .revision-value {padding:8px; margin:6px 0;}
+.revision-panel .revision-entry .button {margin:2px 0;}
 @media(max-width:600px) {
   #requestHistory {padding:4px 6px;}
   .request-title {flex-wrap:wrap;}
