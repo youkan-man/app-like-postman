@@ -1,0 +1,23 @@
+{
+  "branch": "fix/ribbon-density-20261119",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-19T10:37:17.801141Z",
+    "id": "lrce-1932a15f228c02edbf99a582",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "b87fdd7b79b0336ffe234757ab21cfafb385df3a4317071c859415ea629c51ce",
+    "sandbox_id": "sb-477db8ff16a1",
+    "source_generation": 2
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-48544904588b89d6-app",
+  "source_sha": "1699224afbc8fa2105f0e1f6105505a6bf62ccdb",
+  "started_at": "2026-11-19T08:14:05.603917622Z",
+  "status": "ready",
+  "version": 1
+}
