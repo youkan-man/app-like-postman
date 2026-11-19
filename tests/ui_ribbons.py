@@ -42,6 +42,11 @@ def main():
                     screenshots.append('failure.png')
                 except Exception:
                     pass
+                try:
+                    snapshot = page.evaluate(READ_WORKSPACE)
+                    (out / 'failure-workspace.json').write_text(json.dumps(snapshot, ensure_ascii=False, indent=2))
+                except Exception:
+                    pass
             raise
 
     try:
@@ -419,18 +424,18 @@ def main():
             delayed_id = create_script('遅延した所有者への書き込み', "await new Promise(resolve=>setTimeout(resolve,1800)); const count=ribbon.get('main.count'); ribbon.set('main.result',{owner:'A',count}); return count;")
             page.locator('#runStandaloneScript').click()
             expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'running')
+            expect(page.locator('#stopRelationGlobal')).to_be_visible()
             select_request(request_b)
             expect(live(b_count)).to_have_value('3')
-            # Observe real IndexedDB completion; this does not inject app state.
-            page.wait_for_function(
-                "async args => {const workspace = await (" + READ_WORKSPACE + ")();"
-                "const owners = workspace.tabs.map(tab => tab.ribbonState).filter(Boolean);"
-                "const state = owners.find(state => state.id === args.owner);"
-                "const control = state && state.ribbons.flatMap(r => r.groups).flatMap(g => g.controls).find(c => c.id === args.control);"
-                "return control && control.value && control.value.owner === 'A';}",
-                arg={'owner': owner_a, 'control': output_id})
+            # Wait for the real operation to end, then read the committed state.
+            # An async wait_for_function predicate resolves its Promise once;
+            # a false resolved value does not trigger another predicate poll.
+            expect(page.locator('#stopRelationGlobal')).not_to_be_visible()
             workspace = saved()
-            assert control_state(workspace, output_id, owner_a)['value'] == {'owner': 'A', 'count': 9}
+            actual = control_state(workspace, output_id, owner_a)['value']
+            assert actual == {'owner': 'A', 'count': 9}, {
+                'actual': actual, 'owner_count': control_state(workspace, count_id, owner_a)['value'],
+                'script': next(script['source'] for script in workspace['scripts'] if script['id'] == delayed_id)}
             assert control_state(workspace, b_output, owner_b)['value'] == {'value': 6}
             assert any(script['id'] == delayed_id for script in workspace['scripts'])
             passed('a script completing after request navigation commits to the captured owner and leaves the new request untouched')
