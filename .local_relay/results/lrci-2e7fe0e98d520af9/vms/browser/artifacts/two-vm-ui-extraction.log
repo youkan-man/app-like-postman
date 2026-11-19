@@ -1,0 +1,11 @@
+PASS target changes only toggle relevant fields and preserve actual controls, values and checks
+PASS candidate label toggles only its checkbox; editing its value does not toggle selection
+PASS narrow extraction forms remain usable and cancellation changes neither values nor environment count
+PASS environment page uses available name width and retains controls for long names on tablet and phone
+PASS environment, Globals and primary pages contain no redundant implementation notes
+PASS mouse and Enter selection preserve the actual metadata button, focus and list scroll
+PASS keyboard navigation selects rows, explicit variable names survive and manual paths synchronize highlighting
+PASS filtered rows support Home/End, keyboard context menus and a visible touch-accessible menu
+PASS empty search is explicit and clearing search retains nodes; escaped JSON Pointers remain exact
+PASS phone/tablet/enlarged text remain operable and extraction stores the selected false value losslessly
+PASS no uncaught browser exceptions

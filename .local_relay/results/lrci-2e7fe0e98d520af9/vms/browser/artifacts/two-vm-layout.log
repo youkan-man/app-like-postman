@@ -1,0 +1,23 @@
+PASS new unregistered request and registration dialog remain readable and operable at 320px
+PASS new unregistered request and registration dialog remain readable and operable at 390px
+PASS body after a real send fills the workbench and exposes both panes at 1366x768
+PASS body after a real send fills the workbench and exposes both panes at 1440x920
+PASS body after a real send fills the workbench and exposes both panes at 320x720
+PASS body after a real send fills the workbench and exposes both panes at 390x844
+PASS body split keyboard, pointer and viewport resizing move actual panels while preserving readable content
+PASS scripts after a real send fills the workbench and exposes both panes at 1366x768
+PASS scripts after a real send fills the workbench and exposes both panes at 1440x920
+PASS scripts after a real send fills the workbench and exposes both panes at 320x720
+PASS scripts after a real send fills the workbench and exposes both panes at 390x844
+PASS scripts split keyboard, pointer and viewport resizing move actual panels while preserving readable content
+PASS running manual script keeps every header action reachable without overlap at 320, 390 and 768px, and stops normally
+PASS side request title keeps a readable name beside a long breadcrumb and unsaved state near its wrapping boundary
+PASS narrow desktop request pane preserves the complete registration label and URL controls
+PASS narrow desktop response pane keeps status, actions, search and keyboard-selected tabs visible without overlap
+PASS short 1440x520 window keeps request controls and both content panes reachable without hiding the footer
+PASS short 844x390 window keeps request controls and both content panes reachable without hiding the footer
+PASS long history names and URLs retain compact stable rows, readable status and working menus at 1440px
+PASS long history names and URLs retain compact stable rows, readable status and working menus at 1024px
+PASS long history names and URLs retain compact stable rows, readable status and working menus at 390px
+PASS long history names and URLs retain compact stable rows, readable status and working menus at 320px
+PASS no uncaught browser errors, native dialogs or browser crashes
