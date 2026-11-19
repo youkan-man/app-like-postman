@@ -11,6 +11,7 @@ export function initWorkbench(storage = localStorage) {
     open: saved.open !== false,
     split: saved.split === 'side' ? 'side' : 'stack',
     stackRatio: Number.isFinite(saved.stackRatio) ? clamp(saved.stackRatio, .25, .75) : .46,
+    stackAuto: typeof saved.stackAuto === 'boolean' ? saved.stackAuto : !Number.isFinite(saved.stackRatio) || saved.stackRatio === .46,
     sideRatio: Number.isFinite(saved.sideRatio) ? clamp(saved.sideRatio, .25, .75) : .5,
     wrap: saved.wrap !== false,
   };
@@ -76,7 +77,22 @@ export function initWorkbench(storage = localStorage) {
   }
   function applySplit(split) {
     const bounds = splitBounds(split), key = split === 'side' ? 'sideRatio' : 'stackRatio';
-    renderedRatio = clamp(state[key], bounds.min, bounds.max);
+    let preferred = state[key];
+    if (split === 'stack' && state.stackAuto && root.dataset.responseEmpty === 'false'
+        && !['body', 'scripts'].includes(root.dataset.editorPage)) {
+      const content = $('editorContent'), request = document.querySelector('.request-editor');
+      const available = $('exchange').clientHeight - $('responseResize').getBoundingClientRect().height;
+      const sections = [...content.children].filter(section => !section.hidden);
+      const naturalHeight = sections.reduce((height, section) => {
+        const style = getComputedStyle(section);
+        return height + section.getBoundingClientRect().height + pixels(style.marginTop) + pixels(style.marginBottom);
+      }, 0);
+      const contentStyle = getComputedStyle(content);
+      const required = content.getBoundingClientRect().top - request.getBoundingClientRect().top
+        + naturalHeight + pixels(contentStyle.paddingTop) + pixels(contentStyle.paddingBottom);
+      if (available > 0) preferred = Math.min(preferred, required / available);
+    }
+    renderedRatio = clamp(preferred, bounds.min, bounds.max);
     // Fractional factors below 1 leave unused space when another track reaches
     // its minimum. Larger equivalent weights always consume the available pane.
     const requestWeight = Math.round(renderedRatio * 100000) / 1000;
@@ -172,6 +188,7 @@ export function initWorkbench(storage = localStorage) {
     const ratio = split === 'side' ? (event.clientX - box.x - handle.width / 2) / (box.width - handle.width)
       : (event.clientY - box.y - handle.height / 2) / (box.height - handle.height);
     state[split === 'side' ? 'sideRatio' : 'stackRatio'] = clamp(ratio, .25, .75);
+    if (split === 'stack') state.stackAuto = false;
     apply();
   });
   $('sidebarResize').onkeydown = event => {
@@ -182,18 +199,20 @@ export function initWorkbench(storage = localStorage) {
     const split = effectiveSplit(), keys = split === 'side' ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
     if (![...keys, 'Home', 'End'].includes(event.key)) return;
     event.preventDefault(); const key = split === 'side' ? 'sideRatio' : 'stackRatio';
-    state[key] = event.key === 'Home' ? .25 : event.key === 'End' ? .75 : clamp(renderedRatio + (event.key === keys[1] ? .05 : -.05), .25, .75); apply(); save();
+    state[key] = event.key === 'Home' ? .25 : event.key === 'End' ? .75 : clamp(renderedRatio + (event.key === keys[1] ? .05 : -.05), .25, .75);
+    if (split === 'stack') state.stackAuto = false;
+    apply(); save();
   };
   narrow.addEventListener('change', () => { mobileOpen = false; apply(); });
   wide.addEventListener('change', apply);
   // Observe layout controls, not editable text/highlighting. The exchange's own
   // size is independent of its split, so changing a ratio does not resize-loop.
   const layoutObserver = new ResizeObserver(queueLayout);
-  for (const element of document.querySelectorAll('#exchange,.request-title,.urlbar,#editorTabs,#requestWarning,.response-heading,.response-toolbar,#automationError')) layoutObserver.observe(element);
+  for (const element of document.querySelectorAll('#exchange,.request-title,.urlbar,#customRibbon,#editorTabs,#requestWarning,.response-heading,.response-toolbar,#automationError')) layoutObserver.observe(element);
   const controlsObserver = new ResizeObserver(queueLayout);
   function watchEditorControls() {
     controlsObserver.disconnect();
-    for (const element of $('editorContent').querySelectorAll('.editor-section-heading,.body-toolbar,.script-tools,.script-phase-tabs,.script-phase-panel .section-tools')) controlsObserver.observe(element);
+    for (const element of $('editorContent').querySelectorAll('.editor-section-heading,.editor-section:not([data-pane=body]):not([data-pane=scripts]),.body-toolbar,.script-tools,.script-phase-tabs,.script-phase-panel .section-tools')) controlsObserver.observe(element);
   }
   new MutationObserver(records => {
     if (!records.some(record => record.target.matches('#editorContent,.editor-section,.editor-section-body,.script-phase-panel'))) return;

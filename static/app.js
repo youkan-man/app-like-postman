@@ -88,7 +88,7 @@ function toast(message) {$('toast').textContent = message; $('toast').hidden = f
 function setSaveStatus(message, failed = false) {
   saveStatus = message; $('saveState').textContent = message;
   const status = $('drawerSaveState');
-  if (status) {status.textContent = message; status.classList.toggle('save-error', failed);}
+  if (status) {status.textContent = message.replace('ローカルに', ''); status.title = message; status.classList.toggle('save-error', failed);}
 }
 function persist(now = false) {
   if (importInProgress) return Promise.resolve(false);
@@ -143,6 +143,7 @@ function showModal(title, content, action, submit = '保存', kind = 'dialog') {
   if (settingsDrawer) persist(true);
   settingsDrawer = null; $('cancelModal').textContent = 'キャンセル';
   delete $('modal').dataset.settingsKind; delete $('modal').dataset.settingsId;
+  $('modalTools')?.replaceChildren();
   $('modalTitle').textContent = title; $('modalBody').replaceChildren(content);
   $('modalSubmit').textContent = submit; $('modalSubmit').hidden = !action;
   $('modalSubmit').disabled = false; $('modalMessage').textContent = ''; modalAction = action;
@@ -176,11 +177,9 @@ function showSettings(title, box, descriptor) {
   showModal(title, box, null, '保存', 'drawer'); settingsDrawer = descriptor;
   $('modal').dataset.settingsKind = descriptor.kind; $('modal').dataset.settingsId = descriptor.id || '';
   $('cancelModal').textContent = '閉じる';
-  const historyKey = descriptor.kind === 'globals' ? 'globals' : descriptor.kind === 'folder' ? `folder:${descriptor.collectionId}:${descriptor.id}` : `${descriptor.kind}:${descriptor.id}`;
-  if (descriptor.id || descriptor.kind === 'globals') box.append(button('変更履歴', () => showRevisions(historyKey), 'button settings-history'));
-  const status = element('span', 'drawer-save-state', saveStatus);
+  const status = element('span', 'drawer-save-state', saveStatus.replace('ローカルに', '')); status.title = saveStatus;
   status.id = 'drawerSaveState'; status.setAttribute('role', 'status'); status.classList.toggle('save-error', saveStatus.startsWith('保存できません'));
-  const meta = element('div', 'settings-meta'); meta.append(element('span', '', '自動保存'), status); box.prepend(meta);
+  $('modalTools').append(status);
 }
 function settingsChanged(rename = false) {persist(); if (rename) {renderEnvironments(); renderSidebar();} updateCounts();}
 function refreshSettingsDrawer() {
@@ -281,7 +280,7 @@ function kvEditor(list, changed, options = {}) {
     });
   }
   paint(); wrap.append(table, button('＋ 行を追加', () => {list.push({key: '', value: '', disabled: false, ...(options.files ? {type: 'text'} : {})}); changed(); paint(); tbody.lastElementChild?.querySelector('input[type=text]')?.focus();}, 'table-add'));
-  const paste = button('行を貼り付け', () => {if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;} list.push(clone(rowClipboard)); changed(); paint();}, 'text-button table-paste');
+  const paste = button('貼り付け', () => {if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;} list.push(clone(rowClipboard)); changed(); paint();}, 'text-button table-paste');
   paste.setAttribute('aria-label', 'コピーした行を末尾に貼り付け'); wrap.append(paste); return wrap;
 }
 function caption(title, parent) {const line = element('div', 'section-caption', title); parent.append(line); return line;}
@@ -465,10 +464,11 @@ function renderBody(root, tab) {
   const body = clone(tab.request.body || {mode: 'none'}), toolbar = element('div', 'body-toolbar');
   const changed = () => {tab.request.body = body; touchTab(tab);};
   const modes = [['none', 'none'], ['formdata', 'form-data'], ['urlencoded', 'x-www-form-urlencoded'], ['raw', 'raw'], ['file', 'binary'], ['graphql', 'GraphQL']];
-  for (const [value, label] of modes) {
-    const wrap = element('label'), radio = element('input'); radio.type = 'radio'; radio.name = 'bodyMode'; radio.value = value; radio.checked = (body.mode || 'none') === value;
-    radio.onchange = () => {body.mode = value; changed(); renderPane(); $('editorContent').querySelector(`input[name="bodyMode"][value="${value}"]`)?.focus({preventScroll:true});}; wrap.append(radio, label); toolbar.append(wrap);
-  }
+  const modeSelect = select(modes, body.mode || 'none', value => {
+    body.mode = value; changed(); renderPane();
+    $('editorContent').querySelector('select[aria-label="本文の形式"]')?.focus({preventScroll:true});
+  });
+  modeSelect.setAttribute('aria-label', '本文の形式'); modeSelect.title = modes.find(([value]) => value === modeSelect.value)?.[1] || ''; toolbar.append(modeSelect);
   root.append(toolbar);
   if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; changed(); renderPane();}, 'text-button'));
   if (body.mode === 'raw') {
@@ -725,8 +725,13 @@ async function saveRequest() {
   const box = element('div'); box.append(field('Request name', input(name, 'Request name', value => name = value)));
   const options = workspace.collections.map(c => [c._mpId, c.info.name]); if (!options.length) options.push(['', 'My Collection（新規作成）']);
   const folderSelect = select(folderChoices(workspace.collections.find(c => c._mpId === collectionId)), folderId, value => folderId = value);
-  const collectionSelect = select(options, collectionId, value => {collectionId = value; folderId = ''; folderSelect.replaceChildren(...folderChoices(workspace.collections.find(c => c._mpId === value)).map(([id, label]) => new Option(label, id)));});
-  box.append(field('Collection', collectionSelect), field('Folder', folderSelect));
+  const folderField = field('Folder', folderSelect); folderField.hidden = folderSelect.options.length < 2;
+  const collectionSelect = select(options, collectionId, value => {
+    collectionId = value; folderId = '';
+    folderSelect.replaceChildren(...folderChoices(workspace.collections.find(c => c._mpId === value)).map(([id, label]) => new Option(label, id)));
+    folderField.hidden = folderSelect.options.length < 2;
+  });
+  box.append(field('Collection', collectionSelect), folderField);
   showModal('Save request', box, async () => {
     if (!name.trim()) throw new Error('リクエスト名を入力してください。');
     let collection = workspace.collections.find(c => c._mpId === collectionId);
@@ -768,11 +773,11 @@ function editCollection(collection, folder = null) {
   const owner = folder || collection; owner.variable = rows(owner.variable);
   const box = element('div');
   const name = input(folder ? owner.name : owner.info.name, 'Name', value => {if (folder) owner.name = value; else owner.info.name = value; settingsChanged(true);});
-  box.append(field('Name', name));
-  const tools = element('div', 'settings-tools'), more = button('⋯', event => collectionMenu(collection, folder, event.currentTarget), 'icon-button');
-  more.setAttribute('aria-label', 'この設定の操作'); tools.append(more); box.append(tools);
-  caption('Variables', box); box.append(kvEditor(owner.variable, settingsChanged)); caption('Authorization', box); box.append(authEditor(owner, false, settingsChanged));
-  box.append(element('p', 'input-condition', '認証値はこのブラウザに平文で保存されます。'));
+  const nameField = field('Name', name), nameRow = element('div', 'settings-name-row');
+  const more = button('⋯', event => collectionMenu(collection, folder, event.currentTarget), 'icon-button');
+  more.setAttribute('aria-label', 'この設定の操作'); nameRow.append(name, more); nameField.append(nameRow); box.append(nameField);
+  caption('Variables', box); box.append(kvEditor(owner.variable, settingsChanged));
+  caption('Authorization', box).title = '認証値はこのブラウザに平文で保存されます。'; box.append(authEditor(owner, false, settingsChanged));
   showSettings(folder ? 'Folder settings' : 'Collection settings', box, {kind: folder ? 'folder' : 'collection', id: owner._mpId, collectionId: collection._mpId});
 }
 function editRequestItem(collection, item, anchor, event) {
@@ -828,13 +833,15 @@ function showArchiveImport(bundle, source = 'ファイル') {
   const parsed = readWorkspaceBundle(bundle);
   const contents = parsed.workspace;
   const box = element('div');
-  const intro = element('p', 'input-condition', `取込元: ${source}
-コレクション ${contents.collections.length}件、環境 ${contents.environments.length}件、変数 ${contents.globals.length}件、送信履歴 ${contents.history.length}件。
-設定別の変更履歴・下書き・選択環境も含まれます。`);
+  const intro = element('p', 'input-condition', `${source}
+コレクション ${contents.collections.length}件 · 環境 ${contents.environments.length}件 · 変数 ${contents.globals.length}件 · 送信履歴 ${contents.history.length}件`);
   intro.style.whiteSpace = 'pre-wrap';
-  const mode = select([['replace','現在のワークスペースを置換（完全復元）'],['merge','現在の内容に追加（IDを再発行）']], 'replace', () => {});
-  mode.id = 'importMode';
-  const warning = element('p', 'server-warning', '認証トークンなどもインポートされます。置換する場合、現在のローカル保存内容は更新されます。');
+  const warning = element('p', 'server-warning');
+  const describeMode = value => warning.textContent = value === 'replace'
+    ? '現在の設定・リクエスト・履歴をバックアップで置き換えます。'
+    : '現在の内容を残し、バックアップの項目を追加します。';
+  const mode = select([['replace','現在の内容を置き換える'],['merge','現在の内容に追加する']], 'replace', describeMode);
+  mode.id = 'importMode'; describeMode(mode.value);
   box.append(intro, field('インポート方式', mode), warning);
   showModal('MiniPost 全体バックアップを取り込む', box, async () => {
     if (studio?.isRunning()) throw new Error('実行中の処理を停止してから取り込んでください。');
@@ -897,7 +904,6 @@ async function loadFromServer() {
 }
 function importDialog(initialFiles = []) {
   let files = [...initialFiles]; const box = element('div'), drop = element('div','import-drop'), fileList = element('div','file-list');
-  drop.append(element('strong','','MiniPost 全体バックアップ / Postman JSON'));
   const picker = element('input'); picker.type = 'file'; picker.accept = '.json,application/json'; picker.multiple = true; picker.hidden = true;
   const folderPicker = element('input'); folderPicker.type = 'file'; folderPicker.multiple = true; folderPicker.setAttribute('webkitdirectory',''); folderPicker.hidden = true;
   const refreshFiles = () => fileList.textContent = files.map(f=>f.webkitRelativePath || f.name).join('\n');
@@ -907,7 +913,7 @@ function importDialog(initialFiles = []) {
   drop.ondragover = e => {e.preventDefault();drop.classList.add('dragover');};
   drop.ondragleave = () => drop.classList.remove('dragover');
   drop.ondrop = e => {e.preventDefault();drop.classList.remove('dragover');files=[...e.dataTransfer.files];refreshFiles();};
-  const paste = element('textarea','import-paste');paste.placeholder='またはJSONを貼り付け';paste.spellcheck=false;paste.setAttribute('aria-label','インポートJSON');
+  const paste = element('textarea','import-paste');paste.placeholder='MiniPost 全体バックアップ / Postman JSON';paste.spellcheck=false;paste.setAttribute('aria-label','インポートJSON');
   box.append(drop,field('JSONを貼り付け',paste));refreshFiles();
   showModal('インポート',box,async()=>{
     const inputs = await Promise.all(files.map(async f => ({name:f.name,content:await f.text()})));
@@ -1039,7 +1045,7 @@ function showRevisions(key) {
   if (!row) return toast('対象の設定がありません。');
   const box = element('div', 'revision-panel'); box.dataset.revisionKey = key;
   const heading = element('div', 'revision-toolbar');
-  heading.append(element('strong', '', row.name || '名前なし'), button('履歴をエクスポート', () => exportFile(`${row.name || 'settings'}.revisions.json`, {key, revisions: workspace.revisions[key] || []})));
+  const name = element('strong', '', row.name || '名前なし'); name.title = row.name || '名前なし'; heading.append(name);
   box.append(heading);
   const entries = workspace.revisions[key] || [];
   if (!entries.length) box.append(element('p', 'empty-state', '変更履歴はまだありません。'));
@@ -1051,6 +1057,8 @@ function showRevisions(key) {
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
+  const exportButton = button('エクスポート', () => exportFile(`${row.name || 'settings'}.revisions.json`, {key, revisions: workspace.revisions[key] || []}));
+  exportButton.setAttribute('aria-label', '履歴をエクスポート'); $('modalTools').append(exportButton);
 }
 $('requestHistory').onclick = () => showRevisions(requestKey(workspace, active()));
 $('send').onclick = sendRequest;

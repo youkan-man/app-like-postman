@@ -169,6 +169,8 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'), current_case
                 controls('.topbar', 'button,select')
                 controls('.request-title', 'input,button,#requestDirty,#breadcrumb')
+                actions = controls('.request-actions', 'button')['items']
+                assert max(item['rect']['y'] for item in actions)-min(item['rect']['y'] for item in actions) <= 2, (current_case, 'request action wraps onto its own row', actions)
                 controls('.urlbar', 'input,select,button')
                 label = page.locator('#saveRequest').evaluate('''e => {'''+RECT_HELPERS+r'''
                   const s=getComputedStyle(e), range=document.createRange(); range.selectNodeContents(e);
@@ -353,6 +355,18 @@ def main():
             assert narrow_request['request']['width'] < narrow_request['response']['width'], (current_case, narrow_request)
             capture(current_case)
             passed('narrow desktop request pane preserves the complete registration label and URL controls')
+
+            current_case = 'side-minimum-request-1180'
+            page.set_viewport_size({'width': 1180, 'height': 920})
+            page.locator('#responseResize').press('Home')
+            settle()
+            request_header()
+            geometry('body')
+            toolbar = controls('.body-toolbar', 'select,button')['items']
+            assert max(item['rect']['y'] for item in toolbar)-min(item['rect']['y'] for item in toolbar) <= 2, (current_case, 'body action wraps onto its own row', toolbar)
+            capture(current_case)
+            passed('minimum side pane keeps body format and formatting action in one usable row')
+            page.set_viewport_size({'width': 1440, 'height': 920})
 
             current_case = 'side-narrow-response'
             page.locator('#responseResize').press('End')

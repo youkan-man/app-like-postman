@@ -69,7 +69,7 @@
         <section class="request-editor" aria-label="リクエスト編集">
           <div class="request-title">
             <div class="request-identity"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span></div>
-            <div class="request-actions"><button id="requestRibbonEdit" class="button" title="このリクエストのリボンを編集">リボンを編集</button><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveDraft" class="button" title="この一時編集を下書きに保存" hidden>下書きに保存</button><button id="saveRequest" class="button" title="コレクションに追加または登録">コレクションに登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
+            <div class="request-actions"><button id="requestRibbonEdit" class="button" aria-label="リボンを編集" title="このリクエストのリボンを編集">リボン</button><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveDraft" class="button" title="この一時編集を下書きに保存" hidden>下書きに保存</button><button id="saveRequest" class="button" aria-label="コレクションに登録" title="コレクションに追加または登録">登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
           </div>
           <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
           <section id="customRibbon" class="custom-ribbon" aria-label="このリクエストのリボン" hidden></section>
@@ -88,7 +88,7 @@
         <div id="responseResize" class="response-resize" role="separator" aria-label="リクエストとレスポンスの表示比率" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="75" tabindex="0"></div>
         <section class="response-panel" aria-label="レスポンス">
           <div class="response-heading">
-            <div class="response-meta"><strong>RESPONSE</strong><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseModified" class="metric" hidden>加工済み</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span></div>
+            <div class="response-meta"><span id="responseStatus" class="response-status" role="status">未送信</span><span id="responseModified" class="metric" hidden>加工済み</span><span id="responseTime" class="metric"></span><span id="responseSize" class="metric"></span></div>
             <div class="response-actions"><button id="wrapResponse" class="icon-button" aria-label="レスポンスを折り返す" title="折り返し" aria-pressed="true">↵</button><button id="extractResponse" class="text-button" disabled>一次変数に抽出</button><button id="copyResponse" class="text-button">コピー</button><button id="downloadResponse" class="text-button">保存</button><button id="responseActions" class="icon-button" aria-label="レスポンスの操作" title="レスポンスの操作" disabled>⋯</button></div>
           </div>
           <div class="response-toolbar">
@@ -108,7 +108,7 @@
       <footer class="statusbar"><span id="connectionStatus">接続中…</span><span id="requestInfo"></span><span class="top-spacer"></span><span id="saveState" role="status">ローカルに自動保存</span><span id="serverSaveState">サーバー未保存</span><span id="tlsStatus">TLS OFF</span></footer>
     </main>
   </div>
-  <dialog id="modal" aria-labelledby="modalTitle"><form id="modalForm"><div class="dialog-heading"><h2 id="modalTitle"></h2><button type="button" id="closeModal" class="icon-button" aria-label="閉じる">×</button></div><div id="modalBody"></div><div class="dialog-footer"><span id="modalMessage" role="status"></span><button type="button" id="cancelModal" class="button">キャンセル</button><button type="submit" id="modalSubmit" class="button primary">実行</button></div></form></dialog>
+  <dialog id="modal" aria-labelledby="modalTitle"><form id="modalForm"><div class="dialog-heading"><h2 id="modalTitle"></h2><div id="modalTools" class="dialog-tools"></div><button type="button" id="closeModal" class="icon-button" aria-label="閉じる">×</button></div><div id="modalBody"></div><div class="dialog-footer"><span id="modalMessage" role="status"></span><button type="button" id="cancelModal" class="button">キャンセル</button><button type="submit" id="modalSubmit" class="button primary">実行</button></div></form></dialog>
   <div id="itemMenu" class="item-menu" role="menu" hidden></div>
   <div id="toast" class="toast" role="status" hidden></div>
   <input id="importFiles" type="file" accept=".json,application/json" multiple hidden>

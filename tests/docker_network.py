@@ -108,7 +108,7 @@ def main():
                     page.locator('#method').select_option('POST')
                     page.locator('#url').fill(f'http://{peer}:8080/echo?status={expected}')
                     page.locator('[data-pane=body]').click()
-                    page.locator('input[name=bodyMode][value=raw]').check()
+                    page.get_by_label('本文の形式', exact=True).select_option('raw')
                     page.get_by_label('Raw body').fill('日本語 POST')
                     with page.expect_response(lambda r: r.url.endswith('/api/request')) as pending:
                         page.locator('#send').click()

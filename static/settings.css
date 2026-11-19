@@ -1,14 +1,32 @@
 /* Settings stay visible while edits persist; no save-and-dismiss workflow. */
-.settings-meta { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--muted); border-bottom:1px solid var(--subtle); padding:0 0 10px; margin-bottom:14px; }
-.drawer-save-state { margin-left:auto; color:var(--green); }
+.drawer-save-state { color:var(--green); font-size:13px; }
+.drawer-save-state:not(.save-error) { white-space:nowrap; }
 .drawer-save-state.save-error { color:var(--red); }
-.settings-tools { display:flex; align-items:center; gap:8px; margin:0 0 12px; }
-.settings-tools > .icon-button { margin-left:auto; }
+.settings-name-row { display:flex; align-items:center; gap:4px; min-width:0; }
+.settings-name-row > input { flex:1; min-width:0; }
+#modal[data-settings-kind] .section-caption { margin:8px 0 4px; }
+#modal[data-settings-kind] #modalBody {container:settings / inline-size;}
 .kv-table th.row-actions { width:68px; }
 .kv-table td.row-actions { white-space:nowrap; }
 .kv-table td.row-actions .icon-button { width:32px; min-width:32px; padding:2px; }
 .table-add + .table-add { margin-left:12px; }
 @media (pointer:coarse) { .kv-table th.row-actions { width:76px; }.kv-table td.row-actions .icon-button { width:36px; min-width:36px; } }
+
+@container settings (max-width:480px) {
+  .kv-editor {overflow-x:visible;}
+  .kv-table,.kv-table tbody {display:block;min-width:0;width:100%;}
+  .kv-table thead {display:none;}
+  .kv-table tr.kv-data-row {display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 64px;grid-template-areas:"enabled key value actions" "enabled description description actions";border-bottom:1px solid var(--line);}
+  .kv-table tr.kv-data-row td {display:flex;align-items:center;min-width:0;padding:2px 0;border:0;}
+  .kv-table .kv-enabled {grid-area:enabled;justify-content:center;}
+  .kv-table .kv-key {grid-area:key;}
+  .kv-table .kv-value {grid-area:value;}
+  .kv-table .kv-description {grid-area:description;}
+  .kv-table .kv-actions {grid-area:actions;justify-content:center;}
+  .kv-table .kv-description input {border-top:1px dashed var(--subtle);}
+  #modal[data-settings-kind] .kv-table input:not([type=checkbox]) {min-height:30px;padding:4px;font-size:13px;}
+  #modal[data-settings-kind] .kv-actions .icon-button {width:32px;min-width:32px;padding:2px;}
+}
 
 @media (min-width:1001px) {
   body:has(#modal[open][data-kind=drawer]) { --settings-drawer-width:min(540px,40vw); }

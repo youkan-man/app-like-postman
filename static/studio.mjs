@@ -135,17 +135,16 @@ export function initStudio(api) {
     const page=$('workspacePage');page.replaceChildren();
     const env=w().environments.find(e=>e.id===envSelection),isPrimary=envSelection==='primary',isGlobals=envSelection==='globals';
     page.dataset.settingsId=env?.id||'';page.dataset.settingsKind=isPrimary?'primary':isGlobals?'globals':'environment';
-    const heading=el('div','workspace-page-heading');heading.append(el('h1','',isPrimary?'一次変数':isGlobals?'Globals':'環境変数'));
+    const heading=el('div','workspace-page-heading variables-page-heading');heading.append(el('h1','',isPrimary?'一次変数':isGlobals?'Globals':'環境変数'));
     if(env){
       const name=input(env.name,'Environment name',v=>{env.name=v;persist();api.renderEnvironments();api.renderSidebar();});name.id='environmentName';heading.append(name);
       heading.append(btn('変更履歴',()=>api.showRevisions(`environment:${env.id}`),'button'));
-      heading.append(btn('エクスポート',()=>api.exportEnvironment(env),'button'));
+      const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'エクスポート',run:()=>api.exportEnvironment(env)}]),'icon-button');more.setAttribute('aria-label','変数ページの操作');heading.append(more);
     } else if(isGlobals)heading.append(btn('変更履歴',()=>api.showRevisions('globals'),'button'));
     else if(isPrimary)heading.append(btn('すべて消去',async()=>{if(await confirmAction('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView('environments');}},'button'));
     page.append(heading);
     if(!env&&!isPrimary&&!isGlobals){const empty=el('div','workspace-empty');empty.append(el('h2','','環境を選択してください'),btn('環境を作成',()=>createEnvironment(),'button primary'));page.append(empty);return;}
     const body=el('div','workspace-page-body variables-page');body.append(kvEditor(scopeRows(),scopeChanged,{secret:!isPrimary}));page.append(body);
-    const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'変数を追加',run:()=>addVariable(envSelection)}]),'icon-button');more.setAttribute('aria-label','変数ページの操作');heading.append(more);
     body.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('input,textarea,select,tr'))return;event.preventDefault();openItemMenu(body,[{label:'変数を追加',run:()=>addVariable(envSelection)}],event);};
   }
   function renderSidebarSection(side){
@@ -326,21 +325,21 @@ export function initStudio(api) {
     const tools=el('div','script-tools'),enabledCheck=el('input');enabledCheck.type='checkbox';enabledCheck.checked=config.enabled;enabledCheck.onchange=()=>{config.enabled=enabledCheck.checked;save();};
     const enableLabel=el('label','settings-line');enableLabel.append(enabledCheck,'送信前・受信後に実行');tools.append(enableLabel);
     tools.append(field('制限時間 ms（0=無制限）',input(config.timeoutMs,'スクリプト制限時間',v=>{config.timeoutMs=Math.max(0,Number(v)||0);save();},'number')));root.append(tools);
-    const phases=el('div','content-tabs script-phase-tabs');phases.setAttribute('role','tablist');phases.setAttribute('aria-label','スクリプトの実行タイミング');root.append(phases);
+    const phases=el('div','content-tabs script-phase-tabs');phases.setAttribute('role','tablist');phases.setAttribute('aria-label','スクリプトの実行タイミング');tools.prepend(phases);
+    const help=btn('API',()=>scriptWorkspace.reference(),'text-button');help.setAttribute('aria-label','スクリプトAPIリファレンス');tools.append(help);
     const phaseNodes=[];
     function selectPhase(name){scriptPhases.set(requestKey(w(),tab),name);for(const item of phaseNodes){item.panel.hidden=item.phase!==name;item.tab.setAttribute('aria-selected',String(item.phase===name));item.tab.tabIndex=item.phase===name?0:-1;}}
     for(const [phase,title] of [['before','送信前'],['after','受信後']]){
       const panel=el('div','script-phase-panel');panel.id='script-panel-'+phase;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby','script-tab-'+phase);
       const tabButton=btn(title,()=>selectPhase(phase));tabButton.id='script-tab-'+phase;tabButton.setAttribute('role','tab');tabButton.setAttribute('aria-controls',panel.id);phases.append(tabButton);phaseNodes.push({phase,panel,tab:tabButton});root.append(panel);
-      const header=el('div','section-tools');header.append(el('h3','',title));
-      const run=btn('このスクリプトを実行',async()=>{
+      const run=btn('実行',async()=>{
         run.disabled=true;
         try {
           const scriptId=config[`${phase}ScriptId`],saved=scriptId?w().scripts.find(item=>item.id===scriptId):null;
           if(scriptId&&!saved)throw new Error('選択したスクリプトが見つかりません。');
           await runContextScript(tab,{source:saved?saved.source:config[phase],scriptId,timeoutMs:saved?saved.timeoutMs:config.timeoutMs,phase});
         }catch(error){toast(error.message);}finally{run.disabled=false;}
-      },'button');header.append(run);panel.append(header);
+      },'button');run.setAttribute('aria-label','このスクリプトを実行');run.title='このスクリプトを実行';
       const scriptId=config[`${phase}ScriptId`],saved=scriptId?w().scripts.find(item=>item.id===scriptId):null;
       const picker=el('div','script-hook-picker');
       const options=[['','このリクエストのコード'],...w().scripts.map(script=>[script.id,script.name])];
@@ -348,12 +347,11 @@ export function initStudio(api) {
       const choose=select(options,scriptId||'',value=>{config[`${phase}ScriptId`]=value;save();api.renderEditor();});choose.setAttribute('aria-label',`${title}に実行するスクリプト`);picker.append(choose);
       if(saved)picker.append(btn('編集',()=>scriptWorkspace.open(saved.id),'button'));
       else if(!scriptId)picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
-      panel.append(picker,createCodeEditor({value:saved?saved.source:config[phase],language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),readOnly:Boolean(scriptId),label:`${title}スクリプト`,onChange:value=>{if(!scriptId){config[phase]=value;save();}}}).element);
+      picker.append(run);panel.append(picker,createCodeEditor({value:saved?saved.source:config[phase],language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),readOnly:Boolean(scriptId),label:`${title}スクリプト`,onChange:value=>{if(!scriptId){config[phase]=value;save();}}}).element);
     }
     selectPhase(scriptPhases.get(requestKey(w(),tab))||'before');
     phases.onkeydown=event=>{const current=phaseNodes.findIndex(item=>item.tab===event.target);if(current<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?1:(current+1)%2;phaseNodes[next].tab.click();phaseNodes[next].tab.focus();};
-    const help=el('details','script-api'),summary=el('summary','','利用できるAPI');help.append(summary,el('code','','response.body = value / response.setBody(value, contentType) / response.setHeader(name, value) / response.show(view) / request.url / vars.get(name) / vars.set(name, value) / pm.response.json() / pm.test(name, fn)'));
-    root.append(help);const log=el('pre','script-log');log.id='scriptLog';log.setAttribute('role','status');const prior=scriptLogs.get(requestKey(w(),tab));log.textContent=scriptLogText(prior);root.append(log);
+    const log=el('pre','script-log');log.id='scriptLog';log.setAttribute('role','status');const prior=scriptLogs.get(requestKey(w(),tab));log.textContent=scriptLogText(prior);root.append(log);
     if(config.extractions.length){const rules=el('div','extraction-rules');rules.append(el('h3','','受信時の自動抽出'));for(const rule of config.extractions){const line=el('div','extraction-rule'),checkbox=el('input');checkbox.type='checkbox';checkbox.checked=rule.enabled!==false;checkbox.onchange=()=>{rule.enabled=checkbox.checked;save();};line.append(checkbox,input(rule.name,'抽出する変数名',v=>{rule.name=v;save();}),input(rule.path,'抽出元のパス',v=>{rule.path=v;save();}),select([['keep','欠損時: 前値維持'],['empty','欠損時: 空文字'],['error','欠損時: エラー']],rule.missing||'keep',v=>{rule.missing=v;save();}),btn('削除',()=>{config.extractions=config.extractions.filter(r=>r!==rule);save();api.renderEditor();},'text-button'));rules.append(line);}root.append(rules);}
     const imported=contextFor(w(),tab).events;
     if(imported.length){const details=el('details','imported-scripts');details.append(el('summary','','インポート済みスクリプト（自動実行しません）'));for(const event of imported){const source=Array.isArray(event.script?.exec)?event.script.exec.join('\n'):event.script?.exec||'';const section=el('section','scripts-block');section.append(el('h4','',event.listen||'Script'),el('pre','',source),btn('編集欄へコピー',()=>{const key=event.listen==='prerequest'?'before':'after';config[key]+=(config[key]?'\n':'')+source;save();api.renderEditor();},'button'));details.append(section);}root.append(details);}
@@ -377,10 +375,12 @@ export function initStudio(api) {
   function relationPage(){
     const page=$('workspacePage'),relation=w().relations.find(r=>r.id===relationId);page.replaceChildren();
     if(!relation){const empty=el('div','workspace-empty');empty.append(el('h1','','リレーション'),el('p','','既存のリクエストを並べ、順序・待機・繰り返し・分岐を設定します。'),btn('リレーションを作成',()=>createRelation(),'button primary'));page.append(empty);return;}
-    const header=el('div','workspace-page-heading'),name=input(relation.name,'リレーション名',v=>{relation.name=v;persist();api.renderSidebar();});header.append(el('h1','','リレーション'),name);
+    const header=el('div','workspace-page-heading relation-page-heading'),name=input(relation.name,'リレーション名',v=>{relation.name=v;persist();api.renderSidebar();});header.append(el('h1','','リレーション'),name);
     const start=btn('実行',()=>startRelation(relation),'button primary');start.id='runRelation';start.disabled=Boolean(controller);
     const stopButton=btn('停止',stopRelation,'button');stopButton.id='stopRelationLocal';stopButton.disabled=!controller;
-    header.append(start,stopButton,btn('変更履歴',()=>api.showRevisions(`relation:${relation.id}`),'button'),btn('エクスポート',()=>api.exportFile(`${relation.name}.relation.json`,relation),'button'));page.append(header);
+    const add=btn('＋ ステップを追加',()=>addStep(relation),'button');add.id='addRelationStep';
+    const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'変更履歴',run:()=>api.showRevisions(`relation:${relation.id}`)},{label:'エクスポート',run:()=>api.exportFile(`${relation.name}.relation.json`,relation)}]),'icon-button');more.setAttribute('aria-label','リレーションの操作');
+    header.append(start,stopButton,add,more);page.append(header);
     const settings=el('div','relation-settings');
     function numberField(title,value,change,min=0){const control=input(value,title,v=>change(Number(v)),'number');control.min=String(min);control.step='1';return field(title,control);}
     settings.append(numberField('全体の回数',relation.repeat,v=>{relation.repeat=v;persist();},1),numberField('全体の間隔 ms',relation.intervalMs,v=>{relation.intervalMs=v;persist();}),numberField('最大実行数（0=無制限）',relation.maxExecutions||0,v=>{relation.maxExecutions=v;persist();}));
@@ -412,12 +412,11 @@ export function initStudio(api) {
       const source=select([['response','このステップのレスポンス'],['primary','一次変数']],condition.source,v=>{condition.source=v;save();});source.setAttribute('aria-label',`ステップ ${index+1} の分岐元`);
       const path=input(condition.path,'変数名 / レスポンスのパス',v=>{condition.path=v;save();});path.setAttribute('aria-label',`ステップ ${index+1} の比較元`);
       const op=select(OPERATORS,condition.operator,v=>{condition.operator=v;save();});op.setAttribute('aria-label',`ステップ ${index+1} の比較`);
-      branch.append(source,path,op,input(condition.value,'比較する値 / {{変数}}',v=>{condition.value=v;save();}));
+      const pathRow=el('div','step-branch-path');pathRow.append(path);branch.append(source,pathRow,op,input(condition.value,'比較する値 / {{変数}}',v=>{condition.value=v;save();}));
       const targets=[[NEXT,'次のステップ'],[END,'この回を終了'],...relation.steps.map((s,n)=>[s.id,`ステップ ${n+1}`])];
       for(const [key,label] of [['onTrue','条件成立時'],['onFalse','不成立時']]){const control=select(targets,step[key],v=>{step[key]=v;save();});control.setAttribute('aria-label',`ステップ ${index+1} の${label}`);branch.append(field(label,control));}
-      const meta=btn('受信済みの要素から選択',()=>{const c=w().collections.find(c=>c._mpId===step.collectionId),item=findItem(c,step.itemId)?.item,tab=item?referenceTab(c,item):w().tabs.find(t=>t.id===step.draftId);if(!tab)return toast('リクエストを選択してください。');responseExtraction(tab,value=>{condition.path=value;path.value=value;save();});},'text-button');branch.append(meta);row.append(branch);editor.append(row);
+      const meta=btn('⋯',()=>{const c=w().collections.find(c=>c._mpId===step.collectionId),item=findItem(c,step.itemId)?.item,tab=item?referenceTab(c,item):w().tabs.find(t=>t.id===step.draftId);if(!tab)return toast('リクエストを選択してください。');responseExtraction(tab,value=>{condition.path=value;path.value=value;save();});},'icon-button');meta.setAttribute('aria-label','受信済みの要素から選択');meta.title='受信済みの要素から選択';pathRow.append(meta);row.append(branch);editor.append(row);
     }
-    const add=btn('＋ ステップを追加',()=>addStep(relation),'button');add.id='addRelationStep';editor.append(add);
     editor.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('.relation-step,input,select'))return;event.preventDefault();openItemMenu(editor,[{label:'ステップを追加',run:()=>addStep(relation)}],event);};
     page.append(editor);const log=el('section','relation-log');log.id='relationRunLog';log.setAttribute('aria-live','polite');page.append(log);renderRunLog();
   }
@@ -427,7 +426,7 @@ export function initStudio(api) {
     const run=running?.relationId===relationId?running:[...(w().relationRuns||[])].reverse().find(r=>r.relationId===relationId);
     const start=$('runRelation');if(start)start.disabled=Boolean(controller);
     const stop=$('stopRelationLocal');if(stop)stop.disabled=!controller;
-    root.replaceChildren();if(!run){root.append(el('p','workspace-note','実行結果はここに表示されます。'));return;}
+    root.replaceChildren();root.hidden=!run;if(!run)return;
     const labels={running:'実行中',succeeded:'完了',failed:'失敗',cancelled:'停止',completed_with_errors:'エラーあり'};
     const heading=el('div','section-tools');heading.append(el('h2','',`実行結果 · ${labels[run.status]||run.status}`),btn('ログを保存',()=>api.exportFile('relation-run.json',run),'text-button'));root.append(heading);
     if(run.error)root.append(el('p','error',run.error));

@@ -7,27 +7,28 @@
 .standalone-script-grid {display:grid;grid-template-columns:minmax(0,3fr) minmax(260px,2fr);gap:10px;flex:1;min-height:0;min-width:0;}
 .standalone-script-code {display:flex;min-height:220px;min-width:0;}
 .standalone-script-code>.source-editor {height:auto;flex:1;min-height:220px;resize:none;}
-.standalone-script-io {display:grid;grid-template-rows:minmax(130px,1fr) minmax(140px,1.2fr) minmax(100px,.7fr);gap:8px;min-width:0;min-height:0;}
-.script-input-section,.script-output,.script-log-section {display:flex;flex-direction:column;min-width:0;min-height:0;}
+.standalone-script-io {display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0;overflow:auto;}
+.script-input-section,.script-output,.script-log-section {display:flex;flex:none;flex-direction:column;min-width:0;min-height:0;}
 .script-section-heading {display:flex;gap:8px;align-items:center;min-width:0;min-height:28px;flex-shrink:0;}
 .script-section-heading h2 {font-size:13px;font-weight:600;margin:0;}
 .script-section-heading select {margin-left:auto;max-width:120px;padding:3px 5px;min-height:26px;}
 .script-section-heading .icon-button {width:28px;height:28px;min-height:28px;padding:0;}
 .script-section-heading .text-button {margin-left:auto;}
-.script-input-section>.source-editor {flex:1;height:auto;min-height:70px;resize:none;}
-.standalone-script-status {margin-left:auto;color:var(--muted);font-size:12px;}
+.script-input-section>.source-editor {flex:none;height:clamp(92px,calc(var(--script-input-lines,3) * 1.65em + 42px),30dvh);min-height:70px;resize:none;}
+.standalone-script-status {flex-shrink:0;color:var(--muted);font-size:12px;white-space:nowrap;}
+.script-output .script-section-heading h2 {margin-right:auto;}
 .standalone-script-status[data-state=error] {color:var(--danger,#ac3434);}
-.standalone-script-result,.standalone-script-log {margin:0;padding:8px;flex:1;min-width:0;min-height:0;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;}
-.standalone-script-log {background:var(--raised);}
+.standalone-script-result,.standalone-script-log {margin:0;padding:8px;flex:none;min-width:0;min-height:0;max-height:48dvh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;}
+.standalone-script-log {max-height:30dvh;background:var(--raised);}
 .script-reference h3 {margin:14px 0 6px;font-size:14px;}
 .script-reference h3:first-child {margin-top:0;}
 .script-reference dl {margin:0;}
 .script-reference dt {font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:8px;overflow-wrap:anywhere;}
 .script-reference dd {margin:2px 0 6px;font-size:13px;line-height:1.5;}
 #modal:has(.script-reference) {width:min(740px,calc(100vw - 20px));}
-.script-hook-picker {display:flex;align-items:center;gap:6px;margin:4px 0;min-width:0;flex-wrap:wrap;}
-.script-hook-picker select {min-width:0;flex:1 1 140px;max-width:100%;}
-.script-hook-picker .button {min-height:30px;padding:4px 8px;}
+.script-hook-picker {display:flex;align-items:center;gap:6px;margin:0 0 4px;min-width:0;flex-wrap:nowrap;}
+.script-hook-picker select {min-width:0;flex:1;max-width:100%;}
+.script-hook-picker .button {flex-shrink:0;min-height:30px;padding:4px 8px;}
 @media(max-width:1000px) {.standalone-script-grid {grid-template-columns:minmax(0,1fr) minmax(220px,1fr);}}
 @media(max-width:700px) {
  :root[data-workspace-view=scripts] #workspacePage {padding:8px;}
@@ -35,12 +36,7 @@
  .standalone-script-grid {display:flex;flex-direction:column;gap:8px;}
  .standalone-script-code {flex:none;min-height:260px;height:45dvh;}
  .standalone-script-code>.source-editor {min-height:260px;}
- .standalone-script-io {display:flex;flex-direction:column;gap:8px;flex:none;}
- .script-input-section {height:180px;}
- .script-output {min-height:180px;}
- .standalone-script-result {min-height:150px;max-height:55dvh;flex:auto;}
- .script-log-section {min-height:120px;}
- .standalone-script-log {min-height:90px;max-height:40dvh;flex:auto;}
+ .standalone-script-io {gap:8px;flex:none;overflow:visible;}
  .standalone-script-heading {gap:4px;}
  .standalone-script-heading .button {min-width:52px;}
 }

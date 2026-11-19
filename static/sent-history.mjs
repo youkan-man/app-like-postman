@@ -75,8 +75,10 @@ export function createHistoryView(root, {edit, copy}) {
     const date = new Date(entry.at);
     info.append(node('time', '', Number.isNaN(date.valueOf()) ? '' : date.toLocaleString()));
     if (entry.environmentName) info.append(node('span', '', entry.environmentName));
-    info.append(node('span', `history-code${Number(entry.status) >= 400 || entry.status === 'ERR' ? ' sent-error' : ''}`, entry.status ?? 'ERR'));
-    if (entry.elapsed_ms != null) info.append(node('span', '', `${entry.elapsed_ms} ms`));
+    const outcome = node('span', 'sent-outcome');
+    outcome.append(node('span', `history-code${Number(entry.status) >= 400 || entry.status === 'ERR' ? ' sent-error' : ''}`, entry.status ?? 'ERR'));
+    if (entry.elapsed_ms != null) outcome.append(node('span', '', `${entry.elapsed_ms} ms`));
+    info.append(outcome);
     root.append(info);
     if (entry.error) root.append(node('p', 'sent-error', entry.error));
     const requests = sentRequests(entry);

@@ -1,0 +1,198 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "pre-send mutations to method, URL, headers and JSON body reach the real HTTP receiver",
+    "post-receive edits replace the actual body/status and automatic extraction reads processed metadata",
+    "response header/body views, native clipboard copy and downloaded JSON use the processed response",
+    "a saved script edits an already-received response through response/minipost.response without another HTTP request",
+    "a failing response script commits neither edited display/status nor variable/shared-data writes",
+    "Stop after pending mutations preserves the previous response and discards partial script writes",
+    "setBody/content type/show select the transformed HTML preview and matching download",
+    "processed response, HTML preview and response actions remain usable at desktop, 390 px and 320 px",
+    "empty request fields fit their content until the user explicitly adjusts the split",
+    "restore returns to the first wire response after multiple transformations without resending",
+    "repeating show after manual view selection applies the new presentation once without modifying response bytes",
+    "delayed response processing and variable-only scripts cannot commit after a newer HTTP response",
+    "relation decisions and recorded status use the transformed response, skipping the unmatched request",
+    "a failed automatic post-hook preserves the received body/status and reports its error without partial writes",
+    "cancelling an automatic post-hook after mutation never commits its response or shared-data writes",
+    "automatic form-data row reordering sends the corresponding selected bytes while preserving editor selections",
+    "manually applying a form-data script moves live file selections with their rows and preserves receiver hashes",
+    "native response editing produces no uncaught JavaScript errors, browser dialogs or crashes"
+  ],
+  "screenshots": [
+    "response-transformed-1440x900.png",
+    "response-menu-1440x900.png",
+    "response-transformed-390x844.png",
+    "response-menu-390x844.png",
+    "response-transformed-320x720.png",
+    "response-menu-320x720.png",
+    "response-transformed-844x390.png",
+    "response-menu-844x390.png",
+    "script-reordered-files-desktop.png"
+  ],
+  "density_metrics": [
+    {
+      "width": 1440,
+      "height": 900,
+      "requestHeight": 204.734375,
+      "fieldsHeight": 36,
+      "unusedBelowFields": 57.734375
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "requestHeight": 183,
+      "fieldsHeight": 36,
+      "unusedBelowFields": 36
+    },
+    {
+      "width": 320,
+      "height": 720,
+      "requestHeight": 183,
+      "fieldsHeight": 36,
+      "unusedBelowFields": 36
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "requestHeight": 174,
+      "fieldsHeight": 36,
+      "unusedBelowFields": 27
+    }
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "http_requests": [
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "GET",
+      "path": "/finished",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "Connection": "close"
+      },
+      "body": ""
+    },
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/wire?stage=before",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "X-Script-Wire": "changed",
+        "Content-Type": "application/json",
+        "Connection": "close",
+        "Content-Length": "35"
+      },
+      "body": "{\"edited\":true,\"label\":\"日本語\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/upload",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "Content-Type": "multipart/form-data; boundary=----MiniPost51676fc8cc9c4182ab4f8235bf203067",
+        "Connection": "close",
+        "Content-Length": "403"
+      },
+      "body": "------MiniPost51676fc8cc9c4182ab4f8235bf203067\r\nContent-Disposition: form-data; name=\"secondFile\"; filename=\"second.txt\"\r\nContent-Type: text/plain\r\n\r\nsecond selected file bytes\r\n------MiniPost51676fc8cc9c4182ab4f8235bf203067\r\nContent-Disposition: form-data; name=\"firstFile\"; filename=\"first.txt\"\r\nContent-Type: text/plain\r\n\r\nfirst selected file bytes\r\n------MiniPost51676fc8cc9c4182ab4f8235bf203067--\r\n",
+      "parts": [
+        {
+          "name": "secondFile",
+          "filename": "second.txt",
+          "sha256": "74b944054a8eba2087aeef347a913d6b5eb1216dc8197f1fcf3ba12d2d1df81d"
+        },
+        {
+          "name": "firstFile",
+          "filename": "first.txt",
+          "sha256": "8b5d17ec9dd2c982059944ebb2f5bc39656bf5ae72b898a9f2852a6f47b3710a"
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/upload",
+      "headers": {
+        "Host": "10.240.0.112:18081",
+        "Content-Type": "multipart/form-data; boundary=----MiniPost7b6d52d1d66e4d1893daadfd262770e8",
+        "Connection": "close",
+        "Content-Length": "403"
+      },
+      "body": "------MiniPost7b6d52d1d66e4d1893daadfd262770e8\r\nContent-Disposition: form-data; name=\"secondFile\"; filename=\"second.txt\"\r\nContent-Type: text/plain\r\n\r\nsecond selected file bytes\r\n------MiniPost7b6d52d1d66e4d1893daadfd262770e8\r\nContent-Disposition: form-data; name=\"firstFile\"; filename=\"first.txt\"\r\nContent-Type: text/plain\r\n\r\nfirst selected file bytes\r\n------MiniPost7b6d52d1d66e4d1893daadfd262770e8--\r\n",
+      "parts": [
+        {
+          "name": "secondFile",
+          "filename": "second.txt",
+          "sha256": "74b944054a8eba2087aeef347a913d6b5eb1216dc8197f1fcf3ba12d2d1df81d"
+        },
+        {
+          "name": "firstFile",
+          "filename": "first.txt",
+          "sha256": "8b5d17ec9dd2c982059944ebb2f5bc39656bf5ae72b898a9f2852a6f47b3710a"
+        }
+      ]
+    }
+  ],
+  "proxy_request_count": 9
+}

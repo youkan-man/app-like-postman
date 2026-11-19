@@ -152,6 +152,8 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
         {'key': 'firstFile', 'type': 'file'}, {'key': 'secondFile', 'type': 'file'}]},
         _minipost={'enabled': True, 'before': 'request.body.formdata.reverse();', 'timeoutMs': 5000})
 
+    density_metrics = []
+
     def step(identifier, request_id):
         return {'id': identifier, 'collectionId': 'response-collection', 'itemId': request_id,
                 'repeat': 1, 'delayMs': 0, 'intervalMs': 0,
@@ -352,10 +354,19 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
             page.locator('#editor-tab-params').click()
             if page.locator('#toggleSidebar').get_attribute('aria-expanded') == 'true':
                 page.locator('#toggleSidebar').click()
-            for width, height in [(1440, 900), (390, 844), (320, 720)]:
+            for width, height in [(1440, 900), (390, 844), (320, 720), (844, 390)]:
                 page.set_viewport_size({'width': width, 'height': height})
                 expect(page.locator('#responseModified')).to_be_visible()
                 expect(page.locator('#responseActions')).to_be_visible()
+                page.evaluate('async () => { await document.fonts.ready; await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }')
+                density = page.evaluate('''() => {
+                    const request = document.querySelector('.request-editor').getBoundingClientRect();
+                    const fields = document.querySelector('.editor-section[data-pane=params]').getBoundingClientRect();
+                    return {width:innerWidth,height:innerHeight,requestHeight:request.height,fieldsHeight:fields.height,unusedBelowFields:request.bottom-fields.bottom};
+                }''')
+                density_metrics.append(density)
+                assert 0 <= density['unusedBelowFields'] <= 80, ('empty request fields reserve too much space', density)
+                assert density['fieldsHeight'] <= 50, ('empty query controls occupy separate rows', density)
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 assert page.locator('.statusbar').evaluate('element => element.getBoundingClientRect().bottom <= innerHeight + 1')
                 capture(f'response-transformed-{width}x{height}')
@@ -368,6 +379,18 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
                 page.keyboard.press('Escape')
             page.set_viewport_size({'width': 1440, 'height': 900})
             passed('processed response, HTML preview and response actions remain usable at desktop, 390 px and 320 px')
+
+            page.evaluate('async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }')
+            compact_height = page.locator('.request-editor').bounding_box()['height']
+            page.locator('#responseResize').focus()
+            page.keyboard.press('End')
+            page.locator('#editor-tab-headers').click()
+            page.locator('#editor-tab-params').click()
+            page.evaluate('async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }')
+            assert page.locator('.request-editor').bounding_box()['height'] > compact_height + 80
+            page.locator('#responseResize').focus()
+            page.keyboard.press('Home')
+            passed('empty request fields fit their content until the user explicitly adjusts the split')
 
             restore()
             page.locator('#response-tab-pretty').click()
@@ -487,7 +510,7 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
             browser.close()
     finally:
         (out / 'results.json').write_text(json.dumps({'ok': completed, 'mode': 'native Chromium HTTP',
-            'checks': checks, 'screenshots': screenshots, 'page_errors': errors, 'native_dialogs': dialogs,
+            'checks': checks, 'screenshots': screenshots, 'density_metrics': density_metrics, 'page_errors': errors, 'native_dialogs': dialogs,
             'crashes': crashes, 'http_requests': RECEIVED, 'proxy_request_count': len(proxy_requests)}, ensure_ascii=False, indent=2))
         for server in [app, receiver]:
             if server:

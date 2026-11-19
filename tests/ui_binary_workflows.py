@@ -172,7 +172,7 @@ def main():
             page.locator('#editor-tab-scripts').click();page.get_by_label('送信前スクリプト',exact=True).fill('');page.locator('#editor-tab-body').click()
             passed('asynchronous pre-request scripts use the attachment captured at Send')
             # Multipart insertion must move an in-flight selection along with its row.
-            page.locator('input[name=bodyMode][value=formdata]').check()
+            page.get_by_label('本文の形式', exact=True).select_option('formdata')
             body=page.locator('#request-fields-body');body.get_by_role('button',name='＋ 行を追加').click()
             body.get_by_label('Key 1',exact=True).fill('upload');body.locator('tbody select').first.select_option('file')
             pick('hold-row.bin',first,index=0)
@@ -197,7 +197,7 @@ def main():
             body.get_by_role('button',name='＋ 行を追加').click();body.get_by_label('Key 1',exact=True).fill('new-upload');body.locator('tbody select').first.select_option('file')
             count=len(RECEIVED);page.locator('#send').click();expect(page.locator('#responseStatus')).to_have_text('ERROR');assert len(RECEIVED)==count
             passed('deleting a pending multipart row cannot resurrect its file on a new row')
-            page.locator('input[name=bodyMode][value=file]').check();pick('display.bin',first);ready('display.bin');send(first)
+            page.get_by_label('本文の形式', exact=True).select_option('file');pick('display.bin',first);ready('display.bin');send(first)
             capture('binary-receiver-sha256-desktop')
             for width,height in [(1440,920),(390,844),(320,720)]:
                 page.set_viewport_size({'width':width,'height':height})
