@@ -1,5 +1,6 @@
 /** Pure editing operations. Identity and names never leak across copies. */
 import {clone, rows, uid} from './core.mjs';
+import {cloneRibbonState} from './ribbons.mjs';
 
 export function copyName(name, names) {
   const base = `${name || 'Untitled'} copy`, used = new Set(names);
@@ -12,6 +13,7 @@ export function duplicateItem(item) {
   const rekey = node => {
     node._mpId = uid();
     if (Array.isArray(node.item)) node.item.forEach(rekey);
+    else if (node.request && node.ribbonState!==undefined) node.ribbonState=cloneRibbonState(node.ribbonState);
   };
   rekey(copy);
   return copy;

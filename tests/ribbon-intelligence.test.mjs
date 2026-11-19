@@ -5,7 +5,7 @@ import {buildLanguageProject} from '../static/script-language-model.mjs';
 import {scriptEditorContext} from '../static/script-editor-context.mjs';
 
 function fixture() {
-  return {activeRibbonId:'main-ribbon',ribbons:[
+  return {ribbonScopeId:'request-ribbon-scope',activeRibbonId:'main-ribbon',ribbons:[
     {id:'main-ribbon',key:'main',name:'Main',groups:[{id:'main-group',name:'Inputs',controls:[
       {id:'query-id',key:'query',label:'Query',type:'text',value:'private query'},
       {id:'count-id',key:'count',label:'Count',type:'number',value:null},
@@ -18,6 +18,12 @@ function fixture() {
       {id:'result-id',key:'result',label:'Result',type:'display',value:{saved:true}}
     ]}]}
   ]};
+}
+
+function state(id) {
+  const value={...fixture(),id,ribbonBindings:{}};
+  for(const ribbon of value.ribbons)for(const group of ribbon.groups)for(const control of group.controls)control.actions=[];
+  return value;
 }
 
 const intelligence = createScriptIntelligence();
@@ -90,19 +96,21 @@ test('imported script ribbon bindings override original aliases and deleted bind
 });
 
 test('editor snapshots retain ribbon data shapes and fresh keys without copying private field values',()=>{
-  const workspace={...fixture(),collections:[],tabs:[],environments:[],globals:[],scripts:[],scriptData:{},ribbonBindings:{copy:{ribbons:{old:'next-ribbon'},controls:{old:'result-id'}}}};
-  let context=scriptEditorContext(workspace,{rows:[]});
+  const ribbonState={...state('request-ribbon-scope'),ribbonBindings:{copy:{ribbons:{old:'next-ribbon'},controls:{old:'result-id'}}}};
+  const owner={id:'draft',name:'Draft',request:{method:'GET',url:'https://example.test'},ribbonState};
+  const workspace={collections:[],tabs:[owner],environments:[],globals:[],scripts:[],scriptData:{}};
+  let context=scriptEditorContext(workspace,{rows:[]},{ribbonOwner:owner});
   assert.equal(context.activeRibbonId,'main-ribbon');
   assert.equal(context.ribbons[0].groups[0].controls[0].key,'query');
   assert.deepEqual(context.ribbons[0].groups[0].controls[4].value,{rows:[{name:'',score:0}],total:0});
-  assert.deepEqual(context.ribbonBindings,workspace.ribbonBindings);
+  assert.deepEqual(context.ribbonBindings,ribbonState.ribbonBindings);
   assert.ok(!JSON.stringify(context).includes('private'));
   const project=buildLanguageProject('',context),declarations=project.files['/minipost/model.d.ts'];
   assert.ok(!declarations.includes('private'));
   assert.match(declarations,/"main.count": number \| null/);
-  workspace.ribbons[0].groups[0].controls[0].key='new-query';
-  workspace.activeRibbonId='next-ribbon';
-  context=scriptEditorContext(workspace,{rows:[]});
+  ribbonState.ribbons[0].groups[0].controls[0].key='new-query';
+  ribbonState.activeRibbonId='next-ribbon';
+  context=scriptEditorContext(workspace,{rows:[]},{ribbonOwner:owner});
   assert.equal(context.activeRibbonId,'next-ribbon');
   assert.ok(labels('ribbon.get("',context).includes('main.new-query'));
   assert.ok(!labels('ribbon.get("',context).includes('main.query'));
@@ -114,4 +122,61 @@ test('ribbon declarations share per-binding dictionaries across many saved scrip
   const text=buildLanguageProject('',context).files['/minipost/model.d.ts'];
   assert.equal((text.match(/export type RibbonReadGroup_/g)||[]).length,1);
   assert.equal((text.match(/export type RibbonLookupGroup_/g)||[]).length,1);
+});
+
+test('completion and saved-script result types follow the selected request even with identical IDs and keys',()=>{
+  const a={id:'request-a',name:'A',request:{method:'GET',url:'https://example.test/a'},ribbonState:state('scope-a')};
+  const b={id:'request-b',name:'B',request:{method:'GET',url:'https://example.test/b'},ribbonState:state('scope-b')};
+  const controls=b.ribbonState.ribbons[0].groups[0].controls;
+  controls[1].type='text';controls[1].value='private text count';
+  controls.push({id:'b-only',key:'onlyB',label:'Only B',type:'toggle',value:false,actions:[]});
+  const workspace={collections:[],tabs:[a,b],environments:[],globals:[],scriptData:{},
+    scripts:[{id:'reader',name:'Reader',source:'return ribbon.get("count");',input:'null',inputFormat:'json'}]};
+  let context=scriptEditorContext(workspace,{rows:[]},{ribbonOwner:a});
+  assert.equal(context.request,null);assert.equal(context.ribbonScopeId,'scope-a');
+  assert.deepEqual(context.requests.map(request=>request.id),['draft:request-a','draft:request-b']);
+  assert.ok(labels('ribbon.get("count").',context).includes('toFixed'));
+  assert.ok(labels('const value=await scripts.run("Reader"); value.',context).includes('toFixed'));
+  assert.ok(!labels('ribbon.get("',context).includes('main.onlyB'));
+  context=scriptEditorContext(workspace,{rows:[]},{ribbonOwner:b});
+  assert.equal(context.request,null);assert.equal(context.ribbonScopeId,'scope-b');
+  assert.ok(labels('ribbon.get("count").',context).includes('trim'));
+  assert.ok(!labels('ribbon.get("count").',context).includes('toFixed'));
+  assert.ok(labels('const value=await scripts.run("Reader"); value.',context).includes('trim'));
+  assert.ok(labels('ribbon.get("',context).includes('main.onlyB'));
+  assert.ok(!JSON.stringify(context).includes('private'));
+});
+
+test('an absent request owner and raw unscoped catalogs cannot suggest archived global ribbon references',()=>{
+  const owner={id:'draft',name:'Draft',request:{method:'GET',url:'https://example.test'},ribbonState:state('scope-a')};
+  const workspace={...fixture(),collections:[],tabs:[owner],environments:[],globals:[],scripts:[],scriptData:{}};
+  for(const options of [{},{ribbonOwner:{id:'temporary-history',request:owner.request,ribbonState:state('history-scope')}}]) {
+    const context=scriptEditorContext(workspace,{rows:[]},options);
+    assert.equal(context.ribbonScopeId,null);assert.deepEqual(context.ribbons,[]);assert.equal(context.activeRibbonId,'');
+    assert.deepEqual(labels('ribbon.get("',context),[]);assert.deepEqual(labels('ribbon.activate("',context),[]);
+  }
+  const raw={...fixture(),ribbonScopeId:null};
+  assert.deepEqual(labels('ribbon.get("',raw),[]);assert.deepEqual(labels('ribbon.get("count").',raw),[]);
+  delete owner.ribbonState;
+  assert.deepEqual(scriptEditorContext(workspace,{rows:[]},{ribbonOwner:owner}).ribbons,[]);
+});
+
+test('saved request completion resolves canonical ribbons instead of a stale open-editor copy',()=>{
+  const canonical=state('canonical'),cached=state('cached');
+  cached.ribbons[0].groups[0].controls[1].type='text';cached.ribbons[0].groups[0].controls[1].value='cached count';
+  const request={method:'GET',url:'https://example.test'};
+  const workspace={collections:[{_mpId:'collection',info:{name:'Collection'},item:[{_mpId:'request',name:'Saved',request,ribbonState:canonical}]}],
+    tabs:[],environments:[],globals:[],scripts:[],scriptData:{}};
+  const tab={id:'editor',collectionId:'collection',itemId:'request',request,ribbonState:cached};
+  const context=scriptEditorContext(workspace,{rows:[]},{tab,phase:'before'});
+  assert.equal(context.ribbonScopeId,'canonical');assert.ok(context.request);assert.equal(context.phase,'before');
+  assert.ok(labels('ribbon.get("count").',context).includes('toFixed'));
+  assert.ok(!labels('ribbon.get("count").',context).includes('trim'));
+});
+
+test('workspace snapshot completion describes saved and draft request ribbon states',()=>{
+  for(const owner of ['tabs[0]','collections[0].item[0]']) {
+    assert.deepEqual(labels(`const workspace=await minipost.workspace.read(); workspace.${owner}.ribbonState.`,{}),['activeRibbonId','id','ribbonBindings','ribbons']);
+    assert.ok(labels(`const workspace=await minipost.workspace.read(); workspace.${owner}.ribbonState.ribbons[0].`,{}).includes('groups'));
+  }
 });

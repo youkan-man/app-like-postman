@@ -2,15 +2,24 @@
 import {clone,uid,rows,enabled,walkItems,normalizeRequest,compileRequest,contextFor,newRequest} from './core.mjs';
 import {responseMetadata} from './runtime.mjs';
 import {sendThroughProxy} from './transport.mjs';
+import {getRequestRibbonState,findRequestRibbonState} from './ribbons.mjs';
 
 const valueMap = values => Object.fromEntries(rows(values).filter(row => row.key && enabled(row)).map(row => [row.key,row.value]));
 const variableRows = values => Object.entries(values || {}).map(([key,value]) => ({key,value,enabled:true}));
 
-export function makeScriptContext(workspace, primary, {input,scriptId,tab,result,environmentId=workspace.environmentId}={}) {
+/** Capture one owner's ribbon state without consulting the changing UI selection. */
+export function scriptRibbonSnapshot(workspace,{ribbonOwner,ribbonScopeId}={}) {
+  if (ribbonScopeId!==undefined && ribbonScopeId!==null && (typeof ribbonScopeId!=='string' || !ribbonScopeId)) throw new TypeError('リボンの実行先が不正です。');
+  const state=ribbonScopeId===undefined ? getRequestRibbonState(workspace,ribbonOwner) : ribbonScopeId===null ? null : findRequestRibbonState(workspace,ribbonScopeId);
+  if (ribbonScopeId && !state) throw new Error('実行対象のリクエストまたはリボンが削除・変更されました。');
+  return {ribbonScopeId:state?.id || null,ribbons:clone(state?.ribbons || []),activeRibbonId:state?.activeRibbonId || '',ribbonBindings:clone(state?.ribbonBindings || {})};
+}
+
+export function makeScriptContext(workspace, primary, {input,scriptId,tab,ribbonOwner=tab,ribbonScopeId,result,environmentId=workspace.environmentId}={}) {
   const view={...workspace,environmentId};
   const context=contextFor(view,tab || {request:newRequest()},primary.rows);
   return {
-    ribbons:clone(workspace.ribbons || []),activeRibbonId:workspace.activeRibbonId || '',ribbonBindings:clone(workspace.ribbonBindings || {}),
+    ...scriptRibbonSnapshot(workspace,{ribbonOwner,ribbonScopeId}),
     input,scriptId,scripts:clone(workspace.scripts || []),bindings:clone(workspace.scriptBindings || {}),bindingId:tab?.request?._minipost?.scriptBindingId,data:clone(workspace.scriptData || {}),
     variables:context.vars,primary:primary.snapshot(),environment:valueMap(context.environment?.values),globals:valueMap(workspace.globals),
     request:tab ? clone(tab.request) : null,response:responseMetadata(result),raw:result
@@ -25,7 +34,7 @@ export function scriptRequestCatalog(workspace) {
       collectionId:collection._mpId,itemId:item._mpId,request:clone(item.request),settings:clone(item.settings || {})});
   });
   for(const tab of workspace.tabs || []) {
-    const saved=entries.find(entry=>entry.collectionId===tab.collectionId&&entry.itemId===tab.itemId);
+    const saved=tab.collectionId&&tab.itemId&&entries.find(entry=>entry.collectionId===tab.collectionId&&entry.itemId===tab.itemId);
     if(saved){saved.request=clone(tab.request);saved.settings=clone(tab.settings || {});continue;}
     entries.push({id:`draft:${tab.id}`,draftId:tab.id,name:tab.name,path:tab.name,request:clone(tab.request),settings:clone(tab.settings || {})});
   }
@@ -69,6 +78,9 @@ export function createScriptHost({workspace,primary,environmentId=workspace.envi
     if(variables){view.globals=variableRows(variables.globals);if(env)env.values=variableRows(variables.environment);}
     const tab={id:entry.draftId || entry.itemId || entry.id,name:entry.name,collectionId:entry.collectionId,itemId:entry.itemId,
       request:normalizeRequest(entry.request),settings:{...entry.settings,...options.settings}};
+    // History reopens this target, so retain its canonical ribbon snapshot too.
+    const ribbonState=getRequestRibbonState(snapshot,tab);
+    if(ribbonState)tab.ribbonState=clone(ribbonState);
     const attachments=await filesFor(tab,signal);
     if(signal?.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
     const compiled=compileRequest(view,tab,attachments,variables?variableRows(variables.primary):primary.rows);

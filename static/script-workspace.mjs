@@ -71,7 +71,7 @@ export function initScriptWorkspace(api) {
       ['レスポンスと送信内容',[['response.body = value','受信後の処理やレスポンスの操作から実行すると、変更を表示・コピー・保存へ反映します。'],['response.setBody(value, contentType)','本文と表示形式を置き換えます。'],['response.getHeader / setHeader / removeHeader','レスポンスのヘッダーを取得・変更・削除します。'],['response.show(view)','pretty / raw / headers / cookies / preview の表示へ切り替えます。'],['request.url / request.header / request.body','送信前の変更は実際の送信内容に反映します。手動実行ではリクエストの設定を更新します。']]],
       ['スクリプト',[['scripts.list()','保存済みのID・名前を取得します。'],['await scripts.run(idOrName, input)','別のスクリプトへ入力を渡し、戻り値を受け取ります。同名の場合はIDで指定します。']]],
       ['共有データ',[['store.get(key) / has(key) / keys()','共有データを読み取ります。'],['store.set(key, value) / delete(key) / clear()','JSON値を型を保って保存します。変更は実行全体の成功時に反映します。']]],
-      ['リボン',[['ribbon.get(reference) / set(reference, value)','項目IDまたは リボンのキー.項目のキー で値を取得・設定します。minipost.ribbonでも利用できます。'],['ribbon.values(reference?) / controls(reference?)','指定したリボンの値・項目を取得します。省略時は表示中のリボンです。'],['ribbon.list() / active() / activate(reference)','リボンの一覧・表示中のリボンを取得し、表示を切り替えます。'],['ribbon.show(reference, visible) / enable(reference, enabled)','項目の表示・有効状態を設定します。条件があれば併せて評価します。'],['input.value / input.previousValue / input.values','リボンの操作から実行した場合、現在値・変更前の値・同じリボンの全項目の値を参照できます。']]],
+      ['リボン',[['ribbon.get(reference) / set(reference, value)','項目IDまたは リボンのキー.項目のキー で値を取得・設定します。minipost.ribbonでも利用できます。'],['ribbon.values(reference?) / controls(reference?)','実行対象リクエストのリボンの値・項目を取得します。省略時はそのリクエストで選択中のリボンです。'],['ribbon.list() / active() / activate(reference)','実行対象リクエストのリボン一覧・選択中のリボンを取得し、切り替えます。'],['ribbon.show(reference, visible) / enable(reference, enabled)','項目の表示・有効状態を設定します。条件があれば併せて評価します。'],['input.value / input.previousValue / input.values','リボンの操作から実行した場合、現在値・変更前の値・同じリボンの全項目の値を参照できます。']]],
       ['MiniPost',[['minipost.workspace.read()','ワークスペースのスナップショットを取得します（await）。'],['minipost.requests.list() / get(idOrName)','リクエストの一覧・設定を取得します（await）。'],['minipost.requests.send(idOrNameOrRequest, options)','1回送信してレスポンスを返します（await）。送信前後の処理は自動で呼びません。'],['minipost.environments.list() / get(idOrName)','環境の一覧・設定を取得します（await）。'],['vars.get / set / unset','一次変数。pm.variables・minipost.variablesでも利用できます。'],['pm.environment / pm.globals','環境・Globalsのget / set / unset / has / toObject。minipostからも利用できます。']]]
     ];
     for(const [title,entries] of sections){box.append(el('h3','',title));const list=el('dl');for(const [name,description]of entries)list.append(el('dt','',name),el('dd','',description));box.append(list);}
@@ -100,7 +100,7 @@ export function initScriptWorkspace(api) {
     const actions=btn('⋯',event=>openItemMenu(event.currentTarget,[...menu(script),null,{label:'共有データ',run:sharedData},{label:'APIリファレンス',run:reference}]),'icon-button');actions.setAttribute('aria-label','スクリプトの操作');
     heading.append(name,runButton,stop,actions);body.append(heading);
     const grid=el('div','standalone-script-grid'),code=el('section','standalone-script-code');
-    code.append(createCodeEditor({value:script.source,language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{script}),label:'スクリプトのコード',onChange:value=>{script.source=value;changed();}}).element);
+    code.append(createCodeEditor({value:script.source,language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{script,ribbonOwner:api.active?.()}),label:'スクリプトのコード',onChange:value=>{script.source=value;changed();}}).element);
     const io=el('div','standalone-script-io'),inputSection=el('section','script-input-section'),inputHeading=el('div','script-section-heading');
     const editor=createCodeEditor({value:script.input,language:script.inputFormat==='json'?'json':'text',label:'スクリプトの入力',onChange:value=>{script.input=value;changed();}});
     const format=select([['json','JSON'],['text','テキスト']],script.inputFormat,value=>{script.inputFormat=value;editor.setLanguage(value);changed();});format.setAttribute('aria-label','入力形式');
@@ -139,10 +139,12 @@ export function initScriptWorkspace(api) {
     const target=w(),environmentId=target.environmentId,environment=target.environments.find(env=>env.id===environmentId);
     try{
       const payload=parseScriptInput(script),snapshot=clone(script);
-      const context=makeScriptContext(target,primary,{input:payload,scriptId:script.id,environmentId});
+      const ribbonOwner=api.active?.();
+      const context=makeScriptContext(target,primary,{input:payload,scriptId:script.id,environmentId,ribbonOwner});
       const host=createScriptHost({workspace:target,primary,environmentId,filesFor:api.filesFor,onResponse:api.recordResponse});
       const output=await runScript(snapshot.source,context,{signal:control.signal,timeoutMs:snapshot.timeoutMs,onCall:host,onLog:line=>{record.logs.push(line);scheduleLog();}});
       if(control.signal.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
+      if(w()!==target)throw new Error('ワークスペースが変更されたため、処理結果を反映できません。');
       const saved=applyScriptWrites(target,primary,environment,output);if(saved)persist();
       record.state='success';record.result=output.result;record.logs=output.logs || record.logs;
     }catch(error){record.state=error.name==='AbortError'?'stopped':'error';record.error=error.message;if(error.logs?.length)record.logs=error.logs;}

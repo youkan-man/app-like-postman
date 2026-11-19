@@ -18,7 +18,8 @@ const scope = owner => ({variable: rows(owner.variable), auth: normalizeAuth(own
 const requestValue = owner => {
   const request = normalizeRequest(owner.request);
   request.auth = normalizeAuth(request.auth);
-  return {name: owner.name, request, settings: requestSettings(owner.settings)};
+  return {name: owner.name, request, settings: requestSettings(owner.settings),
+    ...(owner.ribbonState===undefined?{}:{ribbonState:clone(owner.ribbonState)})};
 };
 export function requestKey(workspace, draft) {
   const collection = workspace.collections.find(c => c._mpId === draft.collectionId);
@@ -39,7 +40,17 @@ export function settingsIndex(workspace) {
     });
   }
   // Legacy tabs are preserved as drafts, not rendered as open tabs.
-  for (const draft of workspace.tabs) put(requestKey(workspace, draft), 'request', draft.name, requestValue(draft), draft);
+  for (const draft of workspace.tabs) {
+    const key=requestKey(workspace,draft),value=requestValue(draft);
+    const stored=findItem(workspace.collections.find(collection=>collection._mpId===draft.collectionId),draft.itemId)?.item;
+    // Old saved editor caches can retain an earlier ribbon snapshot. Its owner
+    // remains the collection item even when the HTTP editor supplies the revision.
+    if (stored) {
+      if (stored.ribbonState===undefined) delete value.ribbonState;
+      else value.ribbonState=clone(stored.ribbonState);
+    }
+    put(key,'request',draft.name,value,draft);
+  }
   return result;
 }
 export class RevisionStore {
@@ -91,6 +102,8 @@ export class RevisionStore {
         target.name = value.name;
         target.request = clone(value.request);
         target.settings = requestSettings(value.settings);
+        if (value.ribbonState===undefined) delete target.ribbonState;
+        else target.ribbonState=clone(value.ribbonState);
         if (this.workspace.tabs.includes(target)) target.dirty = kind !== 'request';
       }
     } else {

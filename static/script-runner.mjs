@@ -65,7 +65,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
     const error = new DOMException('スクリプトを停止しました。', 'AbortError'); error.logs = [];
     return Promise.reject(error);
   }
-  if (!String(source || '').trim()) return Promise.resolve({ok:true, result:undefined, writes:{primary:[], environment:[], globals:[]}, dataWrites:[], ribbonWrites:[], logs:[]});
+  if (!String(source || '').trim()) return Promise.resolve({ok:true, result:undefined, writes:{primary:[], environment:[], globals:[]}, dataWrites:[], ribbonScopeId:context.ribbonScopeId ?? null, ribbonWrites:[], logs:[]});
   return new Promise((resolve, reject) => {
     const frame = document.createElement('iframe');
     const channel = Array.from(crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, '0')).join('');
@@ -124,7 +124,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
         error.name = result?.name || 'Error'; error.logs = result?.logs || logs;
         if (result?.stack) error.stack = result.stack;
         finish(error);
-      } else if (!result.writes || !['primary', 'environment', 'globals'].every(key => Array.isArray(result.writes[key])) || !Array.isArray(result.dataWrites) || (result.ribbonWrites !== undefined && !Array.isArray(result.ribbonWrites)) || !Array.isArray(result.logs)) {
+      } else if (!result.writes || !['primary', 'environment', 'globals'].every(key => Array.isArray(result.writes[key])) || !Array.isArray(result.dataWrites) || result.ribbonScopeId !== (context.ribbonScopeId ?? null) || (result.ribbonWrites !== undefined && !Array.isArray(result.ribbonWrites)) || !Array.isArray(result.logs)) {
         finish(new Error('スクリプトの結果形式が不正です。'));
       } else finish(null, result);
     };

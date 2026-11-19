@@ -113,7 +113,7 @@ export function applyScriptWrites(workspace, primary, environment, output) {
       }
     }
   }
-  const commitRibbons = prepareRibbonWrites(workspace,output.ribbonWrites ?? []);
+  const commitRibbons = prepareRibbonWrites(workspace,output.ribbonWrites ?? [],{scopeId:output.ribbonScopeId ?? null});
   if (writes.primary.length) primary.apply(writes.primary);
   if (writes.environment.length) updateRows(environment.values,writes.environment);
   if (writes.globals.length) updateRows(workspace.globals,writes.globals);

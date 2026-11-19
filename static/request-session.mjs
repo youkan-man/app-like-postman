@@ -1,6 +1,7 @@
 /** Open editors are session state. Only an explicit draft belongs in workspace.tabs. */
 import {clone, findItem, normalizeRequest, uid} from './core.mjs';
 import {requestSettings} from './revisions.mjs';
+import {cloneRibbonState,findRequestRibbonState} from './ribbons.mjs';
 
 export class RequestSession {
   constructor(workspace, createBlank) {
@@ -18,6 +19,7 @@ export class RequestSession {
       if (item?.request) this.openSaved(collection, item);
       else delete workspace.activeRequest;
     }
+    for (const tab of this.all()) this.syncRibbon(tab);
   }
   all() {return [...this.workspace.tabs, ...this.temporary.values()];}
   get(id) {return this.workspace.tabs.find(tab => tab.id === id) || this.temporary.get(id);}
@@ -28,6 +30,12 @@ export class RequestSession {
   }
   isTemporary(tab) {return this.temporary.has(tab.id);}
   isBlank(tab) {return tab.id === this.blankId;}
+  syncRibbon(tab) {
+    const item=this.savedItem(tab);
+    if (!item) return;
+    if (item.ribbonState===undefined) delete tab.ribbonState;
+    else tab.ribbonState=item.ribbonState;
+  }
   get active() {
     let tab = this.get(this.selectedId) || this.get(this.workspace.activeId) || this.workspace.tabs[0];
     if (!tab) {
@@ -52,6 +60,8 @@ export class RequestSession {
   }
   addDraft(tab = this.createBlank()) {
     tab.settings = requestSettings(tab.settings);
+    if (tab.ribbonState && !this.savedItem(tab) && !this.workspace.tabs.some(value=>value.id===tab.id) &&
+        findRequestRibbonState(this.workspace,tab.ribbonState.id)) tab.ribbonState=cloneRibbonState(tab.ribbonState);
     if (!this.workspace.tabs.some(value => value.id === tab.id)) this.workspace.tabs.push(tab);
     this.temporary.delete(tab.id);
     for (const [key, id] of this.historyEditors) if (id === tab.id) this.historyEditors.delete(key);
@@ -59,9 +69,12 @@ export class RequestSession {
     this.select(tab.id); return tab;
   }
   markSaved(tab) {
+    const item=this.savedItem(tab);
+    if (item && item.ribbonState===undefined && tab.ribbonState!==undefined) item.ribbonState=tab.ribbonState;
     this.savedEditors.add(tab.id);
     for (const [key, id] of this.historyEditors) if (id === tab.id) this.historyEditors.delete(key);
     if (this.blankId === tab.id) this.blankId = null;
+    this.syncRibbon(tab);
     this.select(tab.id);
   }
   openSaved(collection, item) {
@@ -71,6 +84,7 @@ export class RequestSession {
         settings:requestSettings(item.settings), collectionId:collection._mpId, itemId:item._mpId};
       this.temporary.set(tab.id, tab);
     }
+    this.syncRibbon(tab);
     this.savedEditors.add(tab.id); this.select(tab.id); return tab;
   }
   openHistory(entry) {
@@ -81,6 +95,7 @@ export class RequestSession {
       const pendingFolderId = findItem(collection, entry.tab.itemId)?.parents.at(-1)?._mpId || entry.tab.pendingFolderId;
       tab = {...clone(entry.tab), id:uid(), itemId:undefined, pendingFolderId, dirty:false,
         settings:requestSettings(entry.tab.settings)};
+      if (tab.ribbonState!==undefined) tab.ribbonState=cloneRibbonState(tab.ribbonState);
       this.temporary.set(tab.id, tab); this.historyEditors.set(key, tab.id);
     }
     this.select(tab.id); return tab;
@@ -91,10 +106,12 @@ export class RequestSession {
       if (item) {
         tab.name = item.name; tab.request = normalizeRequest(item.request);
         tab.settings = requestSettings(item.settings); tab.dirty = false;
+        this.syncRibbon(tab);
         this.savedEditors.add(tab.id);
       } else if (this.savedEditors.delete(tab.id)) {
         // Deleting a collection must not turn its old editor cache into new drafts.
         this.workspace.tabs = this.workspace.tabs.filter(value => value.id !== tab.id);
+        if (tab.ribbonState!==undefined) tab.ribbonState=cloneRibbonState(tab.ribbonState);
         this.temporary.set(tab.id, tab);
       }
     }

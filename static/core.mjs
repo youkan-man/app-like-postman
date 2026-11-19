@@ -1,4 +1,5 @@
 /** Postman import and request compilation. No browser or third-party dependencies. */
+import {cloneRibbonState, validRibbonState} from './ribbons.mjs';
 export const SCHEMA = 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
 export const clone = value => JSON.parse(JSON.stringify(value));
 export const uid = () => globalThis.crypto?.randomUUID?.() || `mp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -74,7 +75,13 @@ function attachIds(items) {
     if (!item || typeof item !== 'object') throw new Error('Collectionのitemはオブジェクトで指定してください。');
     const result = {...clone(item), _mpId: uid(), name: text(item.name || (item.item ? 'Folder' : 'Request'))};
     if (Array.isArray(item.item)) result.item = attachIds(item.item);
-    else if (item.request) result.request = normalizeRequest(item.request);
+    else if (item.request) {
+      result.request = normalizeRequest(item.request);
+      if (item.ribbonState!==undefined) {
+        if (!validRibbonState(item.ribbonState)) throw new Error(`「${result.name}」のリボン形式が不正です。`);
+        result.ribbonState=cloneRibbonState(item.ribbonState);
+      }
+    }
     else throw new Error(`「${result.name}」にrequestまたはitemがありません。`);
     return result;
   });

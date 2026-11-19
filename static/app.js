@@ -541,7 +541,7 @@ function renderEditor() {
   $('breadcrumb').textContent = ctx.collection ? [ctx.collection.info.name, ...ctx.parents.map(p => p.name)].join(' / ') + ' /' : '';
   if (![...$('method').options].some(o => o.value === tab.request.method)) $('method').append(new Option(tab.request.method, tab.request.method));
   $('method').value = tab.request.method; $('method').className = `method-${tab.request.method}`;
-  $('url').value = displayUrl(tab.request.url); renderPane(); renderRequestFooter();
+  $('url').value = displayUrl(tab.request.url); renderPane(); renderRequestFooter(); studio?.refreshRibbon();
 }
 function renderRequestFooter() {
   $('tlsStatus').textContent = `TLS verification ${active().settings?.verify_tls ? 'ON' : 'OFF'}`;
@@ -1114,6 +1114,7 @@ studio = initStudio({
   renderSidebar,renderAll,renderEditor,renderEnvironments,renderHistoryPage,closeNavigation:()=>workbench.closeNavigation(),
   chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
   addDraft:()=>{side='collections';addTab();$('url').focus();},
+  ensureRibbonOwner:()=>{const tab=active();if(!requestSession.savedItem(tab)&&requestSession.isTemporary(tab))requestSession.addDraft(tab);return tab;},
   findDraft:(collectionId,itemId)=>requestSession.all().find(t=>t.collectionId===collectionId&&t.itemId===itemId),
   filesFor:(tab,signal)=>selectedFiles.snapshot(requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
   requestFor:tab=>requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId)),

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "an empty workspace creates and runs a script with typed input and return values without creating or sending requests",
+    "text input is preserved and null is distinguished from an absent return value",
+    "invalid JSON input is rejected before executing the script",
+    "saved scripts are reusable by ID or unique name and their awaited typed results reach the caller",
+    "ambiguous script names fail explicitly while stable ID calls remain usable",
+    "shared data retains JSON types and runtime failure rolls back data and variable changes while preserving logs",
+    "logs stream before completion and stopping a running Worker preserves logs without committing pending writes",
+    "optional workspace APIs are available to independent scripts while DOM isolation remains intact",
+    "script source, input, identities and typed shared data survive native IndexedDB reload",
+    "whole-workspace export and restore recover executable scripts and shared data together",
+    "explicit request API sends real HTTP using pending variables and environment changes without re-entering request hooks",
+    "normal request execution invokes referenced saved scripts before and after HTTP with phase-specific input",
+    "desktop and 390/320 px pages keep code, input and results accessible without horizontal viewport overflow",
+    "independent script scenarios produce no uncaught browser errors, native dialogs or page crashes"
+  ],
+  "screenshots": [
+    "live-log-desktop.png",
+    "scripts-1440x900.png",
+    "scripts-390x844.png",
+    "scripts-320x720.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}

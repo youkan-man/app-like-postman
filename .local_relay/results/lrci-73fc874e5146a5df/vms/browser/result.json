@@ -1,0 +1,23 @@
+{
+  "branch": "feat/request-ribbons-readability-20261119",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-19T09:13:38.36814Z",
+    "id": "lrce-95099931189fd395b2f1ceb7",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-eb9b0724de3f",
+    "source_generation": 2
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-73fc874e5146a5df-browser",
+  "source_sha": "234c28ac5a5ce684aec971eca7872b9cc63a2ac5",
+  "started_at": "2026-11-19T06:29:45.536583917Z",
+  "status": "failed",
+  "version": 1
+}

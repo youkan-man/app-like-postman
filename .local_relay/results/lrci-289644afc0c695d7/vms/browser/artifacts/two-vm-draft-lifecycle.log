@@ -1,0 +1,22 @@
+PASS fresh blank is temporary; its first user edit creates exactly one durable draft
+PASS pre-existing drafts and their revisions survive import and reload unchanged
+PASS opening and switching saved requests never creates persisted editor copies
+PASS history edits stay in session memory when reopened and do not mutate source history or drafts
+PASS sending a temporary history editor reaches real HTTP and saves only transmitted history
+PASS collection-save cancellation and confirmation create no drafts; confirmation registers one request
+PASS explicit Save draft persists one editor and subsequent edits survive reload
+PASS explicit duplication creates one durable draft without persisting the opened history editor
+PASS full backup contains only durable drafts and no orphan revisions from temporary editors
+PASS deleting two real sent drafts removes only their response snapshots and revisions; cancellation and the third response remain intact after reload
+PASS Space, Control and Meta toggle draft selection without opening requests or adding visible controls
+PASS Shift selects a contiguous range; list Control+A selects drafts only and Escape clears selection
+PASS Control+A is restricted to currently filtered list entries
+PASS Control+A, Backspace and Delete inside text inputs edit text without deleting selected entries
+PASS right-click and row menus keep the group; cancelling its deletion restores focus and preserves selection and data
+PASS Delete confirms once and removes only selected drafts plus their own revision records
+PASS Backspace can delete the last drafts; reload keeps the list empty without replacement drafts
+PASS history modifier clicks, range selection and keyboard selection do not create or switch request drafts
+PASS filtered history deletion removes only the visible selected entry and leaves drafts empty
+PASS 320px rows, context menu and one application confirmation fit the viewport without a selection toolbar; deletion persists after reload
+PASS imported invalid form-data rows stay unchanged on open; explicit file selection and clear address the displayed row and real HTTP preserves its bytes
+PASS no uncaught browser errors, native dialogs or crashes

@@ -94,6 +94,15 @@ function visitScriptOwners(workspace, requestFn, scriptRevisionFn) {
     }
   }
 }
+function visitRibbonOwners(workspace, fn) {
+  for (const collection of workspace.collections || []) visit(collection.item,item=>{if(item.request)fn(item);});
+  for (const tab of workspace.tabs || []) fn(tab);
+  for (const entry of workspace.history || []) if (entry.tab) fn(entry.tab);
+  for (const property of ['revisions','settingHistory']) for (const [key,entries] of Object.entries(workspace[property] || {})) {
+    if (!/^(request|draft):/.test(key)) continue;
+    for (const entry of entries) for (const value of [entry.value,entry.before,entry.after]) if (record(value)) fn(value);
+  }
+}
 function bindRequest(request, bindingFor) {
   const config=request?._minipost;
   if (config && (config.scriptBindingId || config.before || config.after)) config.scriptBindingId=bindingFor(config.scriptBindingId || '');
@@ -208,6 +217,17 @@ export function mergeWorkspace(into, source) {
   for (const id of Object.keys(sourceRibbonBindings)) remapBinding(id);
   for (const script of imported.scripts || []) {script.bindingId=remapBinding(script.bindingId || '');script.id = remap(script.id);}
   visitScriptOwners(imported,request=>bindRequest(request,remapBinding),value=>{value.bindingId=remapBinding(value.bindingId || '');});
+  const scopeIds=new Map();
+  visitRibbonOwners(imported,owner=>{
+    const state=owner.ribbonState;if(!state)return;
+    if (!scopeIds.has(state.id)) scopeIds.set(state.id,uid());
+    state.id=scopeIds.get(state.id);
+    // Inner identities are private to the request. Keeping them preserves IDs
+    // embedded in script source, conditions and action targets without rewriting code.
+    for (const {control} of listRibbonControls(state)) for (const action of control.actions)
+      if (action.type==='script' && action.scriptId) action.scriptId=remap(action.scriptId);
+    state.ribbonBindings=Object.fromEntries(Object.entries(state.ribbonBindings).map(([id,value])=>[remapBinding(id),value]));
+  });
   imported.scriptBindings=bindings;
   imported.ribbonBindings=ribbonBindings;
   remapRibbonDefinitions(imported,originalRibbons,into,remap);
