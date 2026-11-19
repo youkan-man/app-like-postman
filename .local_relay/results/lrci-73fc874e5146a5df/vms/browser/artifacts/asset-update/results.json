@@ -1,0 +1,18 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "checks": [],
+  "page_errors": [
+    "Cannot set properties of null (setting 'onclick')",
+    "api.active is not a function"
+  ],
+  "native_dialogs": [],
+  "crashes": [],
+  "screenshots": [
+    "failure.png"
+  ],
+  "legacy_sha256": {
+    "/revisions.mjs": "fef8c45e543b25651c99b8935b0eb0b04b0ff48c326e54eefa5e9968c9498a78",
+    "/studio.mjs": "8639218034ac3241dcf74af533c5c867f8d2ecdc088d13e0e1853dc10699f799"
+  }
+}
