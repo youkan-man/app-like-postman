@@ -548,11 +548,27 @@ def main():
                 expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
                 expect(props.get_by_label('項目のラベル', exact=True)).to_have_value('集計を実行')
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
+                page.locator('.ribbon-page-title').scroll_into_view_if_needed()
+                capture(f'ribbon-overview-{width}x{height}')
                 page.locator('#ribbonCanvas').scroll_into_view_if_needed()
                 capture(f'ribbon-editor-{width}x{height}')
                 props.scroll_into_view_if_needed()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
+                if width < 740:
+                    mobile_context = page.locator('#ribbonMobileContext')
+                    expect(mobile_context).to_be_visible()
+                    expect(mobile_context).to_contain_text(request_a)
+                    expect(mobile_context).to_contain_text('集計を実行')
+                    assert mobile_context.evaluate('node => {const b=node.getBoundingClientRect();return b.left>=0 && b.top>=0 && b.right<=innerWidth && b.bottom<=innerHeight;}'), (width, height)
                 capture(f'ribbon-settings-{width}x{height}')
+                if width < 740:
+                    mobile_context.locator('[data-ribbon-back-to-list]').click()
+                    expect(page.locator('#ribbonCanvas')).to_be_in_viewport()
+                    choose(run_id)
+                    expect(props).to_be_in_viewport()
+                    expect(mobile_context).to_be_visible()
+                    expect(mobile_context).to_contain_text(request_a)
+                    expect(mobile_context).to_contain_text('集計を実行')
             passed('desktop and narrow mobile separate execution from editing and keep request identity, selected settings and controls within width')
 
             # Recreate an old global-ribbon backup through the supported import

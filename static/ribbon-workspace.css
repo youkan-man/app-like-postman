@@ -48,6 +48,12 @@
 .ribbon-editor-heading>.form-field {flex:1 1 220px;}
 .ribbon-editor-heading>.icon-button {margin-left:auto;}
 .ribbon-identity-fields {display:grid;grid-template-columns:1fr 1fr;gap:16px;min-width:0;padding-bottom:4px;}
+.ribbon-mobile-context {display:none;position:sticky;top:0;z-index:3;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;min-height:64px;padding:8px 10px;background:var(--surface);border:1px solid var(--ribbon-line);border-left:3px solid var(--accent);border-radius:4px;}
+.ribbon-mobile-copy {display:flex;flex-direction:column;gap:2px;min-width:0;}
+.ribbon-mobile-copy>span {font-size:13px;line-height:18px;color:var(--muted);}
+.ribbon-mobile-copy>strong {font-size:14px;line-height:20px;}
+.ribbon-mobile-copy>* {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.ribbons-page .ribbon-mobile-context>.button {font-size:13px;min-height:38px;padding:7px 9px;}
 .ribbon-name {font-weight:600;}
 .ribbon-editor-grid {display:grid;grid-template-columns:minmax(250px,32%) minmax(0,1fr);gap:20px;min-width:0;align-items:start;}
 .ribbon-outline {min-width:0;display:flex;flex-direction:column;gap:12px;}
@@ -74,11 +80,10 @@
 .ribbon-item-badges span {font-size:12px;padding:1px 6px;background:var(--ribbon-panel);border:1px solid var(--line);border-radius:3px;}
 .ribbon-design-control.ribbon-drop {box-shadow:inset 0 3px var(--accent);}
 .ribbon-properties {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-content:start;min-width:0;border:1px solid var(--ribbon-line);border-radius:6px;background:var(--surface);padding:18px;scroll-margin-top:10px;}
-.ribbon-properties>h2,.ribbon-properties>.ribbon-setting-heading,.ribbon-properties>.ribbon-property-empty,.ribbon-properties>.ribbon-property-back,.ribbon-properties>.ribbon-condition,.ribbon-properties>.ribbon-actions-editor,.ribbon-properties>.ribbon-options,.ribbon-properties>.ribbon-flags,.ribbon-properties>.ribbon-operation-result {grid-column:1/-1;}
+.ribbon-properties>h2,.ribbon-properties>.ribbon-setting-heading,.ribbon-properties>.ribbon-property-empty,.ribbon-properties>.ribbon-condition,.ribbon-properties>.ribbon-actions-editor,.ribbon-properties>.ribbon-options,.ribbon-properties>.ribbon-flags,.ribbon-properties>.ribbon-operation-result {grid-column:1/-1;}
 .ribbon-properties h2 {font-size:18px;line-height:1.4;margin:0;font-weight:700;overflow-wrap:anywhere;}
 .ribbon-property-heading {border-bottom:1px solid var(--ribbon-line);padding-bottom:14px;}
 .ribbon-property-identity {display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0;}
-.ribbon-property-back {display:none;}
 .ribbon-setting-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-width:0;}
 .ribbon-setting-heading h3 {font-size:15px;margin:0;font-weight:700;}
 .ribbon-setting-heading>.button {font-size:13px;min-height:32px;padding:5px 10px;}
@@ -120,11 +125,13 @@
 @container(max-width:760px){
  .ribbon-editor-grid {grid-template-columns:1fr;}
  .ribbon-canvas-items {display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
- .ribbon-property-back {display:block;justify-self:start;text-align:left;}
+ .ribbon-mobile-context {display:grid;}
+ .ribbon-properties,.ribbon-canvas {scroll-margin-top:80px;}
 }
 @media(max-width:900px){
  .ribbon-editor-grid {grid-template-columns:1fr;}
- .ribbon-property-back {display:block;justify-self:start;text-align:left;}
+ .ribbon-mobile-context {display:grid;}
+ .ribbon-properties,.ribbon-canvas {scroll-margin-top:80px;}
  .ribbons-page {gap:14px;}
 }
 @media(max-width:600px){

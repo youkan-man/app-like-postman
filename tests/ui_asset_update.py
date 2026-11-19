@@ -35,13 +35,15 @@ READ_WORKSPACE = """() => new Promise((resolve, reject) => {
 })"""
 
 PROBE = b"""<!doctype html><title>Legacy module cache</title>
-<button id="stopRelationGlobal"></button><button id="extractResponse"></button><div id="sidebarContent"></div>
+<button id="stopRelationGlobal"></button><button id="extractResponse"></button><button id="requestRibbonEdit"></button><div id="sidebarContent"></div>
 <script type="module">
 import {RevisionStore} from '/revisions.mjs';
 import {initStudio} from '/studio.mjs';
 const workspace = {collections:[], environments:[], globals:[], tabs:[], history:[]};
+const tab = {id:'cache-probe', name:'Cache probe', request:{method:'GET', url:''}};
 const revisions = new RevisionStore(workspace);
-const studio = initStudio({$:id=>document.getElementById(id), workspace:()=>workspace, toast:()=>{}});
+const studio = initStudio({$:id=>document.getElementById(id), workspace:()=>workspace, toast:()=>{},
+  active:()=>tab, side:()=> 'collections'});
 const failures = [];
 for (const call of [()=>revisions.remove('draft:old'), ()=>studio.forgetResponse('draft:old')]) {
   try {call();} catch (error) {failures.push(error.name+': '+error.message);}

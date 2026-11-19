@@ -157,6 +157,14 @@ export function initRibbonWorkspace(api){
     if(matchMedia('(max-width:900px)').matches)$('ribbonProperties')?.scrollIntoView({block:'start',behavior:'instant'});
     else $('ribbonCanvas')?.querySelector(`[data-control-id="${controlId}"]`)?.focus({preventScroll:true});
   }
+  function backToList(){
+    const canvas=$('ribbonCanvas');canvas?.scrollIntoView({block:'start',behavior:'instant'});canvas?.focus({preventScroll:true});
+  }
+  function paintMobileContext(){
+    const owner=$('ribbonMobileOwner'),selection=$('ribbonMobileSelection');if(!owner||!selection)return;
+    owner.textContent=api.active().name;owner.title=`対象リクエスト: ${api.active().name}`;
+    selection.textContent=selectedControl()?.label||selectedGroup()?.name||'項目を選択';selection.title=selection.textContent;
+  }
   function paintHeading(){const action=$('activateRibbon');if(action&&current()){action.disabled=state().activeRibbonId===current().id;action.textContent=action.disabled?'表示中':'このリボンを表示';}}
   function render(force=false){
     const ribbon=selected(),page=$('workspacePage');
@@ -188,11 +196,15 @@ export function initRibbonWorkspace(api){
       key.setCustomValidity('');const old=ribbon.key;ribbon.key=value;renameReferences(ribbon,old);changed();paintProperties();
     };key.oninput=()=>key.setCustomValidity('');
     identityFields.append(field('リボン名',name),field('スクリプトから使う参照キー',key));body.append(identityFields);
+    const mobileContext=el('div','ribbon-mobile-context'),mobileCopy=el('div','ribbon-mobile-copy'),mobileOwner=el('span'),mobileSelection=el('strong');
+    mobileContext.id='ribbonMobileContext';mobileContext.setAttribute('role','region');mobileContext.setAttribute('aria-label','リボンの編集対象');
+    mobileOwner.id='ribbonMobileOwner';mobileSelection.id='ribbonMobileSelection';mobileCopy.append(mobileOwner,mobileSelection);
+    const mobileBack=btn('項目一覧へ戻る',backToList,'button');mobileBack.dataset.ribbonBackToList='';mobileContext.append(mobileCopy,mobileBack);body.append(mobileContext);
     const outline=el('section','ribbon-outline'),outlineHeading=el('div','ribbon-outline-heading');
     outlineHeading.append(el('h2','','項目一覧'),el('span','ribbon-item-count',`${ribbon.groups.reduce((count,group)=>count+group.controls.length,0)}項目`));
     tools.append(btn('グループを追加',addGroup),btn('項目を追加 ▾',event=>addMenu(event.currentTarget,event),'button primary'));
     const grid=el('div','ribbon-editor-grid'),canvas=el('section','ribbon-canvas'),properties=el('section','ribbon-properties');
-    canvas.id='ribbonCanvas';canvas.setAttribute('aria-label','リボンの項目一覧');properties.id='ribbonProperties';properties.setAttribute('aria-label','選択項目の設定');
+    canvas.id='ribbonCanvas';canvas.tabIndex=-1;canvas.setAttribute('aria-label','リボンの項目一覧');properties.id='ribbonProperties';properties.setAttribute('aria-label','選択項目の設定');
     outline.append(outlineHeading,tools,canvas);grid.append(outline,properties);body.append(grid);paintHeading();paintCanvas(true);paintProperties();
   }
   function paintCanvas(force=false){
@@ -318,9 +330,9 @@ export function initRibbonWorkspace(api){
   function paintProperties(){
     const root=$('ribbonProperties'),ribbon=current();if(!root||!ribbon)return;root.replaceChildren();
     const group=selectedGroup(),control=selectedControl();propertySignature=JSON.stringify(control?[control.id,control.value,control.visible,control.enabled]:null);
+    paintMobileContext();
     if(!group){const empty=el('div','ribbon-property-empty');empty.append(el('h2','','項目を選択'),el('p','','左の項目を選ぶと、値・条件・処理を設定できます。'));root.append(empty);return;}
     if(!control){root.append(el('h2','','グループ'),field('グループ名',input(group.name,'グループ名',value=>{group.name=value;changed();})));return;}
-    const back=btn('項目一覧へ戻る',()=>{$('ribbonCanvas')?.scrollIntoView({block:'start',behavior:'instant'});$('ribbonCanvas')?.querySelector(`[data-control-id="${control.id}"]`)?.focus({preventScroll:true});},'text-button ribbon-property-back');root.append(back);
     const heading=el('div','ribbon-setting-heading ribbon-property-heading'),more=btn('⋯',event=>openItemMenu(event.currentTarget,controlMenu(group,control),event),'icon-button'),title=el('h2','',control.label||'名前なしの項目');more.setAttribute('aria-label','項目の操作');
     const identity=el('div','ribbon-property-identity');identity.append(el('span','ribbon-item-type',TYPES.find(([key])=>key===control.type)?.[1]||'項目'),title);heading.append(identity,more);root.append(heading);
     root.append(field('表示するラベル',input(control.label,'項目のラベル',value=>{control.label=value;title.textContent=value||'名前なしの項目';changed();})));
@@ -431,7 +443,7 @@ export function initRibbonWorkspace(api){
     if(Object.hasOwn(entry,'result')&&entry.result!==undefined)box.append(el('pre','ribbon-action-log',formatScriptValue(entry.result)));
   }
   function refresh(){if(frame)return;frame=requestAnimationFrame(()=>{
-    frame=0;selected();if(api.side()==='ribbons'&&!paintedId)render(true);paintBar();paintCanvas();paintHeading();paintResult();
+    frame=0;selected();if(api.side()==='ribbons'&&!paintedId)render(true);paintBar();paintCanvas();paintHeading();paintMobileContext();paintResult();
     const properties=$('ribbonProperties'),control=selectedControl(),signature=JSON.stringify(control?[control.id,control.value,control.visible,control.enabled]:null);
     if(properties&&api.side()==='ribbons'&&signature!==propertySignature&&!properties.contains(document.activeElement)&&$('itemMenu').hidden&&!$('modal').open)paintProperties();
   });}
