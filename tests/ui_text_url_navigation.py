@@ -222,7 +222,7 @@ def main():
                 assert buttons.evaluate_all('(items)=>items.every(e=>{const b=e.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;})')
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 buttons.first.focus();page.keyboard.press('ArrowDown');expect(page.locator('[data-sidebar=environments]')).to_have_attribute('aria-selected','true')
-                expect(page.locator('#sidebarTitle')).to_have_text('環境');page.keyboard.press('End');expect(page.locator('[data-sidebar=scripts]')).to_have_attribute('aria-selected','true')
+                expect(page.locator('#sidebarTitle')).to_have_text('環境');page.keyboard.press('End');expect(page.locator('[data-sidebar=ribbons]')).to_have_attribute('aria-selected','true')
                 page.locator('[data-sidebar=collections]').click();assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');capture('fixed-rail-'+str(width))
             passed('320/390px category rail remains fixed, fully visible and keyboard operable without wrapping or horizontal scroll')
             # Touch input comes through Chromium's input system, not a synthetic DOM drop.

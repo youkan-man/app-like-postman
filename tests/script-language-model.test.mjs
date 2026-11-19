@@ -18,7 +18,7 @@ test('virtual wrapper keeps user source and UTF-16 offsets intact without execut
   const project = buildLanguageProject(source);
   assert.equal(project.files[project.fileName].slice(project.offset,project.offset+project.sourceLength),source);
   assert.equal(project.sourceLength,source.length);
-  assert.match(project.files[project.fileName].slice(0,project.offset),/export async function __run\(pm, vars, response, request, console, input, scripts, store, minipost\) \{\n\{\n$/);
+  assert.match(project.files[project.fileName].slice(0,project.offset),/export async function __run\(pm, vars, response, request, console, input, scripts, store, minipost, ribbon\) \{\n\{\n$/);
   assert.equal(globalThis.__mustNeverExecute,undefined);
 });
 

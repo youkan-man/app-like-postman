@@ -6,6 +6,7 @@ import {createCodeEditor} from './code-editor.mjs';
 import {executeRequest} from './execution.mjs';
 import {runScript} from './script-runner.mjs';
 import {initScriptWorkspace} from './script-workspace.mjs';
+import {initRibbonWorkspace} from './ribbon-workspace.mjs';
 import {applyScriptWrites} from './scripts.mjs';
 import {createScriptHost,makeScriptContext,formatScriptValue} from './script-host.mjs';
 import {scriptEditorContext} from './script-editor-context.mjs';
@@ -25,7 +26,9 @@ export function initStudio(api) {
     w().relations ||= [];w().relationRuns ||= [];
   const scriptWorkspace=initScriptWorkspace({...api,primary,openScripts:()=>{surfaceKey='';setSurface('scripts');},runningChanged:refreshStop,
     recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
-  function refreshStop(){$('stopRelationGlobal').hidden=!(controller||manualControllers.size||scriptWorkspace.isRunning());}
+  const ribbonWorkspace=initRibbonWorkspace({...api,primary,openRibbons:()=>{surfaceKey='';setSurface('ribbons');},openScript:id=>scriptWorkspace.open(id),runningChanged:refreshStop,
+    recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
+  function refreshStop(){$('stopRelationGlobal').hidden=!(controller||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning());ribbonWorkspace.refresh();}
   function setSurface(side){api.setSide(side);api.renderSidebar();syncView(side);api.closeNavigation();}
   function changedEnvironment(){persist();api.renderEnvironments();}
   function rememberResponse(tab,result){
@@ -103,11 +106,11 @@ export function initStudio(api) {
     const live={};
     const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,scriptCall:host,
       onScriptLog:({phase,...entry})=>{(live[phase]||=[]).push(entry);noteScript(tab,{phase,logs:live[phase]});},
-      onVariables:saved=>{if(saved)persist();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
+      onVariables:saved=>{if(saved)persist();ribbonWorkspace.refresh();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
     rememberResponse(tab,result);return result;
   }
   function scopeRows(){if(envSelection==='primary')return primary.rows;if(envSelection==='globals')return w().globals;return w().environments.find(e=>e.id===envSelection)?.values;}
-  function scopeChanged(){if(envSelection==='primary')primary.save();else changedEnvironment();}
+  function scopeChanged(){if(envSelection==='primary')primary.save();else changedEnvironment();ribbonWorkspace.refresh();}
   function addVariable(scope=envSelection,at=null){
     envSelection=scope;const list=scopeRows();if(!list){toast('変数を追加する環境を選択してください。');return;}
     const index=at===null?list.length:at;list.splice(index,0,{key:'',value:'',enabled:true});scopeChanged();surfaceKey='';setSurface('environments');
@@ -145,6 +148,7 @@ export function initStudio(api) {
     body.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('input,textarea,select,tr'))return;event.preventDefault();openItemMenu(body,[{label:'変数を追加',run:()=>addVariable(envSelection)}],event);};
   }
   function renderSidebarSection(side){
+    if(side==='ribbons'){ribbonWorkspace.sidebar();return true;}
     if(side==='scripts'){scriptWorkspace.sidebar();return true;}
     if(!['environments','relations'].includes(side))return false;
     const root=$('sidebarContent'),query=$('search').value.toLowerCase();root.replaceChildren();
@@ -167,9 +171,11 @@ export function initStudio(api) {
   }
   function syncView(side,force=false){
     $('addTab').disabled=side==='history';$('addTab').title=side==='history'?'送信履歴はリクエスト送信時に追加されます':'選択中のカテゴリに追加';
-    const kind=['environments','relations','history','scripts'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
-    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations','scripts'].includes(kind);
+    const kind=['environments','relations','history','scripts','ribbons'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
+    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations','scripts','ribbons'].includes(kind);
     $('historyPage').hidden=kind!=='history';
+    ribbonWorkspace.refresh();
+    if(kind==='ribbons'){surfaceKey='ribbons';ribbonWorkspace.render(force);return;}
     if(kind==='scripts'){surfaceKey='scripts';scriptWorkspace.render(force);return;}
     if(kind==='history'){surfaceKey='';api.renderHistoryPage();return;}
     if(kind==='request'){surfaceKey='';return;}
@@ -202,6 +208,7 @@ export function initStudio(api) {
     const side=api.side();if(side==='history')return;let actions;
     if(side==='environments')actions=[{label:'環境を作成',run:()=>createEnvironment()},{label:envSelection==='primary'?'一次変数を追加':envSelection==='globals'?'Globalsに変数を追加':'表示中の環境に変数を追加',disabled:!scopeRows(),run:()=>addVariable()}];
     else if(side==='scripts')actions=[{label:'スクリプトを作成',run:()=>scriptWorkspace.create()}];
+    else if(side==='ribbons')actions=[{label:'リボンを作成',run:()=>ribbonWorkspace.create()}];
     else if(side==='relations')actions=[{label:'リレーションを作成',run:()=>createRelation()},{label:'表示中のリレーションにステップを追加',disabled:!w().relations?.some(r=>r.id===relationId),run:()=>addStep(w().relations.find(r=>r.id===relationId))}];
     else {
       const context=root?null:creationContext;
@@ -412,7 +419,7 @@ export function initStudio(api) {
     editor.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('.relation-step,input,select'))return;event.preventDefault();openItemMenu(editor,[{label:'ステップを追加',run:()=>addStep(relation)}],event);};
     page.append(editor);const log=el('section','relation-log');log.id='relationRunLog';log.setAttribute('aria-live','polite');page.append(log);renderRunLog();
   }
-  function stopRelation(){controller?.abort();for(const manual of manualControllers)manual.abort();scriptWorkspace.stop();}
+  function stopRelation(){controller?.abort();for(const manual of manualControllers)manual.abort();scriptWorkspace.stop();ribbonWorkspace.stop();}
   function renderRunLog(){
     const root=$('relationRunLog');if(!root)return;
     const run=running?.relationId===relationId?running:[...(w().relationRuns||[])].reverse().find(r=>r.relationId===relationId);
@@ -444,6 +451,7 @@ export function initStudio(api) {
   return {primary,execute,rememberResponse,responseFor,transferResponse,forgetResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,
     createEnvironment,creationMenu,createItem,captureContext,requestActions,draftActions,renderScripts,responseExtraction,runResponseScript,addRequestToRelation,
     scriptKeydown:scriptWorkspace.keydown,
-    isRunning:()=>Boolean(controller||manualControllers.size||scriptWorkspace.isRunning()),
-    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];scriptPhases.clear();scriptWorkspace.reset();},refresh(){surfaceKey='';scriptWorkspace.invalidate();syncView(api.side());}};
+    refreshRibbon:()=>ribbonWorkspace.refresh(),
+    isRunning:()=>Boolean(controller||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning()),
+    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];scriptPhases.clear();scriptWorkspace.reset();ribbonWorkspace.reset();},refresh(){surfaceKey='';scriptWorkspace.invalidate();syncView(api.side());ribbonWorkspace.refresh();}};
 }

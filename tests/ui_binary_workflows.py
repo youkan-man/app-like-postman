@@ -218,7 +218,7 @@ def main():
             # Test the smallest resizable sidebar, including keyboard scroll to the last tab.
             page.locator('#sidebarResize').focus();page.keyboard.press('Home')
             page.locator('#sidebarTabs-collections').focus();page.keyboard.press('End')
-            last=page.locator('#sidebarTabs-scripts');expect(last).to_be_focused()
+            last=page.locator('#sidebarTabs-ribbons');expect(last).to_be_focused()
             b=last.bounding_box();nav=page.locator('#sidebarTabs').bounding_box();assert b['x']>=nav['x']-1 and b['x']+b['width']<=nav['x']+nav['width']+1
             page.locator('#sidebarResize').focus();page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight')
             passed('minimum sidebar width preserves the fixed category rail and keyboard navigation')

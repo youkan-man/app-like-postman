@@ -6,6 +6,50 @@
 
 `scripts.list()` と `await scripts.run(idOrName, input)` で保存済み処理を再利用できます。名前が重複する場合はIDで指定します。`store` はJSON型の共有データを保存し、成功時だけ変数とともにワークスペースへ反映します。スクリプト・入力・共有データは全体バックアップにも含まれます。
 
+## カスタムリボンとの連携
+
+左の **リボン** で作成した項目を、`ribbon` または `minipost.ribbon` から読み書きできます。独立実行、送信前・受信後、`scripts.run()` の子スクリプトで共通のAPIを使用します。項目ID、または `リボンの参照キー.項目の参照キー` で対象を指定します。項目キーだけの場合は表示中のリボンを優先し、そこにない場合は全体で一意の項目を探します。項目の表示名は参照に使用しません。
+
+```javascript
+const count = ribbon.get('main.count') ?? 0;
+const result = await scripts.run('集計', {count});
+ribbon.set('main.result', result);
+ribbon.enable('main.run', count > 0);
+return result;
+```
+
+| API | 動作 |
+| --- | --- |
+| `ribbon.get(reference)` | 項目の現在値を取得。数値・真偽値・JSONの型を維持 |
+| `ribbon.set(reference, value)` | 値を設定して、項目の型に合わせた値を返す |
+| `ribbon.values(reference?)` | リボンの全項目の値を、項目キーを持つオブジェクトで取得 |
+| `ribbon.controls(reference?)` | 項目のID・キー・表示名・型・値・基本の表示／有効状態と、所属リボン／グループを取得 |
+| `ribbon.list()`／`active()` | リボンの一覧／表示中のリボンを `{id, key, name}` で取得。未選択の `active()` は `null` |
+| `ribbon.activate(reference)` | ID・キー・一意の名前でリボンを切り替え、切り替え先の `{id, key, name}` を返す |
+| `ribbon.show(reference, visible = true)` | 項目の基本の表示状態を設定し、真偽値を返す |
+| `ribbon.enable(reference, enabled = true)` | 項目の基本の有効状態を設定し、真偽値を返す |
+
+`values()` と `controls()` の対象を省略すると表示中のリボンを使用します。未選択ならそれぞれ空のオブジェクト・配列を返します。表示条件・有効条件がある項目は、基本の状態が真で、さらに条件も満たす場合にだけ表示・操作できます。`controls()` の `visible`／`enabled` はこの基本状態です。
+
+文字入力には文字列・有限の数値・真偽値・`null` を指定でき、文字列に変換します。`null` は空文字です。数値入力には有限の数値または数値文字列を指定でき、空文字と `null` は未入力の `null` になります。チェックには `true`／`false`、選択欄には選択肢の値または空文字を指定します。ボタンと値表示にはJSON値を保持できます。返されたオブジェクトはコピーなので、`const value = ribbon.get(...)` の中身を変更しただけでは画面の値は変わりません。変更後に `ribbon.set(...)` で設定します。
+
+リボンの **クリック時／変更時** の処理から実行したスクリプトには、以下の `input` を渡します。操作に紐づいた実行では保存スクリプトの入力欄をこのイベント入力で置き換えます。
+
+| フィールド | 内容 |
+| --- | --- |
+| `type` | `click` または `change` |
+| `ribbonId`／`controlId` | 操作したリボンと項目のID |
+| `key` | 操作した項目の参照キー |
+| `value` | その処理を開始する時点の項目の値 |
+| `previousValue` | 操作前の項目の値 |
+| `values` | 同じリボンの全項目の値。項目の参照キーをプロパティに持つ |
+
+親スクリプトと子スクリプトは同じ変更を参照します。`set()` の直後に `get()` すると変更した値を取得でき、`activate()` の後は切り替え先を対象に省略形のAPIを使えます。読み取り対象は実行開始時の状態と実行内の書き込みです。画面への反映は実行成功時に行い、例外・停止・時間切れではその実行の書き込みを反映しません。実行中に書き込み先の値・型・選択肢が変更された場合もエラーにし、古い結果で新しい入力を上書きしません。
+
+リボンの操作に複数の処理を登録した場合は、先行処理の書き込みを後続処理で利用し、全処理が成功してからまとめて反映します。途中で失敗した場合も、操作のきっかけとなった直接入力は保持します。HTTP送信のように既に実行した外部処理は取り消されません。プログラムからの値変更は項目の変更時処理を再帰的には呼びません。
+
+リボンの参照候補と値の型は言語サービスへ反映します。`get('main.count')` は数値、`get('main.result')` は保存したJSONの構造、`values('main')` はそのリボンの項目キーを持つ型として解析します。数値・文字入力への `set()` は変換後の戻り値、値表示への `set()` は新しく渡したJSONの構造を推論します。`values()` の省略形と項目キーだけの参照は編集時点の表示中リボンに基づくため、実行途中でリボンを切り替えるコードでは対象を明示すると型が明確になります。
+
 ## リクエストとレスポンスの加工
 
 送信前の処理では `request`、受信後の処理では `response` を直接変更できます。`minipost.request` と `pm.request` は `request` と同じ対象、`minipost.response` は `response` と同じ対象です。子スクリプトも同じ変更対象を共有します。`pm.response.json()`／`text()`、ステータスとヘッダーの取得も、その時点までのレスポンスの変更を読み取ります。
@@ -94,6 +138,7 @@ TypeScript 5.9.3のJavaScript言語サービスを使用します。構文木（
 | --- | --- |
 | JSON／テキスト入力 | `input` の型、入れ子のプロパティ、配列要素の型 |
 | 共有データ | `store.get()` などのキーと、保存値の型 |
+| カスタムリボン | リボンID・キー・一意の名前、項目ID・参照キー、`get()`／`set()` の値の型、`values()` の項目、JSON値の内部構造 |
 | 一次変数・選択環境・Globals | `vars`、`pm`、`minipost` の変数APIで使用できるキー |
 | 保存スクリプト | ID・一意の名前、呼び出したスクリプトのコードから推論する戻り値 |
 | 保存済みリクエスト・下書き | ID・一意の名前・パス、取得する設定の構造 |
@@ -121,7 +166,7 @@ TypeScript 5.9.3のJavaScript言語サービスを使用します。構文木（
 
 ## 検証
 
-`node --test tests/*.test.mjs` に、実言語サービスによる構文・スコープ・型推論、動的辞書と別スクリプトの戻り値、辞書の更新・削除、解析クライアントの非同期制御の検証を含めています。対象は `script-editor.test.mjs`、`script-intelligence.test.mjs`、`script-language-model.test.mjs`、`script-intelligence-client.test.mjs`、`script-editor-context.test.mjs` です。
+`node --test tests/*.test.mjs` に、実言語サービスによる構文・スコープ・型推論、動的辞書と別スクリプトの戻り値、辞書の更新・削除、解析クライアントの非同期制御の検証を含めています。対象は `script-editor.test.mjs`、`script-intelligence.test.mjs`、`script-language-model.test.mjs`、`script-intelligence-client.test.mjs`、`script-editor-context.test.mjs`、`ribbon-intelligence.test.mjs` です。リボンでは項目の型、正規化した書き込みの戻り値、JSONのメンバー連鎖、表示中リボンの変更、追加インポートの呼び出し元別参照、項目の削除と名前変更を確認します。
 
 `python tests/ui_script_editor.py` は通常のHTTPオリジン上で実アプリを操作し、キーボード、Undo、合成IMEイベント、320/390/1440px表示、実Worker実行、失敗時の変数非反映、IndexedDB保存・再読込を確認します。OSのIME候補ウィンドウ自体を操作する試験ではありません。`python tests/ui_script_intelligence.py` は実際の解析Workerを使い、変数・メソッドの補完、ワークスペースからの動的な候補と型推論を確認します。
 

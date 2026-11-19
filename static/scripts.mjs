@@ -1,6 +1,7 @@
 /** Saved scripts and their committed output are independent of HTTP requests. */
 import {clone, uid} from './core.mjs';
 import {checkName, upsertVariable, variableText} from './runtime.mjs';
+import {prepareRibbonWrites} from './ribbons.mjs';
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = value => typeof value === 'string' && value.length > 0 && !value.includes(':') && value !== '__proto__';
@@ -112,9 +113,11 @@ export function applyScriptWrites(workspace, primary, environment, output) {
       }
     }
   }
+  const commitRibbons = prepareRibbonWrites(workspace,output.ribbonWrites ?? []);
   if (writes.primary.length) primary.apply(writes.primary);
   if (writes.environment.length) updateRows(environment.values,writes.environment);
   if (writes.globals.length) updateRows(workspace.globals,writes.globals);
   if (nextData) workspace.scriptData = nextData;
-  return Boolean(writes.environment.length || writes.globals.length || dataWrites.length);
+  const ribbonsChanged = commitRibbons();
+  return Boolean(writes.environment.length || writes.globals.length || dataWrites.length || ribbonsChanged);
 }

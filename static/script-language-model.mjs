@@ -105,9 +105,9 @@ function catalogReferences(entries, aliases) {
   for (const [name, matches] of candidates) if (!references.has(name) && matches.size === 1) references.set(name, [...matches][0]);
   return references;
 }
-function callerBinding(context, caller) {
+function callerBinding(context, caller, property = 'bindings') {
   const bindingId = caller ? caller.bindingId : context.scriptId == null || context.scriptId === '' ? context.bindingId : undefined;
-  return bindingId && own(context.bindings,bindingId) && object(context.bindings[bindingId]) ? context.bindings[bindingId] : null;
+  return bindingId && own(context[property],bindingId) && object(context[property][bindingId]) ? context[property][bindingId] : null;
 }
 function scriptReferences(scripts, binding) {
   const references = catalogReferences(scripts, script => [script.name]);
@@ -119,6 +119,47 @@ function scriptReferences(scripts, binding) {
   return references;
 }
 const mapType = entries => entries.length ? `{\n${entries.map(([key,type]) => `  ${quote(key)}: ${type};`).join('\n')}\n}` : '{}';
+
+/** Ribbon keys follow the runtime's ID, qualified-key, active-ribbon, unique-key
+ * lookup order. Import bindings are caller-specific and never fall back when a
+ * previously bound control is removed.
+ */
+function ribbonCatalog(context) {
+  const ribbons = (Array.isArray(context.ribbons) ? context.ribbons : []).filter(item => object(item) && typeof item.id === 'string');
+  const controls = ribbons.flatMap(ribbon => (ribbon.groups || []).flatMap(group => (group.controls || [])
+    .filter(control => object(control) && typeof control.id === 'string')
+    .map(control => ({ribbon,control}))));
+  const ribbonReferences = catalogReferences(ribbons,item => [item.key,item.name]);
+  const controlReferences = catalogReferences(controls.map(item => ({...item,id:item.control.id})),item => [`${item.ribbon.key}.${item.control.key}`]);
+  const keys = new Map();
+  for (const row of controlReferences.values()) {
+    const key = row.control.key;
+    if (typeof key !== 'string') continue;
+    if (!keys.has(key)) keys.set(key,new Map());
+    keys.get(key).set(row.control.id,row);
+  }
+  for (const [key,entries] of keys) {
+    if (controlReferences.has(key)) continue;
+    const matches = [...entries.values()], active = matches.filter(row => row.ribbon.id === context.activeRibbonId);
+    if (active.length === 1) controlReferences.set(key,active[0]);
+    else if (!active.length && matches.length === 1) controlReferences.set(key,matches[0]);
+  }
+  const bind = (references,bindings,entries,id) => {
+    const result = new Map(references);
+    if (object(bindings)) for (const [reference,target] of Object.entries(bindings)) {
+      const matches = entries.filter(entry => id(entry) === target);
+      if (matches.length === 1) result.set(reference,matches[0]);
+      else result.delete(reference);
+    }
+    return result;
+  };
+  return {ribbons,controls,
+    references(binding) {return {
+      ribbons:bind(ribbonReferences,binding?.ribbons,ribbons,item => item.id),
+      controls:bind(controlReferences,binding?.controls,controls,item => item.control.id)
+    };}
+  };
+}
 
 const apiDeclarations = `
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -147,6 +188,47 @@ export interface SharedData<D extends object> {
   delete(key: KnownString<keyof D & string>): boolean;
   keys(): string[];
   clear(): void;
+}
+export interface RibbonDescriptor { id: string; key: string; name: string; }
+export type RibbonControlType = 'button' | 'text' | 'number' | 'select' | 'toggle' | 'display';
+export interface RibbonControlDescriptor<V = JsonValue> {
+  id: string; key: string; label: string; type: RibbonControlType; value: V;
+  visible: boolean; enabled: boolean;
+  ribbonId: string; ribbonKey: string; ribbonName: string; groupId: string; groupName: string;
+}
+export interface RibbonDefinition extends RibbonDescriptor {
+  groups: Array<{ id: string; name: string; controls: Array<{
+    id: string; key: string; label: string; type: RibbonControlType; value: JsonValue;
+    options?: Array<{ value: string; label: string }>; visible?: boolean; enabled?: boolean;
+    visibleWhen?: unknown; enabledWhen?: unknown; actions?: unknown[];
+  }> }>;
+}
+export interface RibbonAPI<C extends object, W extends { [P in keyof C]: unknown }, R extends object, A extends object> {
+  /** 保存したリボンのID・キー・名前を取得します。 */
+  list(): RibbonDescriptor[];
+  /** 現在選択中のリボンを取得します。 */
+  active(): RibbonDescriptor | null;
+  /** リボンを切り替えます。変更は実行全体の成功時に反映します。 */
+  activate(reference: KnownString<keyof R & string>): RibbonDescriptor;
+  /** 選択中または指定したリボンの項目を取得します。 */
+  controls(): Array<RibbonControlDescriptor<A[keyof A]>>;
+  controls<K extends keyof R & string>(reference: K): Array<RibbonControlDescriptor<R[K][keyof R[K]]>>;
+  controls(reference: string): RibbonControlDescriptor[];
+  /** 項目の値を取得します。同じ実行で設定した値も読み取れます。 */
+  get<K extends keyof C & string>(reference: K): C[K];
+  get(reference: string): unknown;
+  /** 項目の型に合わせて値を設定します。入力の変更処理を再実行しません。 */
+  set<K extends keyof C & string, T extends W[K]>(reference: K, value: T): JsonValue extends W[K] ? T : C[K];
+  set<T extends JsonValue>(reference: string, value: T): T;
+  /** 選択中のリボンの値を項目のキーでまとめて取得します。 */
+  values(): A;
+  /** 指定したリボンの値を項目のキーでまとめて取得します。 */
+  values<K extends keyof R & string>(reference: K): R[K];
+  values(reference: string): Record<string, JsonValue>;
+  /** 項目の表示を設定します。表示条件がある場合は併せて評価します。 */
+  show(reference: KnownString<keyof C & string>, visible?: boolean): boolean;
+  /** 項目の有効状態を設定します。有効条件がある場合は併せて評価します。 */
+  enable(reference: KnownString<keyof C & string>, enabled?: boolean): boolean;
 }
 export interface ScriptLibrary<R extends object, I extends { [P in keyof R]: unknown }> {
   /** 保存したスクリプトのIDと名前を取得します。 */
@@ -261,11 +343,13 @@ export interface SavedScript { id: string; name: string; source: string; input: 
 export interface Workspace {
   version: number; environmentId: string | null; scripts: SavedScript[]; scriptData: StoreData;
   scriptBindings: Record<string, Record<string, string>>; environments: Environment[]; globals: VariableRow[];
+  ribbons: RibbonDefinition[]; activeRibbonId: string;
+  ribbonBindings: Record<string, { ribbons: Record<string, string>; controls: Record<string, string> }>;
   collections: Array<{ _mpId: string; info: { name: string; [key: string]: unknown }; item: unknown[]; variable?: VariableRow[] }>;
   tabs: Array<{ id: string; name: string; request: Request; settings?: RequestSettings; collectionId?: string; itemId?: string }>;
   history: unknown[]; relations: unknown[]; relationRuns?: unknown[]; revisions?: Record<string, unknown[]>;
 }
-export interface MiniPostAPI<R extends object, I extends { [P in keyof R]: unknown }> {
+export interface MiniPostAPI<R extends object, I extends { [P in keyof R]: unknown }, B> {
   /** 現在の実行が扱うリクエストです。request、pm.requestと同じ変更対象です。 */
   request: CurrentRequest | null;
   /** 現在の実行が扱うレスポンスです。responseと同じ変更対象です。送信前や独立実行ではnullです。 */
@@ -273,7 +357,7 @@ export interface MiniPostAPI<R extends object, I extends { [P in keyof R]: unkno
   requests: RequestsAPI; environments: EnvironmentsAPI;
   workspace: { read(): Promise<Workspace> };
   variables: PrimaryVariables; environment: EnvironmentVariables; globals: GlobalVariables;
-  scripts: ScriptLibrary<R, I>; store: SharedData<StoreData>;
+  scripts: ScriptLibrary<R, I>; store: SharedData<StoreData>; ribbon: B;
 }
 `;
 
@@ -281,13 +365,13 @@ function wrapper(source, suffix, declarationPath) {
   const imported = name => `import(${quote(declarationPath)}).${name}`;
   const types = {
     pm:'PostmanAPI', vars:'PrimaryVariables', response:'CurrentResponse | null', request:'CurrentRequest | null',
-    console:'ScriptConsole', input:`Input_${suffix}`, scripts:`Scripts_${suffix}`, store:'SharedData<StoreData>', minipost:`MiniPost_${suffix}`
+    console:'ScriptConsole', input:`Input_${suffix}`, scripts:`Scripts_${suffix}`, store:'SharedData<StoreData>', minipost:`MiniPost_${suffix}`, ribbon:`Ribbon_${suffix}`
   };
   const annotations = Object.entries(types).map(([name,type]) => {
     const expanded = type === 'SharedData<StoreData>' ? `${imported('SharedData')}<${imported('StoreData')}>` : imported(type);
     return ` * @param {${expanded}} ${name}`;
   }).join('\n');
-  const prefix = `/**\n${annotations}\n */\nexport async function __run(pm, vars, response, request, console, input, scripts, store, minipost) {\n{\n`;
+  const prefix = `/**\n${annotations}\n */\nexport async function __run(pm, vars, response, request, console, input, scripts, store, minipost, ribbon) {\n{\n`;
   return {text:prefix + source + '\n}\n}\n', offset:prefix.length};
 }
 
@@ -348,7 +432,22 @@ export function buildLanguageProject(source, context = {}) {
   }));
   declarations.push(`export type EnvironmentLookup = ${mapType([...environmentReferences].map(([reference,entry]) => [reference,environmentTypes.get(entry)]))};`);
 
-  const groups = new Map();
+  const ribbonCatalogData = ribbonCatalog(context), ribbonValueTypes = new Map(), ribbonWriteTypes = new Map();
+  for (const {control} of ribbonCatalogData.controls) {
+    const type = {text:'string',number:'number | null',toggle:'boolean',select:'string'}[control.type] || reader.shape(control.value);
+    ribbonValueTypes.set(control,type);
+    ribbonWriteTypes.set(control,{text:'string | number | boolean | null',number:'number | string | null',toggle:'boolean',select:'string'}[control.type] || 'JsonValue');
+  }
+  const ribbonTypes = new Map(ribbonCatalogData.ribbons.map((ribbon,index) => {
+    const name = `RibbonValues_${index}`;
+    declarations.push(`export type ${name} = ${mapType(ribbonCatalogData.controls.filter(row => row.ribbon === ribbon)
+      .map(({control}) => [control.key,ribbonValueTypes.get(control)]))};`);
+    return [ribbon,name];
+  }));
+  const activeRibbon = ribbonCatalogData.ribbons.find(ribbon => ribbon.id === context.activeRibbonId);
+  declarations.push(`export type ActiveRibbonValues = ${ribbonTypes.get(activeRibbon) || '{}'};`);
+
+  const groups = new Map(), ribbonGroups = new Map();
   const createCaller = (caller, suffix) => {
     declarations.push(`export type Input_${suffix} = ${inputTypes.get(caller)};`);
     const binding = callerBinding(context,caller);
@@ -363,7 +462,18 @@ export function buildLanguageProject(source, context = {}) {
     declarations.push(`export type Results_${suffix} = ResultsGroup_${groups.get(binding)};`);
     declarations.push(`export type Inputs_${suffix} = InputsGroup_${groups.get(binding)};`);
     declarations.push(`export type Scripts_${suffix} = ScriptLibrary<Results_${suffix}, Inputs_${suffix}>;`);
-    declarations.push(`export type MiniPost_${suffix} = MiniPostAPI<Results_${suffix}, Inputs_${suffix}>;`);
+    const ribbonBinding = callerBinding(context,caller,'ribbonBindings');
+    if (!ribbonGroups.has(ribbonBinding)) {
+      const group = ribbonGroups.size; ribbonGroups.set(ribbonBinding,group);
+      const references = ribbonCatalogData.references(ribbonBinding);
+      declarations.push(`export type RibbonReadGroup_${group} = ${mapType([...references.controls].map(([reference,{control}]) => [reference,ribbonValueTypes.get(control)]))};`);
+      declarations.push(`export type RibbonWriteGroup_${group} = ${mapType([...references.controls].map(([reference,{control}]) => [reference,ribbonWriteTypes.get(control)]))};`);
+      declarations.push(`export type RibbonLookupGroup_${group} = ${mapType([...references.ribbons].map(([reference,ribbon]) => [reference,ribbonTypes.get(ribbon)]))};`);
+      declarations.push(`export type RibbonGroup_${group} = RibbonAPI<RibbonReadGroup_${group}, RibbonWriteGroup_${group}, RibbonLookupGroup_${group}, ActiveRibbonValues>;`);
+    }
+    const ribbonGroup = ribbonGroups.get(ribbonBinding);
+    declarations.push(`export type Ribbon_${suffix} = RibbonGroup_${ribbonGroup};`);
+    declarations.push(`export type MiniPost_${suffix} = MiniPostAPI<Results_${suffix}, Inputs_${suffix}, Ribbon_${suffix}>;`);
   };
   let fileName = '/minipost/active.js', offset = 0;
   for (const script of scripts) {
