@@ -1,0 +1,39 @@
+{
+  "branch": "fix/ribbon-density-20261119",
+  "cleanup_verified": true,
+  "ended_at": "2026-11-19T07:52:06.908199224Z",
+  "reason": "source branch updated or deleted",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-c4dc92ae4c44fda0",
+  "source_sha": "5ea6850dc0a25c845f60bbec8210ff643949ac97",
+  "started_at": "2026-11-19T07:36:55.892099488Z",
+  "status": "cancelled",
+  "version": 1,
+  "vms": {
+    "app": {
+      "status": "preparing",
+      "phase": "released",
+      "sandbox_id": "sb-477db8ff16a1",
+      "environment_id": "lrce-1932a15f228c02edbf99a582",
+      "expires_at": "2026-11-19T10:37:17.801141Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "port": 8080
+    },
+    "browser": {
+      "status": "ready",
+      "phase": "released",
+      "sandbox_id": "sb-6123d5832074",
+      "environment_id": "lrce-e73c504b02395a39cb6c9fc4",
+      "expires_at": "2026-11-19T10:37:17.796764Z",
+      "reused": false,
+      "retained": true,
+      "release_verified": true,
+      "source_generation": 1,
+      "ip": "10.240.0.112",
+      "port": 18081
+    }
+  }
+}
