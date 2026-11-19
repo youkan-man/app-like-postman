@@ -338,6 +338,24 @@ def main():
                 props.scroll_into_view_if_needed()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
                 capture(f'ribbon-settings-{width}x{height}')
+                if width < 740:
+                    live(toggle_id).check()
+                    strip = page.locator('#customRibbon .ribbon-live-groups')
+                    strip.hover()
+                    page.mouse.wheel(1600, 0)
+                    page.wait_for_function('''id => {
+                        const button = document.querySelector(`#customRibbon [data-ribbon-input="${id}"]`);
+                        const strip = button.closest('.ribbon-live-groups');
+                        const target = button.getBoundingClientRect(), bounds = strip.getBoundingClientRect();
+                        return strip.scrollLeft > 0 && target.left >= bounds.left && target.right <= bounds.right;
+                    }''', arg=chain_id)
+                    capture(f'ribbon-scrolled-{width}x{height}')
+                    live(chain_id).click()
+                    expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(details_id)
+                    expect(live(details_value)).to_have_text('{"count":6}')
+                    assert control_state(saved(), toggle_id)['value'] is False
+                    page.get_by_label('表示するリボン', exact=True).select_option(main_id)
+                    passed(f'{width} px mobile scrolls to the last ribbon button and executes its conditional ribbon switch')
             passed('1440 px desktop and 390/320 px mobile keep the live ribbon and builder within the viewport width')
             assert not errors and not dialogs and not crashes, (errors, dialogs, crashes)
             assert not requests, requests
