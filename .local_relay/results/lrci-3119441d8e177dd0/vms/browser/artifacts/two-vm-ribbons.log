@@ -1,0 +1,17 @@
+PASS a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon
+PASS request ribbon typing retains focus and conditions react to numeric, selected and checkbox values
+PASS the request ribbon runs parent and child Workers with typed event input and shared writes in its owner
+PASS user change runs once and script-driven updates do not recursively fire change actions
+PASS ordered set, toggle and conditional activation observe prior changes within the same request
+PASS a failed action rolls back script writes while retaining the direct input and visible execution error
+PASS standalone scripts use the selected request context while the script page has no global live ribbon
+PASS ribbon Ctrl+Enter commits its change once without executing another script or sending the request
+PASS ribbon Ctrl+S saves its owner without registering a request or creating another draft
+PASS two requests reuse identical ribbon keys while keeping definitions, active selection, values and child-script writes independent
+Traceback (most recent call last):
+  File "/workspace/tests/ui_ribbons.py", line 618, in <module>
+    main()
+  File "/workspace/tests/ui_ribbons.py", line 433, in main
+    assert control_state(workspace, output_id, owner_a)['value'] == {'owner': 'A', 'count': 9}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

@@ -1,0 +1,24 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon",
+    "request ribbon typing retains focus and conditions react to numeric, selected and checkbox values",
+    "the request ribbon runs parent and child Workers with typed event input and shared writes in its owner",
+    "user change runs once and script-driven updates do not recursively fire change actions",
+    "ordered set, toggle and conditional activation observe prior changes within the same request",
+    "a failed action rolls back script writes while retaining the direct input and visible execution error",
+    "standalone scripts use the selected request context while the script page has no global live ribbon",
+    "ribbon Ctrl+Enter commits its change once without executing another script or sending the request",
+    "ribbon Ctrl+S saves its owner without registering a request or creating another draft",
+    "two requests reuse identical ribbon keys while keeping definitions, active selection, values and child-script writes independent"
+  ],
+  "screenshots": [
+    "failure.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "unexpected_requests": []
+}
