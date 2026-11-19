@@ -1,4 +1,4 @@
-"""Custom ribbon authoring, real Worker actions and persistence over native HTTP.
+"""Request-owned ribbon authoring, real Worker actions and native persistence.
 
 Fixtures are authored through the visible UI. IndexedDB and HTTP reads inspect
 committed results without replacing storage, script execution or app state.
@@ -73,29 +73,110 @@ def main():
                 page.locator(f'[data-sidebar="{kind}"]').click()
                 expect(page.locator('#sidebarContent')).to_have_attribute('data-side', kind)
 
+            def request_records(workspace):
+                def descend(items):
+                    for item in items:
+                        if 'request' in item:
+                            yield item
+                        yield from descend(item.get('item', []))
+                for collection in workspace['collections']:
+                    yield from descend(collection.get('item', []))
+                yield from workspace['tabs']
+
+            def ribbon_states(workspace):
+                result = {}
+                for record in request_records(workspace):
+                    state = record.get('ribbonState')
+                    if state:
+                        result.setdefault(state['id'], state)
+                return result
+
+            def scope(workspace, owner):
+                return ribbon_states(workspace)[owner]
+
+            def owner_state(name):
+                return next(record['ribbonState'] for record in request_records(saved())
+                            if record['name'] == name and record.get('ribbonState'))
+
+            def close_navigation():
+                if page.locator('#navClose').is_visible() and page.locator('#toggleSidebar').get_attribute('aria-expanded') == 'true':
+                    page.locator('#navClose').click()
+
+            def operate():
+                if page.locator('#ribbonBackToRequest').is_visible():
+                    page.locator('#ribbonBackToRequest').click()
+                elif not page.locator('#exchange').is_visible():
+                    sidebar('collections')
+                close_navigation()
+                expect(page.locator('#exchange')).to_be_visible()
+
+            def edit_ribbons():
+                if not page.locator('#ribbonOwnerSelect').is_visible():
+                    operate()
+                    page.locator('#requestRibbonEdit').click()
+                expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
+                expect(page.locator('#customRibbon')).not_to_be_visible()
+
+            def select_request(name):
+                edit_ribbons()
+                options = page.locator('#ribbonOwnerSelect option').evaluate_all(
+                    '(options) => options.map(option => ({value: option.value, label: option.textContent}))')
+                matches = [option for option in options if name in option['label']]
+                exact = [option for option in matches if name + ' copy' not in option['label']]
+                choice = exact if len(exact) == 1 else matches
+                assert len(choice) == 1, (name, options)
+                page.locator('#ribbonOwnerSelect').select_option(choice[0]['value'])
+                operate()
+                expect(page.locator('#requestName')).to_have_value(name)
+
+            def create_draft(name, suffix, initial=False):
+                if not initial:
+                    operate()
+                    sidebar('collections')
+                    page.locator('#addTab').click()
+                    page.get_by_role('menuitem', name='リクエストを作成', exact=True).click()
+                close_navigation()
+                page.locator('#requestName').fill(name)
+                page.locator('#url').fill('https://example.invalid/' + suffix)
+                return next(item['id'] for item in saved()['tabs'] if item['name'] == name)
+
             def create_ribbon(name, key):
+                edit_ribbons()
                 sidebar('ribbons')
                 page.locator('#sidebarAdd').click()
                 page.get_by_role('menuitem', name='リボンを作成', exact=True).click()
                 page.locator('#modal').get_by_label('リボン名', exact=True).fill(name)
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modal')).not_to_be_visible()
+                close_navigation()
                 page.get_by_label('リボンの参照キー', exact=True).fill(key)
                 page.get_by_label('リボンの参照キー', exact=True).press('Tab')
-                return next(item['id'] for item in saved()['ribbons'] if item['key'] == key)
+                return next(item['id'] for item in current_scope()['ribbons'] if item['key'] == key)
 
             def open_ribbon(identifier):
+                edit_ribbons()
                 sidebar('ribbons')
                 page.locator(f'[data-ribbon-id="{identifier}"] .tree-open').click()
                 expect(page.locator('.ribbons-page')).to_be_visible()
+                close_navigation()
 
             def choose(identifier):
                 page.locator(f'#ribbonCanvas [data-control-id="{identifier}"]').click()
                 expect(props).to_be_visible()
 
-            def control_state(workspace, identifier):
-                return next(control for ribbon in workspace['ribbons'] for group in ribbon['groups']
+            def control_state(workspace, identifier, owner):
+                return next(control for ribbon in scope(workspace, owner)['ribbons'] for group in ribbon['groups']
                             for control in group['controls'] if control['id'] == identifier)
+
+            def current_scope():
+                workspace = saved()
+                selected = page.locator('#ribbonOwnerSelect').input_value()
+                if selected.startswith('draft:'):
+                    return next(tab['ribbonState'] for tab in workspace['tabs'] if selected == 'draft:' + tab['id'])
+                for record in request_records(workspace):
+                    if record.get('ribbonState') and record.get('_mpId') and record['_mpId'] in selected:
+                        return record['ribbonState']
+                raise AssertionError('Unknown request owner: ' + selected)
 
             def add_control(kind, key, label):
                 page.locator('.ribbon-editor-tools').get_by_role('button', name='項目を追加 ▾', exact=True).click()
@@ -103,7 +184,7 @@ def main():
                 props.get_by_label('項目のラベル', exact=True).fill(label)
                 props.get_by_label('項目の参照キー', exact=True).fill(key)
                 props.get_by_label('項目の参照キー', exact=True).press('Tab')
-                return next(control['id'] for ribbon in saved()['ribbons'] for group in ribbon['groups']
+                return next(control['id'] for ribbon in current_scope()['ribbons'] for group in ribbon['groups']
                             for control in group['controls'] if control['key'] == key)
 
             def typed(scope, label, kind, value):
@@ -151,7 +232,11 @@ def main():
             page.goto(url, wait_until='domcontentloaded')
             ready()
             expect(page.locator('#customRibbon')).not_to_be_visible()
+            request_a = 'リクエストA'
+            request_b = 'リクエストB'
+            draft_a = create_draft(request_a, 'request-a', initial=True)
             main_id = create_ribbon('操作パネル', 'main')
+            owner_a = owner_state(request_a)['id']
             page.locator('.ribbon-editor-tools').get_by_role('button', name='グループを追加', exact=True).click()
             page.locator('#modal').get_by_label('グループ名', exact=True).fill('操作')
             page.locator('#modalSubmit').click()
@@ -171,10 +256,12 @@ def main():
             run_id = add_control('ボタン', 'run', '集計を実行')
             condition(props, '有効条件', count_id, 'gt', 0)
             workspace = saved()
-            assert [item['type'] for item in workspace['ribbons'][0]['groups'][0]['controls']] == ['toggle', 'number', 'text', 'select', 'display', 'button']
-            assert workspace['collections'] == [] and workspace['tabs'] == []
-            passed('empty workspace authors a named ribbon, group and all six typed controls through the UI')
+            assert [item['type'] for item in scope(workspace, owner_a)['ribbons'][0]['groups'][0]['controls']] == ['toggle', 'number', 'text', 'select', 'display', 'button']
+            assert workspace['collections'] == [] and [tab['id'] for tab in workspace['tabs']] == [draft_a]
+            expect(page.locator('#customRibbon')).not_to_be_visible()
+            passed('a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon')
 
+            operate()
             expect(live(output_id)).not_to_be_visible()
             live(count_id).fill('0')
             expect(live(run_id)).to_be_disabled()
@@ -188,111 +275,212 @@ def main():
             live(mode_id).select_option('detail')
             live(toggle_id).check()
             expect(live(output_id)).to_be_visible()
-            assert control_state(saved(), mode_id)['value'] == 'detail'
-            passed('live typing retains focus and conditions react to numeric, selected and checkbox values')
+            assert control_state(saved(), mode_id, owner_a)['value'] == 'detail'
+            passed('request ribbon typing retains focus and conditions react to numeric, selected and checkbox values')
 
             child_id = create_script('子集計', "const value=ribbon.get('main.count')*2; ribbon.set('main.result',{value}); return value;")
             script_id = create_script('リボン集計', 'const value=await scripts.run(' + json.dumps(child_id) + ',input); store.set("event",input); store.set("runs",(store.get("runs")||0)+1); return value;')
             self_id = create_script('変更を一度だけ処理', "store.set('changes',(store.get('changes')||0)+1); store.set('previousCount',input.previousValue); ribbon.set('main.count',input.value+1);")
             fail_id = create_script('失敗する処理', "ribbon.set('main.count',999); store.set('failedWrite',true); throw Error('ribbon failure');")
+            expect(page.locator('#customRibbon')).not_to_be_visible()
             open_ribbon(main_id)
             choose(run_id)
             action('script', script_id)
+            operate()
             live(run_id).click()
             expect(live(output_id)).to_have_text('{"value":6}')
-            expect(page.locator('#ribbonOperationResult')).to_have_attribute('data-state', 'success')
+            expect(page.locator('#ribbonLiveResult')).to_have_attribute('data-state', 'success')
             workspace = saved()
             event = workspace['scriptData']['event']
             assert event['type'] == 'click' and event['controlId'] == run_id and event['ribbonId'] == main_id
             assert event['values']['count'] == 3 and event['values']['query'] == 'alpha' and workspace['scriptData']['runs'] == 1
-            passed('actual live button runs parent and child Workers with typed event input and shared ribbon writes')
+            passed('the request ribbon runs parent and child Workers with typed event input and shared writes in its owner')
 
+            open_ribbon(main_id)
             choose(count_id)
             action('script', self_id)
+            operate()
             live(count_id).fill('5')
             live(count_id).press('Tab')
             expect(live(count_id)).to_have_value('6')
-            expect(page.locator('#ribbonOperationResult')).to_have_attribute('data-state', 'success')
+            expect(page.locator('#ribbonLiveResult')).to_have_attribute('data-state', 'success')
             assert saved()['scriptData']['changes'] == 1 and saved()['scriptData']['previousCount'] == 3
-            passed('user change runs once and script-driven value updates do not recursively fire change actions')
+            passed('user change runs once and script-driven updates do not recursively fire change actions')
 
             details_id = create_ribbon('結果パネル', 'details')
             details_value = add_control('値表示', 'details_result', '状態')
             typed(props, '表示する値', 'text', '待機中')
+            operate()
             page.get_by_label('表示するリボン', exact=True).select_option(main_id)
             open_ribbon(main_id)
             chain_id = add_control('ボタン', 'switch', '結果へ切り替え')
             action('set', output_id, {'chain': True})
             action('toggle', toggle_id)
             condition(action('activate', details_id), '実行条件', toggle_id, 'falsy')
+            operate()
             live(chain_id).click()
             expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(details_id)
             expect(live(details_value)).to_have_text('待機中')
             workspace = saved()
-            assert control_state(workspace, output_id)['value'] == {'chain': True}
-            assert control_state(workspace, toggle_id)['value'] is False
+            assert control_state(workspace, output_id, owner_a)['value'] == {'chain': True}
+            assert control_state(workspace, toggle_id, owner_a)['value'] is False
             page.get_by_label('表示するリボン', exact=True).select_option(main_id)
             expect(live(output_id)).not_to_be_visible()
-            passed('ordered set, toggle and conditional activation actions observe earlier staged changes and retain both ribbons')
+            passed('ordered set, toggle and conditional activation observe prior changes within the same request')
 
+            open_ribbon(main_id)
             choose(query_id)
             action('set', output_id, {'should': 'rollback'})
             action('script', fail_id)
+            operate()
             live(query_id).fill('beta')
             live(query_id).press('Tab')
-            expect(page.locator('#ribbonOperationResult')).to_have_attribute('data-state', 'error')
-            expect(page.locator('#ribbonOperationResult')).to_contain_text('ribbon failure')
+            expect(page.locator('#ribbonLiveResult')).to_have_attribute('data-state', 'error')
+            expect(page.locator('#ribbonLiveResult')).to_contain_text('ribbon failure')
             workspace = saved()
-            assert control_state(workspace, query_id)['value'] == 'beta'
-            assert control_state(workspace, count_id)['value'] == 6
-            assert control_state(workspace, output_id)['value'] == {'chain': True}
+            assert control_state(workspace, query_id, owner_a)['value'] == 'beta'
+            assert control_state(workspace, count_id, owner_a)['value'] == 6
+            assert control_state(workspace, output_id, owner_a)['value'] == {'chain': True}
             assert 'failedWrite' not in workspace['scriptData']
             expect(live(query_id)).to_be_enabled()
-            passed('a later script failure rolls back the entire action list while preserving the direct input and releasing busy state')
+            passed('a failed action rolls back script writes while retaining the direct input and visible execution error')
 
             standalone_id = create_script('リボンAPI確認', "const count=minipost.ribbon.get('main.count'); ribbon.set('details.details_result',{count}); ribbon.activate('details'); return ribbon.values('details');")
             page.locator('#runStandaloneScript').click()
-            expect(live(details_value)).to_have_text('{"count":6}')
             expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'success')
             assert json.loads(page.locator('#standaloneScriptResult').inner_text()) == {'details_result': {'count': 6}}
+            expect(page.locator('#customRibbon')).not_to_be_visible()
+            operate()
+            expect(live(details_value)).to_have_text('{"count":6}')
             page.get_by_label('表示するリボン', exact=True).select_option(main_id)
-            passed('independent scripts read and write ribbon values and activate another ribbon through the same public API')
+            passed('standalone scripts use the selected request context while the script page has no global live ribbon')
 
             create_script('キー操作の分離確認', "store.set('unrelatedShortcutRuns',(store.get('unrelatedShortcutRuns')||0)+1); return store.get('unrelatedShortcutRuns');")
             expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
+            operate()
             previous_changes = saved()['scriptData']['changes']
             live(count_id).fill('8')
             live(count_id).press('Control+Enter')
             expect(live(count_id)).to_have_value('9')
-            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
             workspace = saved()
             assert workspace['scriptData']['changes'] == previous_changes + 1
             assert workspace['scriptData']['previousCount'] == 6
             assert 'unrelatedShortcutRuns' not in workspace['scriptData']
-            # Select controls do not prevent Enter locally; they exercise the
-            # ribbon scope guard independently of the handled-event guard.
             live(mode_id).press('Control+Enter')
-            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
             assert 'unrelatedShortcutRuns' not in saved()['scriptData']
-            passed('ribbon Ctrl+Enter commits its own change once without executing the selected standalone script')
+            assert not requests, requests
+            passed('ribbon Ctrl+Enter commits its change once without executing another script or sending the request')
 
-            sidebar('collections')
             live(count_id).press('Control+s')
             expect(page.locator('#modal')).not_to_be_visible()
             workspace = saved()
-            assert workspace['collections'] == [] and workspace['tabs'] == []
-            assert control_state(workspace, count_id)['value'] == 9
-            assert not requests, requests
-            passed('ribbon Ctrl+S saves workspace state without opening request registration or creating a request')
+            assert workspace['collections'] == [] and [tab['id'] for tab in workspace['tabs']] == [draft_a]
+            assert control_state(workspace, count_id, owner_a)['value'] == 9
+            passed('ribbon Ctrl+S saves its owner without registering a request or creating another draft')
+
+            # Create B from the visible request UI; same keys are intentionally
+            # reused to prove that definitions and live values belong to requests.
+            draft_b = create_draft(request_b, 'request-b')
+            expect(page.locator('#customRibbon')).not_to_be_visible()
+            edit_ribbons()
+            expect(page.locator(f'[data-ribbon-id="{main_id}"]')).to_have_count(0)
+            b_main = create_ribbon('Bの操作パネル', 'main')
+            owner_b = owner_state(request_b)['id']
+            assert owner_b != owner_a
+            b_count = add_control('数値入力', 'count', 'Bの件数')
+            props.get_by_label('項目の値', exact=True).fill('3')
+            b_output = add_control('値表示', 'result', 'Bの計算結果')
+            typed(props, '表示する値', 'json', {'value': 0})
+            b_run = add_control('ボタン', 'run', 'Bで集計を実行')
+            action('script', script_id)
+            b_secondary = create_ribbon('Bの補助パネル', 'secondary')
+            operate()
+            expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(b_secondary)
+            select_request(request_a)
+            expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(main_id)
+            expect(live(count_id)).to_have_value('9')
+            expect(live(b_count)).to_have_count(0)
+            select_request(request_b)
+            expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(b_secondary)
+            assert scope(saved(), owner_a)['activeRibbonId'] == main_id
+            assert scope(saved(), owner_b)['activeRibbonId'] == b_secondary
+            page.get_by_label('表示するリボン', exact=True).select_option(b_main)
+            expect(live(count_id)).to_have_count(0)
+            expect(live(b_count)).to_have_value('3')
+            live(b_run).click()
+            expect(live(b_output)).to_have_text('{"value":6}')
+            workspace = saved()
+            assert control_state(workspace, output_id, owner_a)['value'] == {'chain': True}
+            assert control_state(workspace, count_id, owner_a)['value'] == 9
+            assert control_state(workspace, b_count, owner_b)['value'] == 3
+            passed('two requests reuse identical ribbon keys while keeping definitions, active selection, values and child-script writes independent')
+
+            select_request(request_a)
+            delayed_id = create_script('遅延した所有者への書き込み', "await new Promise(resolve=>setTimeout(resolve,1800)); const count=ribbon.get('main.count'); ribbon.set('main.result',{owner:'A',count}); return count;")
+            page.locator('#runStandaloneScript').click()
+            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'running')
+            select_request(request_b)
+            expect(live(b_count)).to_have_value('3')
+            # Observe real IndexedDB completion; this does not inject app state.
+            page.wait_for_function(
+                "async args => {const workspace = await (" + READ_WORKSPACE + ")();"
+                "const owners = workspace.tabs.map(tab => tab.ribbonState).filter(Boolean);"
+                "const state = owners.find(state => state.id === args.owner);"
+                "const control = state && state.ribbons.flatMap(r => r.groups).flatMap(g => g.controls).find(c => c.id === args.control);"
+                "return control && control.value && control.value.owner === 'A';}",
+                arg={'owner': owner_a, 'control': output_id})
+            workspace = saved()
+            assert control_state(workspace, output_id, owner_a)['value'] == {'owner': 'A', 'count': 9}
+            assert control_state(workspace, b_output, owner_b)['value'] == {'value': 6}
+            assert any(script['id'] == delayed_id for script in workspace['scripts'])
+            passed('a script completing after request navigation commits to the captured owner and leaves the new request untouched')
+
+            select_request(request_a)
+            page.locator('#duplicateRequest').click()
+            copy_name = request_a + ' copy'
+            expect(page.locator('#requestName')).to_have_value(copy_name)
+            copy_state = owner_state(copy_name)
+            owner_copy = copy_state['id']
+            assert owner_copy not in [owner_a, owner_b]
+            copy_count = next(control['id'] for ribbon in copy_state['ribbons'] if ribbon['key'] == 'main'
+                              for group in ribbon['groups'] for control in group['controls'] if control['key'] == 'count')
+            assert copy_count == count_id
+            live(copy_count).fill('20')
+            live(copy_count).press('Tab')
+            expect(live(copy_count)).to_have_value('21')
+            workspace = saved()
+            assert control_state(workspace, count_id, owner_a)['value'] == 9
+            assert control_state(workspace, b_count, owner_b)['value'] == 3
+            assert control_state(workspace, copy_count, owner_copy)['value'] == 21
+            passed('request duplication creates an independent ribbon owner, preserves script references and isolates copied values')
+
+            select_request(request_a)
+            before_registration = scope(saved(), owner_a)
+            page.locator('#saveRequest').click()
+            page.get_by_label('Request name', exact=True).fill(request_a)
+            page.locator('#modalSubmit').click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            workspace = saved()
+            assert workspace['collections']
+            registered = next(record for record in request_records(workspace) if record.get('_mpId') and record['name'] == request_a)
+            assert registered['ribbonState'] == before_registration
+            expect(live(count_id)).to_have_value('9')
+            assert control_state(workspace, b_count, owner_b)['value'] == 3
+            assert control_state(workspace, copy_count, owner_copy)['value'] == 21
+            passed('registering a draft in a collection preserves its ribbon owner and references without altering other requests')
 
             before = saved()
             page.reload(wait_until='domcontentloaded')
             ready()
+            operate()
             after = saved()
-            for key in ['ribbons', 'activeRibbonId', 'scripts', 'scriptData']:
+            assert ribbon_states(after) == ribbon_states(before)
+            for key in ['scripts', 'scriptData']:
                 assert after[key] == before[key], key
             assert any(item['id'] == standalone_id for item in after['scripts'])
-            passed('ribbon definitions, values, selection, actions and linked scripts survive native IndexedDB reload')
+            expect(page.locator('#requestName')).to_have_value(request_a)
+            expect(live(count_id)).to_have_value('9')
+            passed('saved-request and draft ribbons, independent values and linked scripts survive native IndexedDB reload')
 
             page.locator('#dataActions').click()
             with page.expect_download() as download:
@@ -300,14 +488,14 @@ def main():
             backup = out / 'ribbon-workspace.json'
             download.value.save_as(backup)
             bundle = json.loads(backup.read_text())
-            assert bundle['workspace']['ribbons'] == after['ribbons']
-            assert bundle['workspace']['activeRibbonId'] == main_id
+            assert ribbon_states(bundle['workspace']) == ribbon_states(after)
+            assert scope(bundle['workspace'], owner_a)['activeRibbonId'] == main_id
             page.locator('#dataActions').click()
             page.get_by_role('menuitem', name='サーバーへ保存', exact=True).click()
             expect(page.locator('#serverSaveState')).to_have_class('saved')
             response = page.request.get(url.rstrip('/') + '/api/workspace')
-            assert response.ok and response.json()['workspace']['ribbons'] == after['ribbons']
-            passed('whole export and explicit server save contain complete ribbon definitions and current typed values')
+            assert response.ok and ribbon_states(response.json()['workspace']) == ribbon_states(after)
+            passed('whole export and explicit server save contain each request-owned ribbon definition and typed value')
 
             live(query_id).fill('changed after backup')
             live(query_id).press('Tab')
@@ -319,47 +507,100 @@ def main():
             with page.expect_navigation(wait_until='domcontentloaded'):
                 page.locator('#modalSubmit').click()
             ready()
+            operate()
             expect(live(query_id)).to_have_value('beta')
-            assert saved()['ribbons'] == after['ribbons']
-            passed('actual import-and-replace restores ribbon values and executable action references from the exported backup')
+            assert ribbon_states(saved()) == ribbon_states(after)
+            select_request(request_b)
+            expect(live(b_count)).to_have_value('3')
+            expect(live(count_id)).to_have_count(0)
+            select_request(request_a)
+            expect(live(count_id)).to_have_value('9')
+            passed('actual import-and-replace restores each request scope and preserves cross-request separation')
 
-            open_ribbon(main_id)
-            choose(run_id)
             for width, height in [(1440, 900), (390, 844), (320, 720)]:
                 page.set_viewport_size({'width': width, 'height': height})
-                if page.locator('#navClose').is_visible() and page.locator('#toggleSidebar').get_attribute('aria-expanded') == 'true':
-                    page.locator('#navClose').click()
+                operate()
+                close_navigation()
                 expect(page.locator('#customRibbon')).to_be_visible()
-                expect(page.locator('#ribbonCanvas')).to_be_visible()
+                live(toggle_id).check()
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
+                strip = page.locator('#customRibbon .ribbon-live-groups')
+                assert strip.evaluate('node => node.scrollWidth <= node.clientWidth'), (width, height)
+                live(chain_id).scroll_into_view_if_needed()
+                assert live(chain_id).evaluate('node => {const b=node.getBoundingClientRect();return b.left>=0 && b.right<=innerWidth;}')
+                capture(f'request-ribbon-{width}x{height}')
+                live(chain_id).click()
+                expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(details_id)
+                expect(live(details_value)).to_have_text('{"count":6}')
+                assert control_state(saved(), toggle_id, owner_a)['value'] is False
+                page.get_by_label('表示するリボン', exact=True).select_option(main_id)
+                if width < 740:
+                    passed(f'{width} px mobile reaches and executes the last ribbon action without horizontal scrolling')
+
+                open_ribbon(main_id)
+                choose(run_id)
+                expect(page.locator('#customRibbon')).not_to_be_visible()
+                expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
                 expect(props.get_by_label('項目のラベル', exact=True)).to_have_value('集計を実行')
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
                 page.locator('#ribbonCanvas').scroll_into_view_if_needed()
-                capture(f'ribbon-builder-{width}x{height}')
+                capture(f'ribbon-editor-{width}x{height}')
                 props.scroll_into_view_if_needed()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (width, height)
                 capture(f'ribbon-settings-{width}x{height}')
-                if width < 740:
-                    live(toggle_id).check()
-                    strip = page.locator('#customRibbon .ribbon-live-groups')
-                    strip.hover()
-                    page.mouse.wheel(1600, 0)
-                    page.wait_for_function('''id => {
-                        const button = document.querySelector(`#customRibbon [data-ribbon-input="${id}"]`);
-                        const strip = button.closest('.ribbon-live-groups');
-                        const target = button.getBoundingClientRect(), bounds = strip.getBoundingClientRect();
-                        return strip.scrollLeft > 0 && target.left >= bounds.left && target.right <= bounds.right;
-                    }''', arg=chain_id)
-                    capture(f'ribbon-scrolled-{width}x{height}')
-                    live(chain_id).click()
-                    expect(page.get_by_label('表示するリボン', exact=True)).to_have_value(details_id)
-                    expect(live(details_value)).to_have_text('{"count":6}')
-                    assert control_state(saved(), toggle_id)['value'] is False
-                    page.get_by_label('表示するリボン', exact=True).select_option(main_id)
-                    passed(f'{width} px mobile scrolls to the last ribbon button and executes its conditional ribbon switch')
-            passed('1440 px desktop and 390/320 px mobile keep the live ribbon and builder within the viewport width')
+            passed('desktop and narrow mobile separate execution from editing and keep request identity, selected settings and controls within width')
+
+            # Recreate an old global-ribbon backup through the supported import
+            # UI. B and the copied request remain as independent current data.
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            operate()
+            legacy_bundle = json.loads(json.dumps(bundle))
+            legacy_workspace = legacy_bundle['workspace']
+            legacy_state = scope(legacy_workspace, owner_a)
+            legacy_workspace['ribbons'] = legacy_state['ribbons']
+            legacy_workspace['activeRibbonId'] = legacy_state['activeRibbonId']
+            legacy_workspace['ribbonBindings'] = legacy_state.get('ribbonBindings', {})
+            for record in request_records(legacy_workspace):
+                if record.get('ribbonState', {}).get('id') == owner_a:
+                    record.pop('ribbonState')
+            legacy_original = json.loads(json.dumps(legacy_workspace['ribbons']))
+            page.locator('#import').click()
+            page.get_by_label('インポートJSON', exact=True).fill(json.dumps(legacy_bundle, ensure_ascii=False))
+            page.locator('#modalSubmit').click()
+            expect(page.locator('#modalTitle')).to_contain_text('全体バックアップ')
+            with page.expect_navigation(wait_until='domcontentloaded'):
+                page.locator('#modalSubmit').click()
+            ready()
+            operate()
+            expect(page.locator('#requestName')).to_have_value(request_a)
+            expect(page.locator('#customRibbon')).not_to_be_visible()
+            create_script('旧共通リボンへ参照しない', "return {list:ribbon.list(),active:ribbon.active(),values:ribbon.values()};")
+            page.locator('#runStandaloneScript').click()
+            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'success')
+            assert json.loads(page.locator('#standaloneScriptResult').inner_text()) == {'list': [], 'active': None, 'values': {}}
+            assert saved()['ribbons'] == legacy_original
+            passed('legacy global ribbons remain preserved but do not appear or become an implicit script fallback for a request')
+
+            edit_ribbons()
+            page.get_by_role('button', name='以前のリボンを取り込む', exact=True).click()
+            migrated = owner_state(request_a)
+            migrated_count = next(control['id'] for ribbon in migrated['ribbons'] if ribbon['key'] == 'main'
+                                  for group in ribbon['groups'] for control in group['controls'] if control['key'] == 'count')
+            assert migrated_count == count_id
+            assert migrated['id'] not in [owner_b, owner_copy]
+            operate()
+            expect(live(migrated_count)).to_have_value('9')
+            live(migrated_count).fill('11')
+            live(migrated_count).press('Tab')
+            expect(live(migrated_count)).to_have_value('12')
+            workspace = saved()
+            assert workspace['ribbons'] == legacy_original
+            assert control_state(workspace, b_count, owner_b)['value'] == 3
+            assert control_state(workspace, copy_count, owner_copy)['value'] == 21
+            passed('explicit legacy import creates an independently executable request copy without changing the archive or other requests')
             assert not errors and not dialogs and not crashes, (errors, dialogs, crashes)
             assert not requests, requests
-            passed('ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends')
+            passed('request-owned ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends')
             completed = True
             browser.close()
     finally:

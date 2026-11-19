@@ -68,7 +68,8 @@ export async function executeScript(source, context = {}, options = {}) {
     };
     // Ribbon state is another part of this transaction: child scripts see pending
     // changes immediately, while the host commits only the explicitly changed fields.
-    const ribbonWorkspace = {ribbons:Array.isArray(ctx.ribbons) ? ctx.ribbons : [], activeRibbonId:ctx.activeRibbonId || ''};
+    const ribbonScopeId = typeof ctx.ribbonScopeId === 'string' && ctx.ribbonScopeId ? ctx.ribbonScopeId : null;
+    const ribbonWorkspace = {ribbons:ribbonScopeId && Array.isArray(ctx.ribbons) ? ctx.ribbons : [], activeRibbonId:ribbonScopeId ? ctx.activeRibbonId || '' : ''};
     const ribbonRows = () => ribbonWorkspace.ribbons.flatMap(ribbon => (ribbon.groups || []).flatMap(group =>
       (group.controls || []).map(control => ({ribbon, group, control, reference:`${ribbon.key}.${control.key}`}))));
     const ribbonName = item => ({id:item.id, key:item.key, name:item.name});
@@ -375,7 +376,7 @@ export async function executeScript(source, context = {}, options = {}) {
     }
     const result = await wait(invoke(source, ctx.input, ctx.scriptId));
     checkActive();
-    const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), ribbonWrites:copy(ribbonWrites), logs:copy(logs)};
+    const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), ribbonScopeId, ribbonWrites:copy(ribbonWrites), logs:copy(logs)};
     const attachmentRows = fileRows();
     if (!same(request, initialRequest) || !same(attachmentRows, initialFileRows)) {
       output.request = copy(request);

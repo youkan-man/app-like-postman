@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createScriptHost,makeScriptContext,formatScriptValue} from '../static/script-host.mjs';
 import {PrimaryVariables} from '../static/runtime.mjs';
+import {historyEntry} from '../static/sent-history.mjs';
+import {RequestSession} from '../static/request-session.mjs';
 
 function fixture(){return {version:2,environmentId:'env',globals:[{key:'global',value:'old'}],environments:[{id:'env',name:'Test',values:[{key:'host',value:'old.example'}]}],tabs:[],scripts:[],scriptData:{rows:[1,2]},collections:[{_mpId:'collection',info:{name:'API'},variable:[{key:'path',value:'items'}],item:[{_mpId:'request',name:'Fetch',request:{method:'GET',url:'https://{{host}}/{{path}}?id={{id}}',header:[]}}]}]};}
 
@@ -20,6 +22,28 @@ test('get then modify then send preserves request identity, attachments and coll
   assert.equal(filesTab.collectionId,'collection');assert.equal(filesTab.itemId,'request');assert.equal(recorded.itemId,'request');
   assert.equal(sent.url,'https://new.example/items');assert.deepEqual(sent.query,[{key:'id',value:'42'}]);assert.equal(sent.headers.find(row=>row.key==='X-Edited')?.value,'yes');
   assert.deepEqual(result.body,{ok:true});assert.equal(workspace.environments[0].values[0].value,'old.example');assert.equal(primary.get('id'),undefined);
+});
+
+test('a script send preserves canonical target ribbons through recorded history and reopening for editing',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),item=workspace.collections[0].item[0];
+  item.request.url='https://example.test/saved';
+  item.ribbonState={id:'saved-scope',activeRibbonId:'tools',ribbonBindings:{},ribbons:[{id:'tools',key:'tools',name:'Tools',groups:[{
+    id:'group',name:'Inputs',controls:[{id:'query',key:'query',label:'Query',type:'text',value:'canonical',actions:[]}]
+  }]}]};
+  const value=state=>state.ribbons[0].groups[0].controls[0];
+  const cached=structuredClone(item.ribbonState);cached.id='stale-editor-scope';value(cached).value='stale';
+  workspace.tabs=[{id:'editor',collectionId:'collection',itemId:'request',name:'Fetch',request:item.request,ribbonState:cached}];
+  let recorded;
+  const host=createScriptHost({workspace,primary,filesFor:tab=>{assert.equal(tab.ribbonState.id,'saved-scope');return {};},
+    send:async()=>{value(item.ribbonState).value='edited during send';return {status:200,body:'{}',headers:[]};},
+    onResponse:(tab,result)=>{recorded=historyEntry(tab,result);}});
+  const request=await host('requests.get',['collection:request']);request.request.header=[{key:'X-Edited',value:'yes'}];
+  await host('requests.send',[request]);
+  assert.equal(recorded.tab.ribbonState.id,'saved-scope');assert.equal(value(recorded.tab.ribbonState).value,'canonical');
+  assert.equal(recorded.tab.request.header[0].value,'yes');assert.equal(value(item.ribbonState).value,'edited during send');
+  const session=new RequestSession(workspace,()=>({id:'blank',request:{method:'GET',url:''}})),editor=session.openHistory(recorded);
+  assert.notEqual(editor.ribbonState.id,'saved-scope');assert.equal(value(editor.ribbonState).value,'canonical');
+  value(editor.ribbonState).value='history edit';assert.equal(value(recorded.tab.ribbonState).value,'canonical');
 });
 
 test('catalog and workspace reads are isolated and ambiguous names are rejected',async()=>{

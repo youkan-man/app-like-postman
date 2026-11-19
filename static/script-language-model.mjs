@@ -125,7 +125,7 @@ const mapType = entries => entries.length ? `{\n${entries.map(([key,type]) => ` 
  * previously bound control is removed.
  */
 function ribbonCatalog(context) {
-  const ribbons = (Array.isArray(context.ribbons) ? context.ribbons : []).filter(item => object(item) && typeof item.id === 'string');
+  const ribbons = (context.ribbonScopeId && Array.isArray(context.ribbons) ? context.ribbons : []).filter(item => object(item) && typeof item.id === 'string');
   const controls = ribbons.flatMap(ribbon => (ribbon.groups || []).flatMap(group => (group.controls || [])
     .filter(control => object(control) && typeof control.id === 'string')
     .map(control => ({ribbon,control}))));
@@ -203,10 +203,14 @@ export interface RibbonDefinition extends RibbonDescriptor {
     visibleWhen?: unknown; enabledWhen?: unknown; actions?: unknown[];
   }> }>;
 }
+export type RibbonBindings = Record<string, { ribbons?: Record<string, string>; controls?: Record<string, string> }>;
+export interface RequestRibbonState {
+  id: string; ribbons: RibbonDefinition[]; activeRibbonId: string; ribbonBindings: RibbonBindings;
+}
 export interface RibbonAPI<C extends object, W extends { [P in keyof C]: unknown }, R extends object, A extends object> {
-  /** 保存したリボンのID・キー・名前を取得します。 */
+  /** 実行対象リクエストのリボンのID・キー・名前を取得します。 */
   list(): RibbonDescriptor[];
-  /** 現在選択中のリボンを取得します。 */
+  /** 実行対象リクエストで選択中のリボンを取得します。 */
   active(): RibbonDescriptor | null;
   /** リボンを切り替えます。変更は実行全体の成功時に反映します。 */
   activate(reference: KnownString<keyof R & string>): RibbonDescriptor;
@@ -340,13 +344,17 @@ export interface EnvironmentsAPI {
   get(idOrName: string | { id: string }): Promise<Environment>;
 }
 export interface SavedScript { id: string; name: string; source: string; input: string; inputFormat: 'json' | 'text'; timeoutMs: number; bindingId?: string; }
+export interface CollectionItem {
+  _mpId: string; name: string; request?: Request; settings?: RequestSettings;
+  item?: CollectionItem[]; variable?: VariableRow[]; ribbonState?: RequestRibbonState;
+}
 export interface Workspace {
   version: number; environmentId: string | null; scripts: SavedScript[]; scriptData: StoreData;
   scriptBindings: Record<string, Record<string, string>>; environments: Environment[]; globals: VariableRow[];
-  ribbons: RibbonDefinition[]; activeRibbonId: string;
-  ribbonBindings: Record<string, { ribbons: Record<string, string>; controls: Record<string, string> }>;
-  collections: Array<{ _mpId: string; info: { name: string; [key: string]: unknown }; item: unknown[]; variable?: VariableRow[] }>;
-  tabs: Array<{ id: string; name: string; request: Request; settings?: RequestSettings; collectionId?: string; itemId?: string }>;
+  /** 以前の共通リボンの保管用です。現在の操作対象は各リクエストのribbonStateです。 */
+  ribbons: RibbonDefinition[]; activeRibbonId: string; ribbonBindings: RibbonBindings;
+  collections: Array<{ _mpId: string; info: { name: string; [key: string]: unknown }; item: CollectionItem[]; variable?: VariableRow[] }>;
+  tabs: Array<{ id: string; name: string; request: Request; settings?: RequestSettings; collectionId?: string; itemId?: string; ribbonState?: RequestRibbonState }>;
   history: unknown[]; relations: unknown[]; relationRuns?: unknown[]; revisions?: Record<string, unknown[]>;
 }
 export interface MiniPostAPI<R extends object, I extends { [P in keyof R]: unknown }, B> {

@@ -1,5 +1,5 @@
 /** Persistent ribbon definitions and pure state operations. No DOM or script execution. */
-import {clone, uid} from './core.mjs';
+import {clone, uid, findItem, walkItems} from './core.mjs';
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = value => typeof value === 'string' && value.length > 0 && !value.includes(':') && value !== '__proto__';
@@ -109,10 +109,99 @@ export function validRibbonBindings(value) {
     ['ribbons','controls'].every(kind=>bindings[kind]===undefined || (record(bindings[kind]) && Object.values(bindings[kind]).every(validId))));
 }
 
-export function validRibbonWorkspace(workspace) {
-  return (workspace.ribbons===undefined || validRibbons(workspace.ribbons)) &&
+function validRibbonContents(workspace) {
+  return record(workspace) && (workspace.ribbons===undefined || validRibbons(workspace.ribbons)) &&
     (workspace.activeRibbonId===undefined || (typeof workspace.activeRibbonId==='string' && (!workspace.activeRibbonId || (workspace.ribbons || []).some(ribbon=>ribbon.id===workspace.activeRibbonId)))) &&
     (workspace.ribbonBindings===undefined || validRibbonBindings(workspace.ribbonBindings));
+}
+
+/** One request owns this state. Ribbon/control IDs are unique only inside it. */
+export function validRibbonState(state) {
+  return record(state) && validId(state.id) && Array.isArray(state.ribbons) &&
+    typeof state.activeRibbonId==='string' && record(state.ribbonBindings) && validRibbonContents(state);
+}
+
+export function newRibbonState() {return {id:uid(),ribbons:[],activeRibbonId:'',ribbonBindings:{}};}
+
+/** A request copy keeps literal script references but gets an independent scope. */
+export function cloneRibbonState(source) {
+  if (source==null) return newRibbonState();
+  if (!validRibbonContents(source)) throw new Error('保存されたリボンの形式が不正です。');
+  return {id:uid(),...clone({ribbons:source.ribbons || [],activeRibbonId:source.activeRibbonId || '',ribbonBindings:source.ribbonBindings || {}})};
+}
+
+/** Saved editors always resolve to the collection item, never their cached copy. */
+export function getRequestRibbonOwner(workspace,tab) {
+  if (!tab?.request) return null;
+  const collection=(workspace.collections || []).find(value=>value._mpId===tab.collectionId);
+  const item=findItem(collection,tab.itemId)?.item;
+  if (item?.request) return item;
+  return (workspace.tabs || []).find(value=>value.id===tab.id && value.request) || null;
+}
+
+export function getRequestRibbonState(workspace,tab) {
+  const state=getRequestRibbonOwner(workspace,tab)?.ribbonState;
+  if (state===undefined) return null;
+  if (!validRibbonState(state)) throw new Error('保存されたリクエストのリボン形式が不正です。');
+  return state;
+}
+
+export function ensureRequestRibbonState(workspace,tab) {
+  const owner=getRequestRibbonOwner(workspace,tab);
+  if (!owner) throw new Error('リボンを編集するリクエストを下書きに保存してください。');
+  if (owner.ribbonState===undefined) owner.ribbonState=newRibbonState();
+  if (!validRibbonState(owner.ribbonState)) throw new Error('保存されたリクエストのリボン形式が不正です。');
+  if (tab!==owner) tab.ribbonState=owner.ribbonState;
+  return owner.ribbonState;
+}
+
+function canonicalRibbonOwners(workspace) {
+  const owners=[];
+  for (const collection of workspace.collections || []) walkItems(collection.item,item=>{if(item.request)owners.push(item);});
+  for (const tab of workspace.tabs || []) if (getRequestRibbonOwner(workspace,tab)===tab) owners.push(tab);
+  return owners;
+}
+
+export function findRequestRibbonState(workspace,scopeId) {
+  if (!scopeId) return null;
+  const matches=canonicalRibbonOwners(workspace).filter(owner=>owner.ribbonState?.id===scopeId);
+  if (matches.length>1) throw new Error('リクエストのリボンIDが重複しています。');
+  const state=matches[0]?.ribbonState;
+  if (state && !validRibbonState(state)) throw new Error('保存されたリクエストのリボン形式が不正です。');
+  return state || null;
+}
+
+/** A serializable view for condition evaluation and existing flat ribbon helpers. */
+export function requestRibbonWorkspace(workspace,state) {
+  const view={...workspace};
+  if (state==null) return {...view,ribbons:[],activeRibbonId:'',ribbonBindings:{}};
+  if (!validRibbonState(state)) throw new Error('保存されたリクエストのリボン形式が不正です。');
+  for (const field of ['ribbons','activeRibbonId','ribbonBindings']) Object.defineProperty(view,field,{
+    enumerable:true,configurable:true,get:()=>state[field],set:value=>{state[field]=value;}
+  });
+  return view;
+}
+
+function validRequestRibbonStates(workspace) {
+  const owners=[];
+  for (const collection of workspace.collections || []) walkItems(collection.item,item=>{if(item.request)owners.push(item);});
+  owners.push(...(workspace.tabs || []),...(workspace.history || []).map(entry=>entry.tab).filter(Boolean));
+  for (const property of ['revisions','settingHistory']) for (const [key,entries] of Object.entries(workspace[property] || {})) {
+    if (!/^(request|draft):/.test(key) || !Array.isArray(entries)) continue;
+    for (const entry of entries) for (const value of [entry?.value,entry?.before,entry?.after]) if (record(value)) owners.push(value);
+  }
+  if (owners.some(owner=>owner.ribbonState!==undefined && !validRibbonState(owner.ribbonState))) return false;
+  const ids=new Set();
+  for (const owner of canonicalRibbonOwners(workspace)) {
+    const id=owner.ribbonState?.id;
+    if (id && ids.has(id)) return false;
+    if (id) ids.add(id);
+  }
+  return true;
+}
+
+export function validRibbonWorkspace(workspace) {
+  return validRibbonContents(workspace) && validRequestRibbonStates(workspace);
 }
 
 export function ensureRibbons(workspace) {
@@ -220,9 +309,16 @@ export function ribbonControlState(control,context) {
 }
 
 /** Prepare the complete transaction before the host commits any script outputs. */
-export function prepareRibbonWrites(workspace,writes=[]) {
+export function prepareRibbonWrites(workspace,writes=[],options={}) {
   if (!Array.isArray(writes)) throw new Error('リボンの変更形式が不正です。');
   if (!writes.length) return ()=>false;
+  let scope;
+  if (Object.hasOwn(options,'scopeId')) {
+    scope=findRequestRibbonState(workspace,options.scopeId);
+    if (!scope) throw new Error('実行対象のリクエストのリボンが見つかりません。');
+  }
+  const root=workspace;
+  if (scope) workspace=scope;
   if (!validRibbonWorkspace(workspace)) throw new Error('保存されたリボンの形式が不正です。');
   const plans=new Map();
   for (const write of writes) {
@@ -251,6 +347,7 @@ export function prepareRibbonWrites(workspace,writes=[]) {
     plans.set(key,{type:write.type,target,value,current:previous ? previous.current : clone(current)});
   }
   return ()=>{
+    if (scope && findRequestRibbonState(root,options.scopeId)!==scope) throw new Error('実行中にリクエストのリボンが変更されました。');
     let changed=false;
     for (const plan of plans.values()) {
       if (same(plan.current,plan.value)) continue;

@@ -62,7 +62,7 @@ export function wait(ms, signal) {
 export async function runRelation(relation, {workspace, execute, primary, variables=()=>primary(), signal, onProgress=()=>{}}) {
   validateRelation(relation,workspace);
   const plan=clone(relation), snapshots=new Map();
-  for(const step of plan.steps){const c=workspace.collections.find(c=>c._mpId===step.collectionId),i=step.draftId?workspace.tabs.find(t=>t.id===step.draftId):findItem(c,step.itemId).item;snapshots.set(step.id,{id:step.draftId||uid(),collectionId:c?._mpId,itemId:i._mpId,name:i.name,request:clone(i.request),settings:clone(i.settings||{})});}
+  for(const step of plan.steps){const c=workspace.collections.find(c=>c._mpId===step.collectionId),i=step.draftId?workspace.tabs.find(t=>t.id===step.draftId):findItem(c,step.itemId).item;snapshots.set(step.id,{id:step.draftId||uid(),collectionId:c?._mpId,itemId:i._mpId,name:i.name,request:clone(i.request),settings:clone(i.settings||{}),...(i.ribbonState?{ribbonState:clone(i.ribbonState)}:{})});}
   const run={id:uid(),relationId:plan.id,name:plan.name,startedAt:new Date().toISOString(),status:'running',entries:[]};
   let executions=0;
   onProgress({...run,current:null});

@@ -27,6 +27,7 @@ export function initStudio(api) {
   const scriptWorkspace=initScriptWorkspace({...api,primary,openScripts:()=>{surfaceKey='';setSurface('scripts');},runningChanged:refreshStop,
     recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
   const ribbonWorkspace=initRibbonWorkspace({...api,primary,openRibbons:()=>{surfaceKey='';setSurface('ribbons');},openScript:id=>scriptWorkspace.open(id),runningChanged:refreshStop,
+    showRibbonRequest:()=>{setSurface('collections');api.renderAll();},
     recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
   function refreshStop(){$('stopRelationGlobal').hidden=!(controller||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning());ribbonWorkspace.refresh();}
   function setSurface(side){api.setSide(side);api.renderSidebar();syncView(side);api.closeNavigation();}
@@ -247,7 +248,7 @@ export function initStudio(api) {
       persist();closeModal();editEnvironment(env);toast(`${count} 件を環境に抽出しました。`);
     },'抽出');
   }
-  function referenceTab(collection,item){return api.findDraft(collection._mpId,item._mpId)||{id:item._mpId,collectionId:collection._mpId,itemId:item._mpId,name:item.name,request:item.request,settings:item.settings};}
+  function referenceTab(collection,item){return api.findDraft(collection._mpId,item._mpId)||{id:item._mpId,collectionId:collection._mpId,itemId:item._mpId,name:item.name,request:item.request,settings:item.settings,...(item.ribbonState?{ribbonState:item.ribbonState}:{})};}
   function requestActions(collection,item){
     const tab=()=>referenceTab(collection,item),parent=findItem(collection,item._mpId)?.parents.at(-1);
     const context={collectionId:collection._mpId,parentId:parent?._mpId,siblingId:item._mpId};
@@ -256,10 +257,11 @@ export function initStudio(api) {
       {label:'この位置にフォルダーを追加',run:()=>createItem('folder',context)},
       {label:'環境変数を抽出',run:()=>extractEnvironment(tab())},
       {label:'スクリプトを編集',run:()=>{api.openRequest(collection,item);api.selectEditorPage('scripts');}},
+      {label:'リボンを編集',run:()=>{api.openRequest(collection,item);ribbonWorkspace.open();}},
       {label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab()),run:()=>responseExtraction(tab())},
       {label:'リレーションに追加',run:()=>addRequestToRelation({collectionId:collection._mpId,itemId:item._mpId})},null];
   }
-  function draftActions(tab){return [{label:'環境変数を抽出',run:()=>extractEnvironment(tab)},{label:'スクリプトを編集',run:()=>{api.selectRequest(tab.id);api.selectEditorPage('scripts');}},{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab),run:()=>responseExtraction(tab)},{label:'リレーションに追加',run:()=>addRequestToRelation({draftId:tab.id})}];}
+  function draftActions(tab){return [{label:'環境変数を抽出',run:()=>extractEnvironment(tab)},{label:'スクリプトを編集',run:()=>{api.selectRequest(tab.id);api.selectEditorPage('scripts');}},{label:'リボンを編集',run:()=>{api.selectRequest(tab.id);ribbonWorkspace.open();}},{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab),run:()=>responseExtraction(tab)},{label:'リレーションに追加',run:()=>addRequestToRelation({draftId:tab.id})}];}
   function responseExtraction(tab,choosePath=null){
     const result=responseFor(tab),metadata=responseMetadata(result);if(!metadata){toast('レスポンスを受信してから抽出してください。');return;}
     const {elements,truncated}=metadataElements(metadata);let path='/status',name='status',saveRule=false,nameEdited=false;
@@ -445,6 +447,7 @@ export function initStudio(api) {
     }catch(error){running={relationId:relation.id,name:relation.name,status:'failed',entries:[],error:error.message};toast(error.message);}finally{controller=null;refreshStop();renderRunLog();}
   }
   $('stopRelationGlobal').onclick=stopRelation;
+  $('requestRibbonEdit').onclick=()=>ribbonWorkspace.open();
   $('extractResponse').onclick=()=>responseExtraction(api.active());
   if($('responseActions'))bindContext($('responseContent'),$('responseActions'),responseMenu);
   $('sidebarContent').addEventListener('contextmenu',event=>{if(event.defaultPrevented||event.target.closest('.tree-row,.history-entry,input'))return;event.preventDefault();creationMenu($('sidebarContent'),event,true);});
