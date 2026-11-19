@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="assets/studio.css">
   <link rel="stylesheet" href="assets/script-editor.css">
   <link rel="stylesheet" href="assets/script-workspace.css">
+  <link rel="stylesheet" href="assets/ribbon-workspace.css">
   <link rel="stylesheet" href="assets/navigation-ui.css">
   <link rel="stylesheet" href="assets/variable-hover.css">
   <link rel="stylesheet" href="assets/sent-history.css">
@@ -45,6 +46,7 @@
         <button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent" aria-label="送信履歴" title="送信履歴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 6v6l4 2"/></svg><span class="visually-hidden">送信履歴</span></button>
         <button type="button" id="sidebarTabs-relations" role="tab" data-sidebar="relations" aria-controls="sidebarContent" aria-label="リレーション" title="リレーション"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v11a4 4 0 0 0 4 4h8M18 3v8a4 4 0 0 1-4 4H6M15 15l3 3-3 3"/></svg><span class="visually-hidden">リレーション</span></button>
         <button type="button" id="sidebarTabs-scripts" role="tab" data-sidebar="scripts" aria-controls="sidebarContent" aria-label="スクリプト" title="スクリプト"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></svg><span class="visually-hidden">スクリプト</span></button>
+        <button type="button" id="sidebarTabs-ribbons" role="tab" data-sidebar="ribbons" aria-controls="sidebarContent" aria-label="リボン" title="リボン"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3zM3 9h18M8 9v11M12 13h5M12 16h5"/></svg><span class="visually-hidden">リボン</span></button>
       </nav>
       <aside class="sidebar" aria-label="保存済みデータ">
         <h2 id="sidebarTitle" class="sidebar-title">コレクション</h2>
@@ -61,6 +63,7 @@
     </div>
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
+      <section id="customRibbon" class="custom-ribbon" aria-label="カスタムリボン" hidden></section>
       <section id="workspacePage" class="workspace-page" aria-label="ワークスペース編集" hidden></section>
       <section id="historyPage" class="workspace-page history-page" aria-label="送信履歴" hidden></section>
       <div id="exchange" class="exchange">

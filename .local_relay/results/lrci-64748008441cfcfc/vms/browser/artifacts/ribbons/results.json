@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "empty workspace authors a named ribbon, group and all six typed controls through the UI",
+    "live typing retains focus and conditions react to numeric, selected and checkbox values",
+    "actual live button runs parent and child Workers with typed event input and shared ribbon writes",
+    "user change runs once and script-driven value updates do not recursively fire change actions",
+    "ordered set, toggle and conditional activation actions observe earlier staged changes and retain both ribbons",
+    "a later script failure rolls back the entire action list while preserving the direct input and releasing busy state",
+    "independent scripts read and write ribbon values and activate another ribbon through the same public API",
+    "ribbon definitions, values, selection, actions and linked scripts survive native IndexedDB reload",
+    "whole export and explicit server save contain complete ribbon definitions and current typed values",
+    "actual import-and-replace restores ribbon values and executable action references from the exported backup",
+    "1440 px desktop and 390/320 px mobile keep the live ribbon and builder within the viewport width",
+    "ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends"
+  ],
+  "screenshots": [
+    "ribbon-builder-1440x900.png",
+    "ribbon-settings-1440x900.png",
+    "ribbon-builder-390x844.png",
+    "ribbon-settings-390x844.png",
+    "ribbon-builder-320x720.png",
+    "ribbon-settings-320x720.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "unexpected_requests": []
+}

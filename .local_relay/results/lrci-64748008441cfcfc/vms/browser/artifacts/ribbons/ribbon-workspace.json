@@ -1,0 +1,425 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-19T05:12:00.536Z",
+  "workspace": {
+    "version": 2,
+    "collections": [],
+    "environments": [],
+    "globals": [],
+    "tabs": [],
+    "activeId": "",
+    "environmentId": "",
+    "history": [],
+    "collapsed": [],
+    "theme": "light",
+    "relations": [],
+    "relationRuns": [],
+    "scripts": [
+      {
+        "id": "mp-1795065111799-z9enta3teh7",
+        "name": "子集計",
+        "source": "const value=ribbon.get('main.count')*2; ribbon.set('main.result',{value}); return value;",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795065112490-uwvh4jq9kx",
+        "name": "リボン集計",
+        "source": "const value=await scripts.run(\"mp-1795065111799-z9enta3teh7\",input); store.set(\"event\",input); store.set(\"runs\",(store.get(\"runs\")||0)+1); return value;",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795065113116-d36tvvdj6if",
+        "name": "変更を一度だけ処理",
+        "source": "store.set('changes',(store.get('changes')||0)+1); store.set('previousCount',input.previousValue); ribbon.set('main.count',input.value+1);",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795065113737-1v3m0xgs6wo",
+        "name": "失敗する処理",
+        "source": "ribbon.set('main.count',999); store.set('failedWrite',true); throw Error('ribbon failure');",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795065119102-0xcr5r840cd",
+        "name": "リボンAPI確認",
+        "source": "const count=minipost.ribbon.get('main.count'); ribbon.set('details.details_result',{count}); ribbon.activate('details'); return ribbon.values('details');",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      }
+    ],
+    "scriptData": {
+      "event": {
+        "type": "click",
+        "ribbonId": "mp-1795065106484-zb5zzwd5uuq",
+        "controlId": "mp-1795065110132-tcp6jgklk3e",
+        "key": "run",
+        "value": null,
+        "previousValue": null,
+        "values": {
+          "ready": true,
+          "count": 3,
+          "query": "alpha",
+          "mode": "detail",
+          "result": {
+            "value": 0
+          },
+          "run": null
+        }
+      },
+      "runs": 1,
+      "changes": 1,
+      "previousCount": 3
+    },
+    "scriptBindings": {},
+    "ribbons": [
+      {
+        "id": "mp-1795065106484-zb5zzwd5uuq",
+        "key": "main",
+        "name": "操作パネル",
+        "groups": [
+          {
+            "id": "mp-1795065107001-anjijm3u6u4",
+            "name": "操作",
+            "controls": [
+              {
+                "id": "mp-1795065107100-a417ezgqsi4",
+                "key": "ready",
+                "label": "結果を表示",
+                "type": "toggle",
+                "value": false,
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": []
+              },
+              {
+                "id": "mp-1795065107587-dg7gvzqgb",
+                "key": "count",
+                "label": "件数",
+                "type": "number",
+                "value": 6,
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": [
+                  {
+                    "id": "mp-1795065115066-cfk846tnxpg",
+                    "type": "script",
+                    "target": "",
+                    "value": "",
+                    "scriptId": "mp-1795065113116-d36tvvdj6if"
+                  }
+                ]
+              },
+              {
+                "id": "mp-1795065108185-2qlm2o5htzs",
+                "key": "query",
+                "label": "検索語",
+                "type": "text",
+                "value": "beta",
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": [
+                  {
+                    "id": "mp-1795065118333-l7vhcl6y9kh",
+                    "type": "set",
+                    "target": "mp-1795065109449-3bqv97xkel7",
+                    "value": {
+                      "should": "rollback"
+                    }
+                  },
+                  {
+                    "id": "mp-1795065118483-vy7kujktye",
+                    "type": "script",
+                    "target": "",
+                    "value": "",
+                    "scriptId": "mp-1795065113737-1v3m0xgs6wo"
+                  }
+                ]
+              },
+              {
+                "id": "mp-1795065108701-70rxa7fx8s7",
+                "key": "mode",
+                "label": "モード",
+                "type": "select",
+                "value": "detail",
+                "options": [
+                  {
+                    "value": "normal",
+                    "label": "標準"
+                  },
+                  {
+                    "value": "detail",
+                    "label": "詳細"
+                  }
+                ],
+                "visible": true,
+                "enabled": true,
+                "actions": []
+              },
+              {
+                "id": "mp-1795065109449-3bqv97xkel7",
+                "key": "result",
+                "label": "計算結果",
+                "type": "display",
+                "value": {
+                  "chain": true
+                },
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": [],
+                "visibleWhen": {
+                  "mode": "all",
+                  "rules": [
+                    {
+                      "source": "ribbon",
+                      "key": "mp-1795065107100-a417ezgqsi4",
+                      "operator": "truthy",
+                      "value": true
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mp-1795065110132-tcp6jgklk3e",
+                "key": "run",
+                "label": "集計を実行",
+                "type": "button",
+                "value": null,
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": [
+                  {
+                    "id": "mp-1795065114367-uel6vl6bbyn",
+                    "type": "script",
+                    "target": "",
+                    "value": "",
+                    "scriptId": "mp-1795065112490-uwvh4jq9kx"
+                  }
+                ],
+                "enabledWhen": {
+                  "mode": "all",
+                  "rules": [
+                    {
+                      "source": "ribbon",
+                      "key": "mp-1795065107587-dg7gvzqgb",
+                      "operator": "gt",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mp-1795065117083-s4luwbrl6k",
+                "key": "switch",
+                "label": "結果へ切り替え",
+                "type": "button",
+                "value": null,
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": [
+                  {
+                    "id": "mp-1795065117569-5qwvrav2d7c",
+                    "type": "set",
+                    "target": "mp-1795065109449-3bqv97xkel7",
+                    "value": {
+                      "chain": true
+                    }
+                  },
+                  {
+                    "id": "mp-1795065117699-qtds3bt3aki",
+                    "type": "toggle",
+                    "target": "mp-1795065107100-a417ezgqsi4",
+                    "value": ""
+                  },
+                  {
+                    "id": "mp-1795065117815-w2ykj6qefkg",
+                    "type": "activate",
+                    "target": "mp-1795065115917-uh6maqjlhsb",
+                    "value": "",
+                    "when": {
+                      "mode": "all",
+                      "rules": [
+                        {
+                          "source": "ribbon",
+                          "key": "mp-1795065107100-a417ezgqsi4",
+                          "operator": "falsy",
+                          "value": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mp-1795065115917-uh6maqjlhsb",
+        "key": "details",
+        "name": "結果パネル",
+        "groups": [
+          {
+            "id": "mp-1795065116417-fd07c3vlvdb",
+            "name": "グループ",
+            "controls": [
+              {
+                "id": "mp-1795065116417-zsbtejiul",
+                "key": "details_result",
+                "label": "状態",
+                "type": "display",
+                "value": {
+                  "count": 6
+                },
+                "options": [],
+                "visible": true,
+                "enabled": true,
+                "actions": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "activeRibbonId": "mp-1795065106484-zb5zzwd5uuq",
+    "ribbonBindings": {},
+    "revisions": {
+      "script:mp-1795065111799-z9enta3teh7": [
+        {
+          "id": "mp-1795065112064-otu4aa3ijl",
+          "at": "2026-11-19T05:11:52.064Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "子集計",
+            "source": "const value=ribbon.get('main.count')*2; ribbon.set('main.result',{value}); return value;",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795065112490-uwvh4jq9kx": [
+        {
+          "id": "mp-1795065112768-yze14wairvq",
+          "at": "2026-11-19T05:11:52.768Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "リボン集計",
+            "source": "const value=await scripts.run(\"mp-1795065111799-z9enta3teh7\",input); store.set(\"event\",input); store.set(\"runs\",(store.get(\"runs\")||0)+1); return value;",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795065113116-d36tvvdj6if": [
+        {
+          "id": "mp-1795065113380-c3e3mmytri7",
+          "at": "2026-11-19T05:11:53.380Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "変更を一度だけ処理",
+            "source": "store.set('changes',(store.get('changes')||0)+1); store.set('previousCount',input.previousValue); ribbon.set('main.count',input.value+1);",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795065113737-1v3m0xgs6wo": [
+        {
+          "id": "mp-1795065114022-00779o4rm6qri",
+          "at": "2026-11-19T05:11:54.022Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "失敗する処理",
+            "source": "ribbon.set('main.count',999); store.set('failedWrite',true); throw Error('ribbon failure');",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795065119102-0xcr5r840cd": [
+        {
+          "id": "mp-1795065119378-rz0n19ffc1",
+          "at": "2026-11-19T05:11:59.378Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "リボンAPI確認",
+            "source": "const count=minipost.ribbon.get('main.count'); ribbon.set('details.details_result',{count}); ribbon.activate('details'); return ribbon.values('details');",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "all",
+      "sidebar": "scripts",
+      "response": "pretty"
+    }
+  }
+}

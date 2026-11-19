@@ -1,6 +1,7 @@
 /** Whole-workspace import/export owns data compatibility; revision behavior is owned by revisions.mjs. */
 import {clone, uid} from './core.mjs';
 import {validScripts, validScriptData, validScriptBindings} from './scripts.mjs';
+import {validRibbonWorkspace, listRibbonControls, resolveRibbon, resolveRibbonControl} from './ribbons.mjs';
 export const BUNDLE_KIND = 'minipost.workspace';
 export const BUNDLE_VERSION = 1;
 const safeClone = value => clone(value ?? null);
@@ -61,6 +62,7 @@ function validWorkspace(ws) {
     (ws.environmentId == null || typeof ws.environmentId === 'string') &&
     (ws.scripts === undefined || validScripts(ws.scripts)) && (ws.scriptData === undefined || validScriptData(ws.scriptData)) &&
     (ws.scriptBindings === undefined || validScriptBindings(ws.scriptBindings)) &&
+    validRibbonWorkspace(ws) &&
     validRelations(ws.relations) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
 export function readWorkspaceBundle(input) {
@@ -109,11 +111,72 @@ function preserveScriptBindings(workspace) {
   for (const script of workspace.scripts || []) if (!script.bindingId) script.bindingId=bindingFor('');
   visitScriptOwners(workspace,request=>bindRequest(request,bindingFor),value=>{if(!value.bindingId)value.bindingId=bindingFor('');});
 }
+function uniqueReferences(entries) {
+  const result=new Map();
+  for (const [reference,id] of entries) {
+    if (!result.has(reference)) result.set(reference,id);
+    else if (result.get(reference)!==id) result.set(reference,null);
+  }
+  return [...result].filter(([,id])=>id!==null);
+}
+/** Keep the exact ribbon references visible to each pre-import script group. */
+function ribbonReferences(workspace,remap) {
+  const ribbons=workspace.ribbons || [],controls=listRibbonControls(workspace);
+  const ribbonAliases=uniqueReferences(ribbons.flatMap(ribbon=>[[ribbon.key,ribbon.id],[ribbon.name,ribbon.id]]));
+  const controlAliases=uniqueReferences(controls.map(row=>[row.control.key,row.control.id]));
+  return {
+    ribbons:Object.fromEntries([...ribbonAliases,...ribbons.map(ribbon=>[ribbon.id,ribbon.id])].map(([reference,id])=>[reference,remap(id)])),
+    controls:Object.fromEntries([...controlAliases,...controls.map(row=>[row.reference,row.control.id]),...controls.map(row=>[row.control.id,row.control.id])].map(([reference,id])=>[reference,remap(id)]))
+  };
+}
+function preserveRibbonBindings(workspace) {
+  const references=ribbonReferences(workspace,id=>id),bindings=workspace.ribbonBindings ||= {};
+  const bindingIds=new Set([...Object.keys(workspace.scriptBindings || {}),...Object.keys(bindings)]);
+  for (const id of bindingIds) bindings[id]={
+    ribbons:{...references.ribbons,...bindings[id]?.ribbons},controls:{...references.controls,...bindings[id]?.controls}
+  };
+}
+function remapRibbonDefinitions(imported,original,into,remap) {
+  const keys=new Set((into.ribbons || []).map(ribbon=>ribbon.key));
+  const controlRef=(reference,ribbonId)=>{
+    if (!reference) return reference;
+    try {return remap(resolveRibbonControl(original,reference,{ribbonId}).control.id);}
+    catch {return remap(`missing-ribbon-control:${ribbonId}:${reference}`);}
+  };
+  const ribbonRef=reference=>{
+    if (!reference) return reference;
+    try {return remap(resolveRibbon(original,reference).id);}
+    catch {return remap(`missing-ribbon:${reference}`);}
+  };
+  const condition=(value,ribbonId)=>{
+    for (const rule of value?.rules || []) if (rule.source==='ribbon') rule.key=controlRef(rule.key,ribbonId);
+  };
+  for (const ribbon of imported.ribbons || []) {
+    const oldId=ribbon.id; ribbon.id=remap(ribbon.id);
+    const base=ribbon.key;let suffix=2;
+    while(keys.has(ribbon.key))ribbon.key=`${base}_${suffix++}`;
+    keys.add(ribbon.key);
+    for (const group of ribbon.groups) {
+      group.id=remap(group.id);
+      for (const control of group.controls) {
+        control.id=remap(control.id);condition(control.visibleWhen,oldId);condition(control.enabledWhen,oldId);
+        for (const action of control.actions) {
+          action.id=remap(action.id);condition(action.when,oldId);
+          if (action.type==='script') action.scriptId=remap(action.scriptId);
+          else if (action.type==='activate') action.target=ribbonRef(action.target);
+          else action.target=controlRef(action.target,oldId);
+        }
+      }
+    }
+  }
+  if (imported.activeRibbonId) imported.activeRibbonId=remap(imported.activeRibbonId);
+}
 export function mergeWorkspace(into, source) {
   for (const workspace of [into,source]) {
     if ((workspace.scripts !== undefined && !validScripts(workspace.scripts)) ||
       (workspace.scriptData !== undefined && !validScriptData(workspace.scriptData)) ||
       (workspace.scriptBindings !== undefined && !validScriptBindings(workspace.scriptBindings))) throw new Error('スクリプトまたはスクリプトデータの形式が不正です。');
+    if (!validRibbonWorkspace(workspace)) throw new Error('リボンの形式が不正です。');
   }
   // Regenerate external IDs to avoid silently overwriting existing entities.
   const ids = new Map(), remap = id => {
@@ -127,18 +190,27 @@ export function mergeWorkspace(into, source) {
   };
   const imported = safeClone(source);
   const references=scriptReferences(imported.scripts || [],remap),sourceBindings=imported.scriptBindings || {},bindingIds=new Map(),bindings={};
+  const originalRibbons={ribbons:safeClone(imported.ribbons || []),activeRibbonId:imported.activeRibbonId || ''};
+  const ribbonRefs=ribbonReferences(originalRibbons,remap),sourceRibbonBindings=imported.ribbonBindings || {},ribbonBindings={};
   const remapBinding=id=>{
     if (!bindingIds.has(id)) {
       const nextId=uid();bindingIds.set(id,nextId);
       const previous=Object.fromEntries(Object.entries(sourceBindings[id] || {}).map(([reference,target])=>[reference,remap(target)]));
       bindings[nextId]={...references,...previous};
+      const previousRibbons=sourceRibbonBindings[id] || {};
+      ribbonBindings[nextId]=Object.fromEntries(['ribbons','controls'].map(kind=>[kind,{
+        ...ribbonRefs[kind],...Object.fromEntries(Object.entries(previousRibbons[kind] || {}).map(([reference,target])=>[reference,remap(target)]))
+      }]));
     }
     return bindingIds.get(id);
   };
   for (const id of Object.keys(sourceBindings)) remapBinding(id);
+  for (const id of Object.keys(sourceRibbonBindings)) remapBinding(id);
   for (const script of imported.scripts || []) {script.bindingId=remapBinding(script.bindingId || '');script.id = remap(script.id);}
   visitScriptOwners(imported,request=>bindRequest(request,remapBinding),value=>{value.bindingId=remapBinding(value.bindingId || '');});
   imported.scriptBindings=bindings;
+  imported.ribbonBindings=ribbonBindings;
+  remapRibbonDefinitions(imported,originalRibbons,into,remap);
   imported.collections.forEach(c => {
     c._mpId = remap(c._mpId);
     visit(c.item, item => {item._mpId = remap(item._mpId);remapScriptReferences(item.request);});
@@ -170,7 +242,10 @@ export function mergeWorkspace(into, source) {
     for (const entry of run.entries || []) {entry.stepId = remap(entry.stepId);if (entry.branch?.target && !entry.branch.target.startsWith('$')) entry.branch.target = remap(entry.branch.target);}
   }
   preserveScriptBindings(into);
+  preserveRibbonBindings(into);
   Object.assign(into.scriptBindings,imported.scriptBindings);
+  Object.assign(into.ribbonBindings,imported.ribbonBindings);
+  into.ribbons ||= [];into.ribbons.push(...(imported.ribbons || []));
   into.relations ||= []; into.relations.push(...(imported.relations || []));
   into.relationRuns ||= []; into.relationRuns.push(...(imported.relationRuns || []));
   into.scripts ||= []; into.scripts.push(...(imported.scripts || []));
@@ -202,5 +277,6 @@ export function mergeWorkspace(into, source) {
     collectionId:remap(imported.activeRequest.collectionId), itemId:remap(imported.activeRequest.itemId)
   };
   if (!into.activeId && imported.activeId) into.activeId = remap(imported.activeId);
+  if (!into.activeRibbonId && imported.activeRibbonId) into.activeRibbonId=imported.activeRibbonId;
   return into;
 }

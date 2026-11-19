@@ -18,6 +18,7 @@ import {historyEntry, historyUrl, sentRequests, createHistoryView} from './sent-
 import {RequestSession} from './request-session.mjs';
 import {bindListSelection} from './list-selection.mjs';
 import {ensureScripts} from './scripts.mjs';
+import {ensureRibbons} from './ribbons.mjs';
 
 const $ = id => document.getElementById(id);
 let workbench, studio, historyView, listSelection, selectedHistoryEntry = null;
@@ -38,6 +39,7 @@ try {
 for (const draft of workspace.tabs) draft.settings = requestSettings(draft.settings);
 workspace.relations ||= []; workspace.relationRuns ||= [];
 ensureScripts(workspace);
+ensureRibbons(workspace);
 let revisionStore = new RevisionStore(workspace);
 const requestSession = new RequestSession(workspace, freshTab);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
@@ -48,7 +50,7 @@ const editorPageKey = 'minipost.editor.page.v1';
 function normalizeNavigation(value) {
   const allowed = {
     editor: ['all','params','headers','authorization','body','settings','scripts'],
-    sidebar: ['collections','environments','history','relations','scripts'],
+    sidebar: ['collections','environments','history','relations','scripts','ribbons'],
     response: ['pretty','raw','headers','cookies','preview']
   };
   return Object.fromEntries(Object.entries(allowed).map(([key, values]) => [key, values.includes(value?.[key]) ? value[key] : values[0]]));
@@ -56,8 +58,8 @@ function normalizeNavigation(value) {
 let navigation = normalizeNavigation(null);
 try {navigation = normalizeNavigation(JSON.parse(storage.getItem(navigationKey)) ?? {editor:storage.getItem(editorPageKey)});} catch {}
 let pane = 'params', side = navigation.sidebar, responseView = navigation.response, selectedCollectionId = '', modalAction = null;
-const sidebarSearch = {collections:'', environments:'', history:'', relations:'', scripts:''};
-const sidebarScroll = {collections:0, environments:0, history:0, relations:0, scripts:0};
+const sidebarSearch = {collections:'', environments:'', history:'', relations:'', scripts:'', ribbons:''};
+const sidebarScroll = {collections:0, environments:0, history:0, relations:0, scripts:0, ribbons:0};
 function saveNavigation() {
   try {storage.setItem(navigationKey, JSON.stringify({editor:editorPage, sidebar:side, response:responseView}));}
   catch {toast('表示状態を保存できません。入力内容は維持しています。');}
@@ -90,6 +92,7 @@ function setSaveStatus(message, failed = false) {
 }
 function persist(now = false) {
   if (importInProgress) return Promise.resolve(false);
+  studio?.refreshRibbon();
   localChangeGeneration += 1;
   const sequence = ++saveSequence;
   const sync = $('serverSaveState');
@@ -661,7 +664,7 @@ function renderSidebar() {
   listSelection?.refresh(); announceSelection();
   root.scrollTop = scrollTop;
   selectPageTab('sidebarTabs', 'data-sidebar', side, 'sidebarContent');
-  $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション', scripts:'スクリプト'}[side];
+  $('sidebarTitle').textContent = {collections:'コレクション', environments:'環境', history:'送信履歴', relations:'リレーション', scripts:'スクリプト', ribbons:'リボン'}[side];
   studio?.syncView(side);
 }
 function chooseSidebar(name) {
@@ -1089,11 +1092,16 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
+  if (event.defaultPrevented) return;
+  if (event.target instanceof Element && event.target.closest('#customRibbon')) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault();persist(true);}
+    return;
+  }
   if (studio?.scriptKeydown(event))return;
-  if (['environments','relations','history','scripts'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
+  if (['environments','relations','history','scripts','ribbons'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}
   if ($('modal').open && ($('modal').matches(':modal') || $('modal').contains(document.activeElement))) return;
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations','history','scripts'].includes(side)) {event.preventDefault(); sendRequest();}
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !['environments','relations','history','scripts','ribbons'].includes(side)) {event.preventDefault(); sendRequest();}
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); saveRequest();}
   if (event.key === 'Escape' && requests.has(active().id)) requests.get(active().id).abort();
 });

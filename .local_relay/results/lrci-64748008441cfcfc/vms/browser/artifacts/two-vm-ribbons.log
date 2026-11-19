@@ -1,0 +1,12 @@
+PASS empty workspace authors a named ribbon, group and all six typed controls through the UI
+PASS live typing retains focus and conditions react to numeric, selected and checkbox values
+PASS actual live button runs parent and child Workers with typed event input and shared ribbon writes
+PASS user change runs once and script-driven value updates do not recursively fire change actions
+PASS ordered set, toggle and conditional activation actions observe earlier staged changes and retain both ribbons
+PASS a later script failure rolls back the entire action list while preserving the direct input and releasing busy state
+PASS independent scripts read and write ribbon values and activate another ribbon through the same public API
+PASS ribbon definitions, values, selection, actions and linked scripts survive native IndexedDB reload
+PASS whole export and explicit server save contain complete ribbon definitions and current typed values
+PASS actual import-and-replace restores ribbon values and executable action references from the exported backup
+PASS 1440 px desktop and 390/320 px mobile keep the live ribbon and builder within the viewport width
+PASS ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends

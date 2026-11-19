@@ -25,6 +25,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
       const previewRows=preview.map(row=>({key:row.key,value:row.value}));
       const ctx=contextFor(view,snapshot,[...primary.rows,...previewRows]),metadata=responseMetadata(result);
       const output=await script(source,{variables:ctx.vars,primary:{...primary.snapshot(),...Object.fromEntries(previewRows.map(row=>[row.key,row.value]))},environment:valueMap(environment?.values),globals:valueMap(workspace.globals),request:snapshot.request,response:metadata,raw:result,
+        ribbons:clone(workspace.ribbons||[]),activeRibbonId:workspace.activeRibbonId||'',ribbonBindings:clone(workspace.ribbonBindings||{}),
         scripts:clone(scripts),bindings:clone(bindings),bindingId:automation.scriptBindingId,data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
       {signal,timeoutMs,onCall:scriptCall,onLog:entry=>onScriptLog?.({phase,...entry})});
       throwIfAborted(signal);
@@ -40,7 +41,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
         changes={...output,writes:{...output.writes,primary:[...extracted,...(output.writes?.primary||[])]}};
       }else if(Object.hasOwn(output,'request')){
         // Compile against staged variable writes before changing any live state.
-        const staged={...view,globals:clone(workspace.globals),scriptData:clone(workspace.scriptData||{}),
+        const staged={...view,ribbons:clone(workspace.ribbons||[]),activeRibbonId:workspace.activeRibbonId||'',globals:clone(workspace.globals),scriptData:clone(workspace.scriptData||{}),
           environments:workspace.environments.map(item=>({...item,values:clone(item.values)}))};
         const stagedPrimary=new PrimaryVariables();stagedPrimary.rows=clone(primary.rows);
         applyScriptWrites(staged,stagedPrimary,staged.environments.find(item=>item.id===environmentId),changes);

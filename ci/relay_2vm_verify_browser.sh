@@ -25,6 +25,7 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
+python tests/ui_ribbons.py >.local_relay/output/two-vm-ribbons.log 2>&1 || { cat .local_relay/output/two-vm-ribbons.log; exit 1; }
 python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
 python tests/ui_script_response.py >.local_relay/output/two-vm-script-response.log 2>&1 || { cat .local_relay/output/two-vm-script-response.log; exit 1; }
 python tests/ui_script_intelligence.py >.local_relay/output/two-vm-script-intelligence.log 2>&1 || { cat .local_relay/output/two-vm-script-intelligence.log; exit 1; }
@@ -52,6 +53,9 @@ script=json.loads((root/'script-editor/results.json').read_text())
 standalone=json.loads((root/'standalone-scripts/results.json').read_text())
 intelligence=json.loads((root/'script-intelligence/results.json').read_text())
 response_scripts=json.loads((root/'script-response/results.json').read_text())
+ribbons=json.loads((root/'ribbons/results.json').read_text())
+assert ribbons['ok'] and ribbons['mode']=='native Chromium HTTP' and ribbons['native_indexeddb']
+assert not any(ribbons[key] for key in ['page_errors','native_dialogs','crashes','unexpected_requests'])
 assert response_scripts['ok'] and response_scripts['mode']=='native Chromium HTTP'
 assert not any(response_scripts[key] for key in ['page_errors','native_dialogs','crashes'])
 assert intelligence['ok'] and intelligence['mode']=='native Chromium HTTP' and intelligence['engine']=='TypeScript Language Service'
@@ -100,6 +104,8 @@ summary['script_intelligence_checks']=len(intelligence['checks'])
 summary['screenshots']+=len(intelligence['screenshots'])
 summary['script_response_checks']=len(response_scripts['checks'])
 summary['screenshots']+=len(response_scripts['screenshots'])
+summary['ribbon_checks']=len(ribbons['checks'])
+summary['screenshots']+=len(ribbons['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

@@ -206,7 +206,8 @@ def main():
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 expect(page.locator('#sidebarTabs')).to_be_visible()
                 tabs=page.locator('#sidebarTabs button').all();boxes=[tab.bounding_box() for tab in tabs]
-                assert len(boxes)==5 and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
+                assert [tab.get_attribute('data-sidebar') for tab in tabs]==['collections','environments','history','relations','scripts','ribbons']
+                assert all(box for box in boxes) and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                 if width==1440:
@@ -218,7 +219,7 @@ def main():
             # Test the smallest resizable sidebar, including keyboard scroll to the last tab.
             page.locator('#sidebarResize').focus();page.keyboard.press('Home')
             page.locator('#sidebarTabs-collections').focus();page.keyboard.press('End')
-            last=page.locator('#sidebarTabs-scripts');expect(last).to_be_focused()
+            last=page.locator('#sidebarTabs-ribbons');expect(last).to_be_focused()
             b=last.bounding_box();nav=page.locator('#sidebarTabs').bounding_box();assert b['x']>=nav['x']-1 and b['x']+b['width']<=nav['x']+nav['width']+1
             page.locator('#sidebarResize').focus();page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight');page.keyboard.press('ArrowRight')
             passed('minimum sidebar width preserves the fixed category rail and keyboard navigation')

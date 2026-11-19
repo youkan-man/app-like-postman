@@ -81,6 +81,8 @@ jobs:
           python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); print('CHROMIUM=' + p.chromium.executable_path); p.stop()" >> "$GITHUB_ENV"
       - name: Run real browser and loopback HTTP scenarios
         run: python tests/browser_smoke.py 2>&1 | tee artifacts/browser/e2e.log
+      - name: Custom ribbon authoring, conditions and script transactions
+        run: python tests/ui_ribbons.py 2>&1 | tee artifacts/browser/ui-ribbons.log
       - name: Viewport layout, pane resizing and long request data
         if: ${{ !cancelled() }}
         run: python tests/ui_layout.py 2>&1 | tee artifacts/browser/ui-layout.log

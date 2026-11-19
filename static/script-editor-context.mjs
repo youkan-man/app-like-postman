@@ -37,6 +37,11 @@ export function scriptEditorContext(workspace,primary,{script,tab,result,phase}=
     scripts:(workspace.scripts||[]).map(item=>({id:item.id,name:item.name,source:item.id===script?.id?'':item.source,input:item.input,inputFormat:item.inputFormat,bindingId:item.bindingId})),
     bindings:workspace.scriptBindings||{},bindingId:tab?.request?._minipost?.scriptBindingId,
     data:workspace.scriptData||{},
+    activeRibbonId:workspace.activeRibbonId||'',ribbonBindings:workspace.ribbonBindings||{},
+    ribbons:(workspace.ribbons||[]).map(ribbon=>({id:ribbon.id,key:ribbon.key,name:ribbon.name,
+      groups:(ribbon.groups||[]).map(group=>({id:group.id,name:group.name,controls:(group.controls||[]).map(control=>({
+        id:control.id,key:control.key,label:control.label,type:control.type,value:requestShape(control.value)
+      }))}))})),
     variables:Object.fromEntries(Object.keys(view.vars).map(key=>[key,''])),
     primary:names(primary?.rows),environment:names(view.environment?.values),globals:names(workspace.globals),
     request:tab?requestShape(tab.request):null,

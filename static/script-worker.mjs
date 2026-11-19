@@ -1,6 +1,6 @@
 /** A script transaction. The browser host runs this function in an isolated Worker. */
 export async function executeScript(source, context = {}, options = {}) {
-  const logs = [], writes = {primary:[], environment:[], globals:[]}, dataWrites = [];
+  const logs = [], writes = {primary:[], environment:[], globals:[]}, dataWrites = [], ribbonWrites = [];
   const {signal, onLog, onCall} = options;
   let finished = false, omittedLogs = false;
   const copy = value => structuredClone(value);
@@ -66,6 +66,126 @@ export async function executeScript(source, context = {}, options = {}) {
       const keys = Object.keys(left);
       return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && same(left[key], right[key], seen));
     };
+    // Ribbon state is another part of this transaction: child scripts see pending
+    // changes immediately, while the host commits only the explicitly changed fields.
+    const ribbonWorkspace = {ribbons:Array.isArray(ctx.ribbons) ? ctx.ribbons : [], activeRibbonId:ctx.activeRibbonId || ''};
+    const ribbonRows = () => ribbonWorkspace.ribbons.flatMap(ribbon => (ribbon.groups || []).flatMap(group =>
+      (group.controls || []).map(control => ({ribbon, group, control, reference:`${ribbon.key}.${control.key}`}))));
+    const ribbonName = item => ({id:item.id, key:item.key, name:item.name});
+    const ribbonJSON = value => {
+      const pending = [value], seen = new Set();
+      while (pending.length) {
+        const item = pending.pop();
+        if (!item || typeof item !== 'object' || seen.has(item)) continue;
+        seen.add(item);
+        if (Object.getOwnPropertySymbols(item).length) throw new TypeError('リボンの値にはJSONで表せる値を指定してください。');
+        if (Array.isArray(item) && Object.keys(item).length !== item.length) throw new TypeError('リボンの値にはJSONで表せる配列を指定してください。');
+        for (const key of Object.keys(item)) pending.push(item[key]);
+      }
+      try { return jsonValue(value); }
+      catch { throw new TypeError('リボンの値にはJSONで表せる値を指定してください。'); }
+    };
+    const normalizeRibbonValue = (control, value) => {
+      if (control.type === 'text') {
+        if (value === null) return '';
+        if (typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)) return String(value);
+        throw new TypeError('文字入力には文字列・数値・真偽値を指定してください。');
+      }
+      if (control.type === 'number') {
+        if (value === null || typeof value === 'string' && !value.trim()) return null;
+        if ((typeof value === 'number' || typeof value === 'string') && Number.isFinite(Number(value))) return Number(value);
+        throw new TypeError('数値入力には有限の数値を指定してください。');
+      }
+      if (control.type === 'toggle') {
+        if (typeof value === 'boolean') return value;
+        throw new TypeError('チェックには真偽値を指定してください。');
+      }
+      if (control.type === 'select') {
+        if (typeof value === 'string' && (value === '' || (control.options || []).some(option => option.value === value))) return value;
+        throw new TypeError('選択欄の選択肢にある値を指定してください。');
+      }
+      if (control.type === 'button' || control.type === 'display') return ribbonJSON(value);
+      throw new TypeError('リボンの項目形式が不正です。');
+    };
+    const stageRibbon = (type, id, value, expected, expectedShape) => {
+      const existing = ribbonWrites.find(row => row.type === type && row.id === id);
+      if (existing) existing.value = copy(value);
+      else ribbonWrites.push({type, id, value:copy(value), expected:copy(expected), ...(expectedShape ? {expectedShape:copy(expectedShape)} : {})});
+    };
+    function ribbonAPI(bindingId) {
+      const binding = bindingId && ctx.ribbonBindings && Object.hasOwn(ctx.ribbonBindings, bindingId) ? ctx.ribbonBindings[bindingId] : null;
+      const bind = (kind, reference) => {
+        if (typeof reference !== 'string' || !reference) throw new TypeError('リボンのIDまたはキーを指定してください。');
+        const entries = binding?.[kind];
+        return entries && Object.hasOwn(entries, reference) ? {key:entries[reference], bound:true} : {key:reference, bound:false};
+      };
+      const resolveRibbon = reference => {
+        const {key, bound} = bind('ribbons', reference);
+        const exact = ribbonWorkspace.ribbons.filter(item => item.id === key);
+        const matches = exact.length || bound ? exact : ribbonWorkspace.ribbons.filter(item => item.key === key || item.name === key);
+        if (!matches.length) throw new Error(`リボンが見つかりません: ${reference}`);
+        if (matches.length > 1) throw new Error(`リボンが複数あります。IDで指定してください: ${reference}`);
+        return matches[0];
+      };
+      const resolveControl = reference => {
+        const {key, bound} = bind('controls', reference), rows = ribbonRows();
+        let matches = rows.filter(row => row.control.id === key);
+        if (!matches.length && !bound) matches = rows.filter(row => row.reference === key);
+        if (!matches.length && !bound) {
+          const named = rows.filter(row => row.control.key === key), current = named.filter(row => row.ribbon.id === ribbonWorkspace.activeRibbonId);
+          matches = current.length ? current : named;
+        }
+        if (!matches.length) throw new Error(`リボンの項目が見つかりません: ${reference}`);
+        if (matches.length > 1) throw new Error(`リボンの項目が複数あります。IDまたはリボン名付きのキーで指定してください: ${reference}`);
+        return matches[0];
+      };
+      const selectedRows = reference => {
+        if (reference === undefined && !ribbonWorkspace.activeRibbonId) return [];
+        const selected = reference === undefined ? ribbonWorkspace.ribbons.find(item => item.id === ribbonWorkspace.activeRibbonId) : resolveRibbon(reference);
+        if (!selected) throw new Error('選択中のリボンが見つかりません。');
+        return ribbonRows().filter(row => row.ribbon.id === selected.id);
+      };
+      const setFlag = (field, reference, value) => {
+        checkActive();
+        if (typeof value !== 'boolean') throw new TypeError('表示・有効状態には真偽値を指定してください。');
+        const {control} = resolveControl(reference), before = control[field] !== false;
+        if (before !== value) {stageRibbon(field, control.id, value, before);control[field] = value;}
+        return value;
+      };
+      return {
+        list() {checkActive();return ribbonWorkspace.ribbons.map(ribbonName);},
+        active() {checkActive();const current = ribbonWorkspace.ribbons.find(item => item.id === ribbonWorkspace.activeRibbonId);return current ? ribbonName(current) : null;},
+        controls(reference) {
+          checkActive();
+          return selectedRows(reference).map(({ribbon, group, control}) => ({id:control.id, key:control.key, label:control.label,
+            type:control.type, value:copy(control.value), visible:control.visible !== false, enabled:control.enabled !== false,
+            ribbonId:ribbon.id, ribbonKey:ribbon.key, ribbonName:ribbon.name, groupId:group.id, groupName:group.name}));
+        },
+        values(reference) {checkActive();return Object.fromEntries(selectedRows(reference).map(({control}) => [control.key, copy(control.value)]));},
+        get(reference) {checkActive();return copy(resolveControl(reference).control.value);},
+        set(reference, value) {
+          checkActive();const {control} = resolveControl(reference), next = normalizeRibbonValue(control, value);
+          if (!same(control.value, next)) {
+            stageRibbon('value', control.id, next, control.value, {type:control.type, options:control.options || []});
+            control.value = copy(next);
+          }
+          return copy(next);
+        },
+        show(reference, visible = true) {return setFlag('visible', reference, visible);},
+        enable(reference, enabled = true) {return setFlag('enabled', reference, enabled);},
+        activate(reference) {
+          checkActive();const selected = resolveRibbon(reference);
+          if (ribbonWorkspace.activeRibbonId !== selected.id) {
+            // Activation is one field even when a script switches several times.
+            const previous = ribbonWrites.find(row => row.type === 'activate');
+            if (previous) {previous.id = selected.id;previous.value = selected.id;}
+            else stageRibbon('activate', selected.id, selected.id, ribbonWorkspace.activeRibbonId);
+            ribbonWorkspace.activeRibbonId = selected.id;
+          }
+          return ribbonName(selected);
+        }
+      };
+    }
     // A parent and every scripts.run() child share this one transaction. Input
     // remains a value argument; request/response are explicitly mutable state.
     const request = copy(ctx.request), response = copy(ctx.response);
@@ -215,7 +335,8 @@ export async function executeScript(source, context = {}, options = {}) {
         list() { checkActive(); return catalog.map(({id, name}) => ({id, name})); },
         async run(reference, input) { checkActive(); const script = findScript(reference, binding); return copy(await invoke(script.source, input, script.id)); }
       };
-      const minipost = {...applicationAPI, scripts};
+      const ribbon = ribbonAPI(bindingId);
+      const minipost = {...applicationAPI, scripts, ribbon};
       const test = (name, fn) => {
         checkActive();
         const pass = () => { log('test', 'PASS ' + name); };
@@ -245,8 +366,8 @@ export async function executeScript(source, context = {}, options = {}) {
       };
       // Keep host bindings outside the user's lexical scope so ordinary local
       // declarations such as `const request` can shadow them without collisions.
-      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', '"use strict";\n{\n' + String(code || '') + '\n}\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
-      const result = await fn(pm, vars, response, request, scriptConsole, input, scripts, store, minipost);
+      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', 'ribbon', '"use strict";\n{\n' + String(code || '') + '\n}\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
+      const result = await fn(pm, vars, response, request, scriptConsole, input, scripts, store, minipost, ribbon);
       for (let at = 0; at < pendingTests.length;) {
         const batch = pendingTests.slice(at); at = pendingTests.length; await Promise.all(batch);
       }
@@ -254,7 +375,7 @@ export async function executeScript(source, context = {}, options = {}) {
     }
     const result = await wait(invoke(source, ctx.input, ctx.scriptId));
     checkActive();
-    const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), logs:copy(logs)};
+    const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), ribbonWrites:copy(ribbonWrites), logs:copy(logs)};
     const attachmentRows = fileRows();
     if (!same(request, initialRequest) || !same(attachmentRows, initialFileRows)) {
       output.request = copy(request);
