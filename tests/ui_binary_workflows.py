@@ -206,7 +206,8 @@ def main():
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 expect(page.locator('#sidebarTabs')).to_be_visible()
                 tabs=page.locator('#sidebarTabs button').all();boxes=[tab.bounding_box() for tab in tabs]
-                assert len(boxes)==5 and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
+                assert [tab.get_attribute('data-sidebar') for tab in tabs]==['collections','environments','history','relations','scripts','ribbons']
+                assert all(box for box in boxes) and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                 if width==1440:

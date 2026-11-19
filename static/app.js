@@ -1092,6 +1092,11 @@ $('downloadResponse').onclick = () => {
 function setTheme() {document.documentElement.dataset.theme = workspace.theme || 'light';}
 $('theme').onclick = () => {workspace.theme = workspace.theme === 'light' ? 'dark' : 'light'; setTheme(); persist();};
 document.addEventListener('keydown', event => {
+  if (event.defaultPrevented) return;
+  if (event.target instanceof Element && event.target.closest('#customRibbon')) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault();persist(true);}
+    return;
+  }
   if (studio?.scriptKeydown(event))return;
   if (['environments','relations','history','scripts','ribbons'].includes(side) && (event.ctrlKey||event.metaKey) && event.key.toLowerCase()==='s' && !$('modal').open) {event.preventDefault();persist(true);return;}
   if (settingsDrawer && $('modal').open && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); persist(true); return;}

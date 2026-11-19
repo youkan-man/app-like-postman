@@ -217,7 +217,8 @@ def main():
                 page.set_viewport_size({'width':width,'height':height});page.wait_for_function("document.getElementById('navClose').hidden === !matchMedia('(max-width:820px)').matches")
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 buttons=page.locator('#sidebarTabs [role=tab]');boxes=[item.bounding_box() for item in buttons.all()]
-                assert len(boxes)==5 and all(box for box in boxes)
+                assert [button.get_attribute('data-sidebar') for button in buttons.all()]==['collections','environments','history','relations','scripts','ribbons']
+                assert all(box for box in boxes)
                 assert max(box['x'] for box in boxes)-min(box['x'] for box in boxes)<1
                 assert buttons.evaluate_all('(items)=>items.every(e=>{const b=e.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;})')
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')

@@ -258,6 +258,33 @@ def main():
             page.get_by_label('表示するリボン', exact=True).select_option(main_id)
             passed('independent scripts read and write ribbon values and activate another ribbon through the same public API')
 
+            create_script('キー操作の分離確認', "store.set('unrelatedShortcutRuns',(store.get('unrelatedShortcutRuns')||0)+1); return store.get('unrelatedShortcutRuns');")
+            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
+            previous_changes = saved()['scriptData']['changes']
+            live(count_id).fill('8')
+            live(count_id).press('Control+Enter')
+            expect(live(count_id)).to_have_value('9')
+            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
+            workspace = saved()
+            assert workspace['scriptData']['changes'] == previous_changes + 1
+            assert workspace['scriptData']['previousCount'] == 6
+            assert 'unrelatedShortcutRuns' not in workspace['scriptData']
+            # Select controls do not prevent Enter locally; they exercise the
+            # ribbon scope guard independently of the handled-event guard.
+            live(mode_id).press('Control+Enter')
+            expect(page.locator('#standaloneScriptStatus')).to_have_attribute('data-state', 'idle')
+            assert 'unrelatedShortcutRuns' not in saved()['scriptData']
+            passed('ribbon Ctrl+Enter commits its own change once without executing the selected standalone script')
+
+            sidebar('collections')
+            live(count_id).press('Control+s')
+            expect(page.locator('#modal')).not_to_be_visible()
+            workspace = saved()
+            assert workspace['collections'] == [] and workspace['tabs'] == []
+            assert control_state(workspace, count_id)['value'] == 9
+            assert not requests, requests
+            passed('ribbon Ctrl+S saves workspace state without opening request registration or creating a request')
+
             before = saved()
             page.reload(wait_until='domcontentloaded')
             ready()
