@@ -650,7 +650,7 @@ def main():
             saved()
             single_ribbon = create_ribbon('実行', 'single')
             single_button = add_control('ボタン', 'run', '実行')
-            for width, height in [(1440, 900), (390, 844), (320, 720)]:
+            for width, height in [(1440, 900), (390, 844), (320, 720), (844, 390)]:
                 page.set_viewport_size({'width': width, 'height': height})
                 operate()
                 expect(page.locator('#requestName')).to_have_value(single_request)

@@ -354,7 +354,7 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
             page.locator('#editor-tab-params').click()
             if page.locator('#toggleSidebar').get_attribute('aria-expanded') == 'true':
                 page.locator('#toggleSidebar').click()
-            for width, height in [(1440, 900), (390, 844), (320, 720)]:
+            for width, height in [(1440, 900), (390, 844), (320, 720), (844, 390)]:
                 page.set_viewport_size({'width': width, 'height': height})
                 expect(page.locator('#responseModified')).to_be_visible()
                 expect(page.locator('#responseActions')).to_be_visible()
@@ -362,10 +362,11 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
                 density = page.evaluate('''() => {
                     const request = document.querySelector('.request-editor').getBoundingClientRect();
                     const fields = document.querySelector('.editor-section[data-pane=params]').getBoundingClientRect();
-                    return {width:innerWidth,requestHeight:request.height,unusedBelowFields:request.bottom-fields.bottom};
+                    return {width:innerWidth,height:innerHeight,requestHeight:request.height,fieldsHeight:fields.height,unusedBelowFields:request.bottom-fields.bottom};
                 }''')
                 density_metrics.append(density)
                 assert 0 <= density['unusedBelowFields'] <= 80, ('empty request fields reserve too much space', density)
+                assert density['fieldsHeight'] <= 50, ('empty query controls occupy separate rows', density)
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 assert page.locator('.statusbar').evaluate('element => element.getBoundingClientRect().bottom <= innerHeight + 1')
                 capture(f'response-transformed-{width}x{height}')

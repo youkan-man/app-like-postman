@@ -280,7 +280,7 @@ function kvEditor(list, changed, options = {}) {
     });
   }
   paint(); wrap.append(table, button('＋ 行を追加', () => {list.push({key: '', value: '', disabled: false, ...(options.files ? {type: 'text'} : {})}); changed(); paint(); tbody.lastElementChild?.querySelector('input[type=text]')?.focus();}, 'table-add'));
-  const paste = button('行を貼り付け', () => {if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;} list.push(clone(rowClipboard)); changed(); paint();}, 'text-button table-paste');
+  const paste = button('貼り付け', () => {if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;} list.push(clone(rowClipboard)); changed(); paint();}, 'text-button table-paste');
   paste.setAttribute('aria-label', 'コピーした行を末尾に貼り付け'); wrap.append(paste); return wrap;
 }
 function caption(title, parent) {const line = element('div', 'section-caption', title); parent.append(line); return line;}
@@ -468,7 +468,7 @@ function renderBody(root, tab) {
     body.mode = value; changed(); renderPane();
     $('editorContent').querySelector('select[aria-label="本文の形式"]')?.focus({preventScroll:true});
   });
-  modeSelect.setAttribute('aria-label', '本文の形式'); toolbar.append(modeSelect);
+  modeSelect.setAttribute('aria-label', '本文の形式'); modeSelect.title = modes.find(([value]) => value === modeSelect.value)?.[1] || ''; toolbar.append(modeSelect);
   root.append(toolbar);
   if (body.disabled) root.append(button('このBodyは無効です · 有効にする', () => {body.disabled = false; changed(); renderPane();}, 'text-button'));
   if (body.mode === 'raw') {

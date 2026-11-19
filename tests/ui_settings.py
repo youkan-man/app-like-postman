@@ -206,8 +206,9 @@ def main():
             saved()
             expect(modal).to_be_visible()
             # Export must contain the live value, not the old copy from opening.
+            modal.get_by_role('button', name='変数ページの操作', exact=True).click()
             with page.expect_download() as download_info:
-                modal.get_by_role('button', name='エクスポート', exact=True).click()
+                page.get_by_role('menuitem', name='エクスポート', exact=True).click()
             download = download_info.value
             data = json.loads(Path(download.path()).read_text())
             assert data['values'][1]['value'] == 'keyboard-saved'

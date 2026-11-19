@@ -60,7 +60,8 @@
 @media (max-height:560px) {
   :root[data-workspace-view=request] .request-editor,
   :root[data-workspace-view=request] .response-panel {overflow:auto;}
-  .request-editor > .editor-content {flex:1 0 160px;min-height:160px;}
+  .request-editor > .editor-content {flex:1 0 72px;min-height:72px;}
+  .request-editor > .editor-content:has(>.editor-section:not([hidden])>.editor-section-body:not([hidden]) .source-editor) {flex:1 0 160px;min-height:160px;}
   .response-panel > .response-content {flex:1 0 80px;min-height:80px;}
 }
 .script-log {margin:6px 0;max-height:150px;overflow:auto;white-space:pre-wrap;color:var(--text);}
