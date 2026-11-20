@@ -315,7 +315,8 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
 
             edit("await minipost.requests.send('api-c:api-request'); const moved=minipost.requests.move('api-c:api-request',store.get('created').folder); store.set('movedEcho',moved.id); return moved.id;")
             run()
-            moved_echo = result()
+            moved_echo = page.locator('#standaloneScriptResult').inner_text()
+            assert moved_echo == ids['collection'] + ':api-request'
             edit("const response=await minipost.responses.get(store.get('movedEcho')); return {requestId:response.requestId,status:response.response.status,path:response.response.body.path};")
             run()
             assert result() == {'requestId': moved_echo, 'status': 200, 'path': '/echo?updated=yes'}
