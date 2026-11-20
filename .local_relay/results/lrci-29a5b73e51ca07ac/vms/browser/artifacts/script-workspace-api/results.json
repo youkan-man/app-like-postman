@@ -1,0 +1,17 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin",
+    "JSON Patch runs in the isolated Worker, applies array insertion and move/copy/test, round-trips diffs and leaves its input intact on failure",
+    "JWT inspection reads Bearer token Unicode claims and Cookie parsing preserves opaque percent values with optional raw decoding",
+    "variable setters update the effective duplicate and reactivate disabled rows; clear removes every environment, global and primary row including inactive or blank entries"
+  ],
+  "screenshots": [
+    "failure.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}
