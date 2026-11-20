@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin",
+    "URL and request builders preserve spaces, literal plus, Unicode and duplicate query values with JSON and authentication over real HTTP",
+    "synchronous model APIs create collections, folders, requests, drafts, environments, scripts, relations and ribbon definitions in one committed transaction",
+    "child scripts read pending creations and scoped variables before commit; workspace settings update the live UI",
+    "send uses staged tree scope and clone/move/update preserve usable request identities across collections",
+    "script edits refresh an already open saved request instead of leaving its cached editor stale",
+    "scripts execute a newly created array relation with isolated child scripts, pending data visibility and restored outer loop variables",
+    "an exception discards the whole workspace transaction including creations, edits and shared data",
+    "stopping asynchronous helper work terminates the Worker and discards pending model edits",
+    "a conflicting manual edit wins and rejects all script writes without silently replacing it",
+    "field-level commits preserve unrelated edits, keyboard focus and caret while the script is running",
+    "moving a received request preserves its response identity for subsequent extraction and script access",
+    "scripts read selected attachment metadata and exact bytes without embedding file contents in workspace storage",
+    "history and model deletion APIs remove only their explicitly selected entries",
+    "native IndexedDB reload preserves created structures, loop runs and typed shared data",
+    "the actual language Worker offers workspace CRUD and API helper methods",
+    "API reference search filters methods and remains usable at desktop and 320px without viewport overflow",
+    "workspace API scenarios produce no uncaught browser errors, native dialogs or page crashes"
+  ],
+  "screenshots": [
+    "workspace-api-desktop.png",
+    "api-reference-desktop.png",
+    "api-reference-320.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}

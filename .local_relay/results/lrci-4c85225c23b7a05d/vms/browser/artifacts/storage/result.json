@@ -1,0 +1,52 @@
+{
+  "checks": [
+    "existing localStorage workspace migrates to native IndexedDB without losing drafts",
+    "6 MiB workspace is saved intact without a full localStorage duplicate",
+    "edits survive reload with every localStorage write denied; server stays opt-in",
+    "explicit server restore commits and survives reload despite full localStorage",
+    "aborting the second IndexedDB write preserves both live and durable workspace",
+    "a separate browser profile remains empty until explicit server import"
+  ],
+  "errors": [],
+  "native_indexeddb": true,
+  "dialog_metrics": [
+    {
+      "width": 1440,
+      "height": 900,
+      "top": 295.984375,
+      "bottom": 604.015625,
+      "left": 340,
+      "right": 1100,
+      "dialog_height": 308.03125,
+      "body_scroll_width": 758,
+      "body_client_width": 758,
+      "document_width": 1440,
+      "cancel_top": 563.015625,
+      "submit_top": 563.015625,
+      "cancel_right": 934.171875,
+      "submit_left": 942.171875
+    },
+    {
+      "width": 320,
+      "height": 720,
+      "top": 170.359375,
+      "bottom": 549.625,
+      "left": 12,
+      "right": 308,
+      "dialog_height": 379.265625,
+      "body_scroll_width": 294,
+      "body_client_width": 294,
+      "document_width": 320,
+      "cancel_top": 508.625,
+      "submit_top": 508.625,
+      "cancel_right": 144.171875,
+      "submit_left": 152.171875
+    }
+  ],
+  "screenshots": [
+    "server-restore-desktop.png",
+    "server-restore-phone.png",
+    "restore-failure-preserved.png",
+    "restore-failure-320.png"
+  ]
+}
