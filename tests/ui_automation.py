@@ -200,9 +200,17 @@ def main():
             page.set_viewport_size({'width':320,'height':720})
             hook.scroll_into_view_if_needed()
             expect(hook).to_be_visible()
-            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
-            assert hook.evaluate('node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1}')
             capture('embedded-request-hook-320')
+            hook_bounds=hook.evaluate('''node=>{
+                const bounds=element=>{const r=element.getBoundingClientRect();return {
+                    left:r.left,right:r.right,width:r.width,clientWidth:element.clientWidth,
+                    scrollWidth:element.scrollWidth,scrollLeft:element.scrollLeft};};
+                return {viewportWidth:innerWidth,documentScrollWidth:document.documentElement.scrollWidth,
+                    textarea:bounds(node),sourceEditor:bounds(node.closest('.source-editor')),
+                    pane:bounds(node.closest('.editor-section-body'))};
+            }''')
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),hook_bounds
+            assert hook.evaluate('node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1}'),hook_bounds
             page.set_viewport_size({'width':1440,'height':1000})
             send()
             received=json.loads(page.locator('.response-code').inner_text())

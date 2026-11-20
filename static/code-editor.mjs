@@ -108,8 +108,10 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     // Workspace navigation removes editor nodes without an explicit dispose.
     // Cancel their queued parses so an abandoned editor cannot delay the new one.
     if(!root.isConnected){dispose();return;}
-    // Keep the user's manually scrolled view when a pane or viewport resizes.
-    // Typing, keyboard navigation and search explicitly reveal the caret.
+    // An open completion stays with its caret as the viewport narrows. Ordinary
+    // reading keeps its scroll position; input, navigation and search reveal
+    // the caret through their own explicit paths.
+    if(!suggestions.hidden)ensureCaretVisible();
     sync();place();search?.position();diagnostics?.position();
   }):null;
   resizeObserver?.observe(root);
