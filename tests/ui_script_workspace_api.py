@@ -254,7 +254,7 @@ return {effective,removed,environmentRows:minipost.environments.get('api-env').v
 const child=minipost.scripts.create({name:'Clear nested variables',source:
   "const wasVisible=vars.has('nestedHidden'); const count=vars.clear(); store.set('nestedClear',{wasVisible,count});"});
 const relation=minipost.relations.create({name:'Nested variable scope',steps:[
-  {id:'restore-disabled-binding',type:'forEach',source:'literal',value:'[1,2]',itemVariable:'nestedHidden',indexVariable:'loopIndex',
+  {id:'restore-disabled-binding',type:'forEach',source:'literal',value:'[1,2]',itemVariable:'nestedHidden',indexVariable:'loopIndex',intervalMs:0,
    steps:[{id:'binding-wait',type:'wait',delayMs:0}]},
   {id:'clear-nested-rows',type:'script',scriptId:child.id}
 ]});
