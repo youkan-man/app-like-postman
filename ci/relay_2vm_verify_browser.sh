@@ -30,7 +30,7 @@ python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || 
 failed_suites=()
 run_ui_suite() {
   local suite="$1" log="$2"
-  if python "tests/${suite}.py" >".local_relay/output/${log}" 2>&1; then
+  if timeout --verbose --signal=TERM --kill-after=15s 600s python "tests/${suite}.py" >".local_relay/output/${log}" 2>&1; then
     echo "PASS ${suite}"
   else
     failed_suites+=("$suite")
