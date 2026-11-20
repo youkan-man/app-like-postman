@@ -82,7 +82,7 @@ select.ribbon-selector,.ribbon-selector select {width:100%;min-height:32px;paddi
 .ribbon-property-heading {display:flex;align-items:center;gap:8px;min-width:0;padding:0 0 8px;border-bottom:1px solid var(--ribbon-line);}
 .ribbon-property-heading>.form-field {flex:1;min-width:0;}
 .ribbon-property-heading>.form-field>input {font-weight:650;background:var(--surface);}
-.ribbon-object-kind {flex:0 0 auto;max-width:76px;padding:3px 6px;border:1px solid var(--ribbon-line);border-radius:3px;background:var(--surface);font-size:12px;font-weight:650;}
+.ribbon-object-kind {flex:0 0 auto;padding:3px 6px;border:1px solid var(--ribbon-line);border-radius:3px;background:var(--surface);font-size:12px;font-weight:650;white-space:nowrap;}
 .ribbon-property-section,.ribbon-actions-editor {min-width:0;padding:8px;border:1px solid var(--ribbon-line);border-radius:3px;background:var(--surface);}
 .ribbon-section-title {display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px;font-size:13px;font-weight:650;}
 .ribbon-property-section[data-property-section=input]>input[type=number] {width:min(180px,100%);font-variant-numeric:tabular-nums;}
@@ -176,7 +176,7 @@ select.ribbon-selector,.ribbon-selector select {width:100%;min-height:32px;paddi
  .ribbon-condition-row>.form-field:has(.ribbon-typed-value) {grid-column:1/3;}
  .ribbon-rule-remove {grid-row:1/span 3;}
  .ribbon-property-heading {gap:5px;}
- .ribbon-object-kind {padding:3px 4px;font-size:11px;max-width:54px;}
+ .ribbon-object-kind {padding:3px 4px;font-size:11px;}
  .ribbon-reference-fields {grid-template-columns:1fr;}
  .ribbon-property-section,.ribbon-actions-editor {padding:6px;}
  .ribbon-action {padding:5px;}

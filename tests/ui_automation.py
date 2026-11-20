@@ -444,6 +444,8 @@ def main():
             side('relations');page.locator('#sidebarAdd').click();menu('リレーションを作成')
             page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Block edits')
             page.locator('#modalSubmit').click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
 
             def block_flow():
                 return next(relation for relation in stored()['relations'] if relation['name']=='Block edits')
@@ -462,7 +464,7 @@ def main():
             expect(relation_editor).to_be_visible();expect(relation_editor).to_be_focused()
             expect(relation_editor).to_have_js_property('readOnly',False)
             expect(page.locator('html')).to_have_attribute('data-workspace-view','relations')
-            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
+            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
             relation_editor.evaluate('node=>window.__embeddedRelationEditor=node')
             relation_editor.press('Control+a');page.keyboard.insert_text(edited_relation_source)
             assert next(script['source'] for script in stored()['scripts'] if script['id']==script_id)==edited_relation_source

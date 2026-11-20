@@ -317,7 +317,7 @@ export function initRibbonWorkspace(api){
       control.actions.forEach((action,index)=>{
         const row=el('section','ribbon-action');row.dataset.actionId=action.id;
         const top=el('div','ribbon-action-heading');top.append(el('span','ribbon-action-order',String(index+1)));
-        const type=select([['script','スクリプトを実行'],['set','値を設定'],['toggle','チェックを切り替え'],['activate','リボンを切り替え']],action.type,value=>{action.type=value;action.target='';delete action.scriptId;action.value='';if(value==='script')action.scriptId=w().scripts[0]?.id||'';changed();draw();});type.setAttribute('aria-label','処理の種類');
+        const type=select([['script','スクリプト'],['set','値の設定'],['toggle','チェック切替'],['activate','リボン切替']],action.type,value=>{action.type=value;action.target='';delete action.scriptId;action.value='';if(value==='script')action.scriptId=w().scripts[0]?.id||'';changed();draw();});type.setAttribute('aria-label','処理の種類');
         const more=btn('⋯',event=>openItemMenu(event.currentTarget,[
           {label:'上へ移動',disabled:index===0,run:()=>{move(control.actions,action,-1);draw();}},
           {label:'下へ移動',disabled:index===control.actions.length-1,run:()=>{move(control.actions,action,1);draw();}},
@@ -396,7 +396,7 @@ export function initRibbonWorkspace(api){
 
     if(control.type==='text'){
       const content=section('入力内容','input');
-      content.append(field('文字列',input(control.value,'項目の値',value=>{control.value=normalizeRibbonValue(control,value);changed();})));
+      content.append(input(control.value,'項目の値',value=>{control.value=normalizeRibbonValue(control,value);changed();}));
     }else if(control.type==='number'){
       const content=section('数値','input'),value=input(control.value,'項目の値',()=>{},'number');value.step='any';
       value.oninput=()=>{try{if(!value.value.trim())throw new Error('数値を入力してください。');control.value=normalizeRibbonValue(control,Number(value.value));value.setCustomValidity('');changed();}catch(error){value.setCustomValidity(error.message);}};
