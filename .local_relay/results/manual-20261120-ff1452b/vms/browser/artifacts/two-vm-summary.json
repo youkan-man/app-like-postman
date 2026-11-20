@@ -1,0 +1,42 @@
+{
+  "asset_update_checks": 5,
+  "binary_workflow_checks": 23,
+  "draft_lifecycle_checks": 22,
+  "extraction_checks": 11,
+  "focus_checks": 12,
+  "large_binary_checks": 7,
+  "layout_checks": 26,
+  "mode": "two-vm Chromium HTTP",
+  "native_automation_checks": 28,
+  "native_regression_checks": {
+    "backup/result.json": 9,
+    "browser-results.json": 20,
+    "edgecases/results.json": 5,
+    "paging/results.json": 10,
+    "selection/results.json": 12,
+    "settings/results.json": 16,
+    "storage/result.json": 6,
+    "ui/ui-results.json": 22
+  },
+  "network": {
+    "app_http": true,
+    "app_peer": "provider-injected",
+    "cross_vm_proxy": true,
+    "echo_port": 18081,
+    "mode": "Local Relay VM private peer networking",
+    "ok": true,
+    "two_way": true
+  },
+  "ribbon_checks": 26,
+  "screenshots": 167,
+  "script_checks": 44,
+  "script_intelligence_checks": 17,
+  "script_response_checks": 18,
+  "script_workspace_api_checks": 26,
+  "sent_values_checks": 19,
+  "source_identity_verified": true,
+  "standalone_script_checks": 15,
+  "text_url_navigation_checks": 17,
+  "transfer_progress_checks": 10
+}
+
