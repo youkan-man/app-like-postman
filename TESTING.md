@@ -15,10 +15,13 @@ python tests/ui_draft_lifecycle.py
 python tests/ui_asset_update.py
 python tests/ui_text_url_navigation.py
 python tests/ui_layout.py
+python tests/ui_wheel_scroll.py
 python tests/docker_network.py
 ```
 
 ブラウザ試験は実HTTPのテストサーバーを使います。設定同期、自動保存、コピー操作、単一選択、表示高さ、設定別履歴、復元、リロード、モバイル表示を確認します。保存失敗の試験だけブラウザストレージに意図的なエラーを注入します。
+
+`tests/ui_wheel_scroll.py` は実際のホイール入力で、本文・表・スクリプト・レスポンス・サイドバーと、それぞれの見出しやコード欄下端を確認します。各入力の対象要素、スクロール量、選択範囲を `wheel-scroll/results.json` に記録し、補完表示中の連続操作、Ctrlとの併用、左右配置、狭い画面も検証します。
 
 `tests/ui_sent_values.py` は変数ホバーの優先順位・文字位置・スクロールと、実HTTPで受信したURL・ヘッダー・本文が送信履歴に一致することを確認します。送信前後のスクリプト、環境切替、再読込、旧履歴、320/390px幅を含み、`sent-values/` に結果と画面を保存します。`tests/test_sent_request.py` はリダイレクト・送信失敗・本文の全文保持・ファイルのメタ情報を検証します。
 
