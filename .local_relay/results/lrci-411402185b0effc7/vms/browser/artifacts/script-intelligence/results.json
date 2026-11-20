@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "engine": "TypeScript Language Service",
+  "checks": [
+    "a failed language Worker fetch exposes retry and recovers without losing source or textarea focus",
+    "live JSON input supplies nested property types and semantic completion preserves native Undo",
+    "completion inside an identifier preserves UTF-16 positions after supplementary Unicode characters",
+    "array callback, destructuring and aliases propagate input types into standard method completion",
+    "shared data contributes typed member and quoted-key completions through an API alias",
+    "variable, request and environment dictionaries use actual workspace names without displaying secret values",
+    "saved script references complete by name and ID, and their inferred return types continue through await and indexing",
+    "rapid edits discard stale language-service answers and accept only the current source completion",
+    "changing JSON fields or switching to text updates the same live Worker dictionary without a reload",
+    "edited shared data adds new keys and types and removes stale keys from completion",
+    "renaming and editing another saved script refreshes reference names and its return type in the existing editor",
+    "completion analyzes source without executing edited code or sending HTTP requests",
+    "real TypeScript syntax errors show exact ranges, navigate with F8/Shift+F8 or the error button at every width, and clear after correction without executing source",
+    "the same source editor still executes JavaScript normally when the user explicitly runs it",
+    "live viewport resizing keeps the actual caret and source visible, synchronizes highlighting and preserves the open pointer-selectable completion popup",
+    "typed completion remains usable inside the desktop and 390/320 px editor without horizontal overflow",
+    "semantic editing produces no uncaught browser errors, native dialogs or page crashes"
+  ],
+  "screenshots": [
+    "intelligence-diagnostics-1440.png",
+    "intelligence-diagnostics-390.png",
+    "intelligence-diagnostics-320.png",
+    "intelligence-live-resize-390.png",
+    "intelligence-1440x900.png",
+    "intelligence-390x844.png",
+    "intelligence-320x720.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "unexpected_requests": []
+}

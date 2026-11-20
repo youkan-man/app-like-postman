@@ -1,0 +1,26 @@
+PASS real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin
+PASS JSON Patch runs in the isolated Worker, applies array insertion and move/copy/test, round-trips diffs and leaves its input intact on failure
+PASS JWT inspection reads Bearer token Unicode claims and Cookie parsing preserves opaque percent values with optional raw decoding
+PASS variable setters update the effective duplicate and reactivate disabled rows; clear removes every environment, global and primary row including inactive or blank entries
+PASS the real Worker bridge retains disabled primary rows through a script-invoked loop and nested clear without committing temporary loop bindings
+PASS URL and request builders preserve spaces, literal plus, Unicode and duplicate query values with JSON and authentication over real HTTP
+PASS synchronous model APIs create collections, folders, requests, drafts, environments, scripts, relations and ribbon definitions in one committed transaction
+PASS child scripts read pending creations and scoped variables before commit; workspace settings update the live UI
+PASS send uses staged tree scope and clone/move/update preserve usable request identities across collections
+PASS script edits refresh an already open saved request instead of leaving its cached editor stale
+PASS scripts execute a newly created array relation with isolated child scripts, pending data visibility and restored outer loop variables
+PASS an exception discards the whole workspace transaction including creations, edits and shared data
+PASS stopping asynchronous helper work terminates the Worker and discards pending model edits
+PASS a conflicting manual edit wins and rejects all script writes without silently replacing it
+PASS field-level commits preserve unrelated edits, keyboard focus and caret while the script is running
+PASS moving a received request preserves its response identity for subsequent extraction and script access
+PASS scripts read selected attachment metadata and exact bytes without embedding file contents in workspace storage
+PASS history and model deletion APIs remove only their explicitly selected entries
+PASS saved request editors use matching get/set operations for fields, named headers, repeated queries and JSON paths; child scripts and real HTTP observe pending edits
+PASS entity snapshots and nested settings use the same get/set selectors, retain identity and accept an edited collection name alias
+PASS a failed request-editing script leaves saved request fields, headers, query and body unchanged
+PASS named form get/set edits send repeated values, booleans, literal dotted keys and Unicode with the correct content type
+PASS native IndexedDB reload preserves created structures, loop runs and typed shared data
+PASS the actual language Worker offers workspace get/set, request header/query/JSON editors and API helper methods
+PASS API reference search filters methods and remains usable at desktop and 320px without viewport overflow or a redundant action footer
+PASS workspace API scenarios produce no uncaught browser errors, native dialogs or page crashes
