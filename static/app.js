@@ -44,6 +44,7 @@ let revisionStore = new RevisionStore(workspace);
 const requestSession = new RequestSession(workspace, freshTab);
 const responses = new Map(), requests = new Map(), selectedFiles = new RequestFiles();
 const responsePresentationApplied = new WeakSet();
+let responsePreview = null;
 const transfers = new TransferProgress(id => {if (active().id === id) paintTransferView($('transferProgress'), transfers.get(id));});
 const navigationKey = 'minipost.navigation.v1';
 const editorPageKey = 'minipost.editor.page.v1';
@@ -804,7 +805,11 @@ function folderChoices(collection) {
 async function saveRequest() {
   const tab = active(); const priorKey = requestKey(workspace, tab);
   const current = workspace.collections.find(c => c._mpId === tab.collectionId), located = findItem(current, tab.itemId);
-  if (located) {located.item.name = tab.name; located.item.request = clone(tab.request); located.item.settings = requestSettings(tab.settings); tab.dirty = false; const saved = persist(true); renderAll(); if (await saved) toast('コレクションに保存しました。'); return;}
+  if (located) {
+    located.item.name = tab.name; located.item.request = clone(tab.request); located.item.settings = requestSettings(tab.settings); tab.dirty = false;
+    const saved = persist(true); renderSelection(); renderSidebar(); renderRequestFooter();
+    if (await saved) toast('コレクションに保存しました。'); return;
+  }
   let name = tab.name, collectionId = current?._mpId || selectedCollectionId || workspace.collections[0]?._mpId || '', folderId = tab.pendingFolderId || '';
   const box = element('div'); box.append(field('Request name', input(name, 'Request name', value => name = value)));
   const options = workspace.collections.map(c => [c._mpId, c.info.name]); if (!options.length) options.push(['', 'My Collection（新規作成）']);
@@ -1067,12 +1072,15 @@ function codeView(text, json = false, search = '') {
 }
 function emptyResponse(title, message) {const box = element('div', 'response-empty'); box.append(element('strong', '', title)); if (message) box.append(element('p', '', message)); return box;}
 function renderResponse() {
-  const root = $('responseContent'); root.replaceChildren(); const result = responses.get(active().id) || studio?.responseFor(active());
+  const root = $('responseContent'), requestId = active().id, result = responses.get(requestId) || studio?.responseFor(active());
   const receiving=requests.has(active().id);
   if(result&&!receiving&&!responsePresentationApplied.has(result)){
     responsePresentationApplied.add(result);
     if(['pretty','raw','headers','cookies','preview'].includes(result.response_view)){responseView=result.response_view;saveNavigation();}
   }
+  const preview=Boolean(result&&!result.error&&!receiving&&responseView==='preview'&&result.body_encoding!=='base64'&&/text\/html|image\/svg\+xml/i.test(result.content_type));
+  const retainPreview=preview&&responsePreview?.requestId===requestId&&responsePreview.body===result.body&&responsePreview.contentType===result.content_type&&responsePreview.frame.parentElement===root;
+  if(!retainPreview){root.replaceChildren();responsePreview=null;}
   $('extractResponse').disabled = !studio?.responseFor(active());
   $('responseActions').disabled = !result||Boolean(result.error)||receiving;
   $('responseModified').hidden = !result?.original_response||receiving;
@@ -1101,8 +1109,10 @@ function renderResponse() {
   } else if (responseView === 'preview') {
     if (result.body_encoding === 'base64') {root.append(emptyResponse('バイナリレスポンス', result.content_type)); return;}
     if (/text\/html|image\/svg\+xml/i.test(result.content_type)) {
+      if(retainPreview)return;
       const frame = element('iframe', 'preview-frame'); frame.setAttribute('sandbox', ''); frame.referrerPolicy = 'no-referrer'; frame.title = 'Response preview';
       frame.srcdoc = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'">` + result.body; root.append(frame);
+      responsePreview={requestId,body:result.body,contentType:result.content_type,frame};
     } else root.append(codeView(responseText(result, 'pretty'), /json/i.test(result.content_type), search));
   } else root.append(codeView(responseText(result), responseView === 'pretty' && /json/i.test(result.content_type), search));
 }

@@ -8,6 +8,7 @@ import {PrimaryVariables} from '../static/runtime.mjs';
 import {validRibbonWorkspace} from '../static/ribbons.mjs';
 import {validScripts,validScriptBindings} from '../static/scripts.mjs';
 import {executeRequest} from '../static/execution.mjs';
+import {normalizeRequest} from '../static/core.mjs';
 
 const request=()=>({method:'GET',url:'https://example.invalid/start',header:[],body:{mode:'none',raw:''}});
 const saved=(id,name=id,source='')=>({id,name,source,input:'null',inputFormat:'json',timeoutMs:0});
@@ -50,6 +51,123 @@ test('request, draft, environment and relation edits are typed and keep IDs stab
   assert.throws(()=>api.relations.update(relation.id,{steps:[{id:'same',type:'wait'},{id:'same',type:'wait'}]}),/重複/);
   assert.equal(api.drafts.get(draft.id).settings.verify_tls,true);
   assert.equal(api.environments.delete(environment.id),true);assert.equal(api.environments.active(),null);
+});
+
+test('all editable entity APIs round-trip snapshots, replace deleted fields and return detached normalized values',()=>{
+  const model=createWorkspaceModel(fixture(),{requestRef:'draft:draft'}),api=model.api;
+  const folder=api.folders.create({parent:'collection',name:'Folder'}),relation=api.relations.create({name:'Flow'});
+  const ribbon=api.ribbons.create({key:'main',name:'Main'}),groups=api.ribbons.groups(ribbon.id),group=groups.create({name:'Group'}),controls=api.ribbons.controls(ribbon.id,group.id),control=controls.create({key:'count',label:'Count',type:'number',value:1});
+  const cases=[
+    [api.collections,'collection','name'],[api.folders,folder.id,'name'],[api.requests,'collection:request','name'],[api.drafts,'draft:draft','name'],
+    [api.environments,'env','name'],[api.scripts,'child','name'],[api.relations,relation.id,'name'],[api.ribbons,ribbon.id,'name'],[groups,group.id,'name'],[controls,control.id,'label']
+  ];
+  for(const [scope,reference,label] of cases){
+    const original=scope.get(reference);
+    assert.deepEqual(scope.set(reference,original),original);
+    assert.deepEqual(scope.set(reference,'metadata',{keep:{value:1},remove:'old'}),{keep:{value:1},remove:'old'});
+    scope.set(reference,'obsolete','old');
+    const next=scope.get(reference);next[label]+=' edited';delete next.metadata.remove;delete next.obsolete;
+    const output=scope.set(reference,next);
+    assert.equal(output[label],next[label]);assert.deepEqual(output.metadata,{keep:{value:1}});assert.equal(Object.hasOwn(output,'obsolete'),false);
+    assert.equal(scope.get(reference,'metadata.remove'),undefined);assert.equal(scope.get(reference,'obsolete'),undefined);
+    output.metadata.keep.value=999;assert.equal(scope.get(reference,['metadata','keep','value']),1);
+    assert.equal(scope.set(reference,'id',original.id),original.id);
+    const before=model.api.workspace.read(),invalid=scope.get(reference);invalid[label]='must roll back';invalid.id='changed';
+    assert.throws(()=>scope.set(reference,invalid),/変更できません/);assert.deepEqual(model.api.workspace.read(),before);
+  }
+  assert.equal(controls.set(control.id,'value','7'),7);assert.equal(controls.get(control.id,'value'),7);
+  assert.equal(api.requests.set('Fetch edited','name','Renamed request'),'Renamed request');
+  const renamed=api.scripts.get('child');renamed.name='Renamed script';assert.equal(api.scripts.set('child edited',renamed).name,'Renamed script');
+});
+
+test('entity get and set share dot, bracket, pointer and array paths without exposing inherited properties',()=>{
+  const model=createWorkspaceModel(fixture()),api=model.api.requests,ref='collection:request';
+  api.set(ref,'metadata',{rows:[{value:'before'}],'literal.key':{'a/b':{'~value':0}},nullable:null});
+  const paths=['metadata.rows[0].value','$.metadata.rows[0]["value"]','/metadata/rows/0/value',['metadata','rows',0,'value']];
+  for(const [index,path] of paths.entries()){
+    assert.equal(api.set({id:ref},path,index),index);
+    for(const readPath of paths)assert.equal(api.get(ref,readPath),index);
+  }
+  assert.equal(api.set(ref,'metadata["literal.key"]["a/b"]["~value"]',8),8);
+  assert.equal(api.get(ref,'/metadata/literal.key/a~1b/~0value'),8);
+  assert.deepEqual(api.set(ref,['metadata','rows',1],{value:4}),{value:4});assert.equal(api.get(ref,'metadata.rows[1].value'),4);
+  assert.equal(api.get(ref,'metadata.missing.child'),undefined);assert.equal(api.get(ref,'metadata.toString'),undefined);
+  assert.equal(api.get(ref,'metadata.nullable.value'),undefined);
+  assert.equal(api.set(ref,['metadata','__proto__','privateValue'],true),true);
+  assert.equal(api.get(ref,['metadata','__proto__','privateValue']),true);assert.equal({}.privateValue,undefined);
+  for(const root of ['', '$', []])assert.deepEqual(api.set(ref,root,api.get(ref,root)),api.get(ref));
+  const before=model.api.workspace.read();
+  for(const path of ['metadata..value','metadata["unterminated]','metadata[-1]','/metadata/~2value',['metadata',-1]]){
+    assert.throws(()=>api.get(ref,path),TypeError);assert.throws(()=>api.set(ref,path,1),TypeError);
+  }
+  assert.throws(()=>api.set(ref,'metadata.rows[4]',{}),/空の要素/);
+  assert.throws(()=>api.set(ref,'metadata.nullable.child',1),/途中/);
+  assert.throws(()=>api.set(ref,'request.method',undefined),/JSON/);
+  assert.deepEqual(model.api.workspace.read(),before);
+});
+
+test('collection snapshot aliases support either name field and reject contradictory renames atomically',()=>{
+  const model=createWorkspaceModel(fixture()),api=model.api.collections;
+  assert.equal(api.set('API','name','First'),'First');assert.equal(api.get('collection','info.name'),'First');
+  let value=api.get('First');value.info.name='Second';assert.equal(api.set('First',value).name,'Second');
+  value=api.get('Second');value.name='Third';assert.equal(api.set('Second',value).info.name,'Third');
+  value=api.get('Third');value.name=value.info.name='Fourth';assert.equal(api.set(value.id,value).name,'Fourth');
+  const before=model.api.workspace.read();value=api.get('Fourth');value.name='Left';value.info.name='Right';value.variable=[];
+  assert.throws(()=>api.set('Fourth',value),/name と info.name/);assert.deepEqual(model.api.workspace.read(),before);
+  assert.deepEqual(api.set('Fourth','info',{name:'Fifth',description:'only'}),{name:'Fifth',description:'only'});
+  const children=api.get('Fifth','item');assert.equal(api.set('Fifth',{name:'Minimal'}).info.name,'Minimal');
+  assert.deepEqual(api.get('collection','item'),children);assert.equal(api.get('collection','info.description'),undefined);
+  assert.equal(Object.hasOwn(model.state.collections[0],'name'),false);
+});
+
+test('snapshot setters protect ownership, tree children and request ribbon scope while preserving omitted identities',()=>{
+  const model=createWorkspaceModel(fixture(),{requestRef:'draft:draft'}),api=model.api;
+  const folder=api.folders.create({parent:'collection',name:'Folder'});api.requests.move('collection:request',folder.id);
+  api.ribbons.create({key:'main'});
+  const checks=[
+    [api.collections,'collection','_mpId','changed'],[api.collections,'collection','item',[]],
+    [api.folders,folder.id,'item[0].name','changed'],[api.folders,folder.id,'request',request()],
+    [api.requests,'collection:request','collectionId','other'],[api.requests,'collection:request','itemId','other'],
+    [api.requests,'collection:request','parentId','collection'],[api.requests,'collection:request','path','other'],
+    [api.requests,'collection:request','item',[]],[api.requests,'collection:request','_mpId','other'],
+    [api.drafts,'draft:draft','draftId','other'],[api.drafts,'draft:draft','ribbonState.id','other-scope']
+  ];
+  const before=api.workspace.read();
+  for(const [scope,ref,path,value] of checks){assert.throws(()=>scope.set(ref,path,value),/変更できません/);assert.deepEqual(api.workspace.read(),before);}
+  assert.throws(()=>api.drafts.set('collection:request','name','invalid scope'),/ありません/);
+  const next=api.drafts.get('draft:draft');delete next.id;delete next.draftId;delete next.path;next.name='Renamed draft';
+  assert.equal(api.drafts.set('Draft',next).id,'draft:draft');assert.equal(model.state.tabs[0].id,'draft');
+  const partial=api.folders.get(folder.id);delete partial.id;delete partial._mpId;delete partial.item;delete partial.parentId;
+  assert.equal(api.folders.set(folder.id,partial).item[0]._mpId,'request');
+});
+
+test('settings use the same nested path and whole snapshot contract without reaching other workspace roots',()=>{
+  const model=createWorkspaceModel(fixture()),api=model.api.settings;
+  assert.equal(api.set('settings.timeout_ms',1500),1500);assert.equal(api.get('/settings/timeout_ms'),1500);
+  assert.equal(api.set(['editorSettings','fontSize'],15),15);assert.equal(api.get('editorSettings["fontSize"]'),15);
+  assert.equal(api.set('theme','dark'),'dark');assert.equal(api.get('settings.missing'),undefined);
+  const next=api.get();next.settings={verify_tls:true};delete next.editorSettings;
+  assert.deepEqual(api.set(next),{theme:'dark',settings:{verify_tls:true}});assert.equal(api.get('settings.timeout_ms'),undefined);
+  const before=model.api.workspace.read();
+  for(const [path,value] of [['settings.timeout_ms',-1],['theme','invalid'],['collections',[]],['editorSettings',null]])assert.throws(()=>api.set(path,value));
+  assert.throws(()=>api.get('collections'),/不明/);assert.throws(()=>api.set({...api.get(),scripts:[]}),/変更できない/);
+  assert.deepEqual(model.api.workspace.read(),before);
+  assert.deepEqual(api.set([],{settings:{follow_redirects:false}}),{settings:{follow_redirects:false}});
+  assert.deepEqual(api.get('$'),{settings:{follow_redirects:false}});assert.equal(api.get('theme'),undefined);
+  api.update({settings:{timeout_ms:2000}});assert.deepEqual(api.get('settings'),{follow_redirects:false,timeout_ms:2000});
+});
+
+test('ribbon snapshot and path setters stay in their request owner and return coerced child values',()=>{
+  const model=createWorkspaceModel(fixture(),{requestRef:'draft:draft'}),api=model.api;
+  const make=(scope,value)=>{const ribbon=scope.create({key:'main',name:'Main'}),group=scope.groups(ribbon.id).create({name:'Group'}),control=scope.controls(ribbon.id,group.id).create({key:'count',type:'number',value});return {scope,ribbon,group,control};};
+  const current=make(api.ribbons,1),other=make(api.ribbons.forRequest('Fetch'),100);
+  const value=current.scope.get('Main');value.groups[0].controls[0].value='8';
+  assert.equal(current.scope.set('Main',value).groups[0].controls[0].value,8);
+  assert.equal(current.scope.set('Main','groups[0].controls[0].value','9'),9);
+  const controls=current.scope.controls(current.ribbon.id,current.group.id);
+  assert.equal(controls.set({id:current.control.id},'value','10'),10);
+  assert.equal(other.scope.controls(other.ribbon.id,other.group.id).get('count','value'),100);
+  const before=api.workspace.read();assert.throws(()=>controls.set('count','value','invalid'),/種類に合う/);assert.deepEqual(api.workspace.read(),before);
 });
 
 test('ambiguous names fail while full IDs and unique paths resolve',()=>{
@@ -141,6 +259,107 @@ test('isolated source includes model and tools factories and reads pending model
   const isolated=Function(`${scriptExecutorSource()}\nreturn executeScript;`)(),workspace=fixture(),primary=new PrimaryVariables();
   const output=await isolated(`minipost.requests.update('Fetch',{request:{url:tools.url.build('https://example.invalid',{query:{page:2}})}});return minipost.requests.get('Fetch').request.url;`,makeScriptContext(workspace,primary));
   assert.equal(output.result,'https://example.invalid/?page=2');assert.ok(output.workspaceWrites.length);
+});
+
+test('serialized execution shares snapshot setters and saved request handles with child scripts',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),isolated=Function(`${scriptExecutorSource()}\nreturn executeScript;`)();
+  workspace.scripts=[saved('child','Child',`const handle=minipost.requests.edit(input);handle.json.set('child',true);return {method:handle.get('method'),token:handle.headers.get('X-Token'),limit:handle.json.get('limit')};`)];
+  const output=await isolated(`
+    const value=minipost.requests.get('Fetch');value.name='Edited';value.request.method='POST';minipost.requests.set('Fetch',value);
+    const handle=minipost.requests.edit(value.id);handle.headers.set('X-Token','saved');handle.query.set('page',2);handle.json.set({limit:5});
+    minipost.settings.set('settings.timeout_ms',1200);minipost.environments.set('Test','values[0].value','pending');
+    const child=await scripts.run('Child',value.id);
+    return {child,body:handle.json.get(),timeout:minipost.settings.get('settings.timeout_ms'),name:minipost.requests.get(value.id,'name')};
+  `,makeScriptContext(workspace,primary));
+  assert.deepEqual(output.result,{child:{method:'POST',token:'saved',limit:5},body:{limit:5,child:true},timeout:1200,name:'Edited'});
+  assert.equal(workspace.collections[0].item[0].name,'Fetch');assert.equal(workspace.settings,undefined);
+  commit(workspace,primary,output);
+  assert.equal(workspace.collections[0].item[0].name,'Edited');assert.equal(workspace.settings.timeout_ms,1200);
+  assert.deepEqual(JSON.parse(workspace.collections[0].item[0].request.body.raw),{limit:5,child:true});
+  assert.equal(workspace.environments[0].values[0].value,'pending');
+});
+
+test('saved and draft request handles resolve current model objects after replacement and rollback',()=>{
+  const model=createWorkspaceModel(fixture()),api=model.api,savedEditor=api.requests.edit({id:'collection:request'}),draftEditor=api.drafts.edit('Draft');
+  assert.equal(savedEditor.headers.set('X-Token','first'),'first');assert.equal(savedEditor.headers.get('x-token'),'first');
+  const snapshot=api.requests.get('Fetch');snapshot.request.method='POST';api.requests.set('Fetch',snapshot);
+  assert.equal(savedEditor.get('method'),'POST');
+  assert.throws(()=>savedEditor.set('method',''),/リクエスト/);
+  assert.equal(savedEditor.get('method'),'POST');assert.equal(savedEditor.headers.set('X-Token','after rollback'),'after rollback');
+  assert.equal(api.requests.get('Fetch','request.header[0].value'),'after rollback');
+  assert.equal(draftEditor.headers.get('X-Token'),undefined);assert.equal(draftEditor.set('method','PATCH'),'PATCH');
+  const raw=draftEditor.get();raw.body={mode:'raw',raw:'{"draft":true}'};delete raw.auth;
+  assert.deepEqual(draftEditor.set(raw),draftEditor.get());assert.deepEqual(draftEditor.json.get(),{draft:true});
+  assert.equal(api.drafts.get('Draft','request.method'),'PATCH');assert.equal(api.requests.get('Fetch','request.method'),'POST');
+  assert.throws(()=>api.drafts.edit('collection:request'),/ありません/);
+  api.requests.delete('Fetch');assert.throws(()=>savedEditor.headers.get('X-Token'),/ありません/);
+});
+
+test('symmetric request writes compile pending named headers, query, JSON and form values on the same saved request',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),sent=[];
+  const host=createScriptHost({workspace,primary,send:async payload=>{sent.push(structuredClone(payload));return {status:200,body:'{}',headers:[]};}});
+  const output=await run(workspace,primary,`
+    const target=minipost.requests.get('Fetch');target.request.method='POST';minipost.requests.set(target.id,target);
+    const edit=minipost.requests.edit(target.id);edit.set('url','https://{{host}}/named?initial=1');
+    pm.environment.set('host','example.invalid');edit.headers.set('X-Named','visible');edit.query.set('page',2);edit.query.set('tag',['one two','three+four']);
+    edit.json.set({account:{active:true}});edit.json.set('account.name','雪');
+    await minipost.requests.send(target.id);
+    edit.form.set('message','a+b c');edit.form.set('tag',['first','second']);await minipost.requests.send(target.id);
+    return {header:edit.headers.get('x-named'),page:edit.query.get('page'),form:edit.form.toObject(),method:minipost.requests.get(target.id,'request.method')};
+  `,{onCall:host});
+  assert.equal(sent.length,2);assert.equal(sent[0].method,'POST');assert.equal(sent[0].url,'https://example.invalid/named');
+  assert.deepEqual(sent[0].query,[{key:'initial',value:'1'},{key:'page',value:'2'},{key:'tag',value:'one two'},{key:'tag',value:'three+four'}]);
+  assert.equal(sent[0].headers.find(row=>row.key.toLowerCase()==='x-named').value,'visible');
+  assert.equal(sent[0].headers.find(row=>row.key.toLowerCase()==='content-type').value,'application/json');
+  assert.deepEqual(JSON.parse(sent[0].body),{account:{active:true,name:'雪'}});
+  assert.equal(sent[1].headers.find(row=>row.key.toLowerCase()==='content-type').value,'application/x-www-form-urlencoded');
+  assert.deepEqual(sent[1].form_urlencoded,[{key:'message',value:'a+b c'},{key:'tag',value:'first'},{key:'tag',value:'second'}]);
+  assert.deepEqual(output.result,{header:'visible',page:'2',form:{message:'a+b c',tag:['first','second']},method:'POST'});
+  assert.equal(workspace.collections[0].item[0].request.method,'GET');commit(workspace,primary,output);
+  assert.equal(workspace.collections[0].item[0].request.body.mode,'urlencoded');
+});
+
+test('raw request path and snapshot setters reconcile cached URL text, components and query before sending',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),sent=[];
+  workspace.collections[0].item[0].request=normalizeRequest({method:'GET',url:{raw:'https://old.invalid/first?old=1',protocol:'https',host:['old','invalid'],path:['first'],query:[{key:'old',value:'1'}]},header:[]});
+  const host=createScriptHost({workspace,primary,send:async payload=>{sent.push(structuredClone(payload));return {status:200,body:'{}',headers:[]};}});
+  const output=await run(workspace,primary,`
+    const ref='collection:request';
+    const raw=minipost.requests.set(ref,'request.url.raw','https://new.invalid/second?literal=a+b&encoded=a%2Bb');
+    await minipost.requests.send(ref);
+    const snapshot=minipost.requests.get(ref);snapshot.request.url.raw='https://snapshot.invalid/third?snapshot=1';minipost.requests.set(ref,snapshot);
+    await minipost.requests.send(ref);
+    minipost.requests.set(ref,['request','url','host'],['component','invalid']);minipost.requests.set(ref,'request.url.path',['fourth','item']);
+    await minipost.requests.send(ref);
+    minipost.requests.set(ref,'request.url.query',[{key:'kept',value:'a+b c'},{key:'hidden',value:'skip',disabled:true}]);
+    await minipost.requests.send(ref);
+    return {raw,url:minipost.requests.get(ref,'request.url'),effective:minipost.requests.edit(ref).get('url')};
+  `,{onCall:host});
+  assert.equal(sent.length,4);assert.deepEqual(sent.map(value=>value.url),['https://new.invalid/second','https://snapshot.invalid/third','https://component.invalid/fourth/item','https://component.invalid/fourth/item']);
+  assert.deepEqual(sent[0].query,[{key:'literal',value:'a+b'},{key:'encoded',value:'a+b'}]);
+  assert.deepEqual(sent[1].query,[{key:'snapshot',value:'1'}]);assert.deepEqual(sent[2].query,[{key:'snapshot',value:'1'}]);
+  assert.deepEqual(sent[3].query,[{key:'kept',value:'a+b c'}]);
+  assert.equal(output.result.raw,'https://new.invalid/second?literal=a%2Bb&encoded=a%2Bb');
+  assert.equal(output.result.url.base,'https://component.invalid/fourth/item');assert.equal(output.result.url.query.length,2);
+  assert.equal(output.result.effective,'https://component.invalid/fourth/item?kept=a%2Bb%20c');
+  assert.equal(workspace.collections[0].item[0].request.url.base,'https://old.invalid/first');
+});
+
+test('whole snapshot setters keep field-level commits and reject concurrent conflicts atomically',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),item=workspace.collections[0].item[0];item.request.auth={type:'noauth'};
+  const output=await run(workspace,primary,`
+    const value=minipost.requests.get('Fetch');value.request.method='POST';delete value.request.auth;minipost.requests.set(value.id,value);
+    minipost.settings.set('settings.timeout_ms',1200);store.set('saved',true);
+  `);
+  item.name='Concurrent title';item.request.url='https://example.invalid/concurrent';
+  commit(workspace,primary,output);
+  assert.equal(item.name,'Concurrent title');assert.equal(item.request.url,'https://example.invalid/concurrent');assert.equal(item.request.method,'POST');assert.equal(Object.hasOwn(item.request,'auth'),false);
+  const conflict=await run(workspace,primary,`
+    const value=minipost.requests.get('collection:request');value.request.method='PATCH';minipost.requests.set(value.id,value);
+    minipost.requests.edit(value.id).headers.set('X-Pending','rollback');minipost.settings.set('settings.timeout_ms',9000);vars.set('pending','yes');
+  `);
+  item.request.method='DELETE';const before=structuredClone(workspace);
+  assert.throws(()=>commit(workspace,primary,conflict),/変更・削除/);assert.deepEqual(workspace,before);assert.equal(primary.get('pending'),undefined);
 });
 
 test('host sends pending request and environment edits without committing to the live workspace',async()=>{

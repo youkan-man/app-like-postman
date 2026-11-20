@@ -1,0 +1,115 @@
+{
+  "schema": "minipost/native-verification/v1",
+  "status": "succeeded",
+  "source_sha": "ff1452bc4b6c8006143b797d8f11f188381565b7",
+  "source_archive_sha256": "4cf5e1f999da2655f59a022df2c74d8251f620949e6a1d1612fb6f3f8ae675b9",
+  "completed_at": "2026-11-20T07:20:29.252873+00:00",
+  "mode": "two-vm Chromium HTTP",
+  "node": {
+    "tests": 733,
+    "passed": 733,
+    "failed": 0
+  },
+  "python": {
+    "tests": 81,
+    "passed": 81,
+    "failed": 0
+  },
+  "browser": {
+    "suites": 25,
+    "checks": 426,
+    "failed_suites": 0,
+    "source_identity_verified": true,
+    "summary": {
+      "asset_update_checks": 5,
+      "binary_workflow_checks": 23,
+      "draft_lifecycle_checks": 22,
+      "extraction_checks": 11,
+      "focus_checks": 12,
+      "large_binary_checks": 7,
+      "layout_checks": 26,
+      "mode": "two-vm Chromium HTTP",
+      "native_automation_checks": 28,
+      "native_regression_checks": {
+        "backup/result.json": 9,
+        "browser-results.json": 20,
+        "edgecases/results.json": 5,
+        "paging/results.json": 10,
+        "selection/results.json": 12,
+        "settings/results.json": 16,
+        "storage/result.json": 6,
+        "ui/ui-results.json": 22
+      },
+      "network": {
+        "app_http": true,
+        "app_peer": "provider-injected",
+        "cross_vm_proxy": true,
+        "echo_port": 18081,
+        "mode": "Local Relay VM private peer networking",
+        "ok": true,
+        "two_way": true
+      },
+      "ribbon_checks": 26,
+      "screenshots": 167,
+      "script_checks": 44,
+      "script_intelligence_checks": 17,
+      "script_response_checks": 18,
+      "script_workspace_api_checks": 26,
+      "sent_values_checks": 19,
+      "source_identity_verified": true,
+      "standalone_script_checks": 15,
+      "text_url_navigation_checks": 17,
+      "transfer_progress_checks": 10
+    },
+    "reviewed_screenshots": [
+      "vms/browser/artifacts/ribbons/ribbon-type-select-320.png"
+    ],
+    "captured_screenshots": 167
+  },
+  "source_checkouts": {
+    "app": {
+      "archive_bytes": 1898434,
+      "archive_sha256": "4cf5e1f999da2655f59a022df2c74d8251f620949e6a1d1612fb6f3f8ae675b9",
+      "capability": "local.repository.checkout",
+      "commit": "ff1452bc4b6c8006143b797d8f11f188381565b7",
+      "destination": "/workspace",
+      "git_metadata_in_vm": false,
+      "mode": "relay_authenticated_source_injection",
+      "relay_credentials_in_vm": false,
+      "repository": "youkan-man/app-like-postman",
+      "sandbox_id": "sb-2f30bea6ea5c",
+      "source_generation": 2
+    },
+    "browser": {
+      "archive_bytes": 1898434,
+      "archive_sha256": "4cf5e1f999da2655f59a022df2c74d8251f620949e6a1d1612fb6f3f8ae675b9",
+      "capability": "local.repository.checkout",
+      "commit": "ff1452bc4b6c8006143b797d8f11f188381565b7",
+      "destination": "/workspace",
+      "git_metadata_in_vm": false,
+      "mode": "relay_authenticated_source_injection",
+      "relay_credentials_in_vm": false,
+      "repository": "youkan-man/app-like-postman",
+      "sandbox_id": "sb-8d89eea033a9",
+      "source_generation": 2
+    }
+  },
+  "operations": {
+    "app": "op-cf14d9e62f19",
+    "browser": "op-69636e6836a7",
+    "source_generation": 2,
+    "browser_status": "succeeded"
+  },
+  "transport": {
+    "provider": "infra-test-sandbox-4",
+    "mode": "authenticated Local Relay",
+    "app": "sb-2f30bea6ea5c",
+    "browser": "sb-8d89eea033a9"
+  },
+  "notes": [
+    "The automatic provider had a stuck older operation. This verification used the same checked-in two-VM scripts on an independent authenticated provider.",
+    "The browser entry ran ci/relay_2vm_collect_browser.sh and its required --check; both succeeded.",
+    "The selected screenshot was reviewed. Other captured screenshots are not included in this evidence commit."
+  ]
+}
+

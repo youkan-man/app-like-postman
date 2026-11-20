@@ -173,6 +173,7 @@ export interface PairTools {
   remove(value: PairInput, key: string): VariableRow[]; toObject(value: PairInput): Record<string, string | string[]>;
 }
 export type JSONPath = string | ReadonlyArray<string | number>;
+export type JSONPathFor<T> = KnownString<keyof NonNullable<T> & string> | ReadonlyArray<string | number>;
 export type PathMember<T, K> = K extends keyof NonNullable<T> ? NonNullable<T>[K] : NonNullable<T> extends ReadonlyArray<infer V> ? K extends number | \`\${number}\` ? V : unknown : unknown;
 export type PathTuple<T, P> = P extends readonly [infer H, ...infer R] ? PathTuple<PathMember<T, H>, R> : P extends readonly [] ? T : unknown;
 export type PointerKey<P extends string> = P extends \`\${infer A}~1\${infer B}\` ? PointerKey<\`\${A}/\${B}\`> : P extends \`\${infer A}~0\${infer B}\` ? \`\${A}~\${PointerKey<B>}\` : P;
@@ -183,6 +184,7 @@ export type PathValue<T, P> = P extends readonly unknown[] ? PathTuple<T,P> : P 
 export type PointerParts<P extends string> = P extends \`\${infer H}/\${infer R}\` ? [PointerKey<H>,...PointerParts<R>] : [PointerKey<P>];
 export type DotParts<P extends string> = P extends '' ? [] : P extends \`.\${infer R}\` ? DotParts<R> : P extends \`\${infer H}[\${infer I}]\${infer R}\` ? [...DotParts<H>,BracketKey<I>,...DotParts<R>] : P extends \`\${infer H}.\${infer R}\` ? [H,...DotParts<R>] : [P];
 export type PathParts<P> = P extends readonly unknown[] ? P : P extends string ? string extends P ? string[] : P extends '' | '$' ? [] : P extends \`/\${infer R}\` ? PointerParts<R> : P extends \`$.\${infer R}\` ? DotParts<R> : P extends \`$[\${infer R}\` ? DotParts<\`[\${R}\`> : DotParts<P> : string[];
+export type WrittenValue<T, P> = PathValue<T,P>;
 export type SetMember<T,K,V> = T extends readonly (infer E)[] ? Array<E | V> : Omit<NonNullable<T>,K & PropertyKey> & Record<K & PropertyKey,V>;
 export type SetParts<T,P,V> = P extends readonly [] ? V : P extends readonly [infer H,...infer R] ? SetMember<T,H,SetParts<PathMember<T,H>,R,V>> : JsonValue;
 export type RemoveParts<T,P> = P extends readonly [] ? null : P extends readonly [infer H] ? T extends readonly unknown[] ? T : Omit<T,H & PropertyKey> : P extends readonly [infer H,...infer R] ? SetMember<T,H,RemoveParts<PathMember<T,H>,R>> : JsonValue;
@@ -304,6 +306,7 @@ export interface SharedData<D extends object> {
 }
 export interface RibbonDescriptor { id: string; key: string; name: string; }
 export type RibbonControlType = 'button' | 'text' | 'number' | 'select' | 'toggle' | 'display';
+export type RibbonField = 'value' | 'visible' | 'enabled';
 export interface RibbonControlDescriptor<V = JsonValue> {
   id: string; key: string; label: string; type: RibbonControlType; value: V;
   visible: boolean; enabled: boolean;
@@ -328,11 +331,14 @@ export interface RibbonAPI<C extends object, W extends { [P in keyof C]: unknown
   controls<K extends keyof R & string>(reference: K): Array<RibbonControlDescriptor<R[K][keyof R[K]]>>;
   controls(reference: string): RibbonControlDescriptor[];
   /** 項目の値を取得します。同じ実行で設定した値も読み取れます。 */
-  get<K extends keyof C & string>(reference: K): C[K];
-  get(reference: string): unknown;
+  get<K extends keyof C & string, F extends RibbonField = 'value'>(reference: K, field?: F): F extends 'value' ? C[K] : boolean;
+  get<F extends RibbonField = 'value'>(reference: string, field?: F): F extends 'value' ? unknown : boolean;
   /** 項目の型に合わせて値を設定します。入力の変更処理を再実行しません。 */
   set<K extends keyof C & string, T extends W[K]>(reference: K, value: T): JsonValue extends W[K] ? T : C[K];
   set<T extends JsonValue>(reference: string, value: T): T;
+  set<K extends keyof C & string, T extends W[K]>(reference: K, field: 'value', value: T): JsonValue extends W[K] ? T : C[K];
+  set<T extends JsonValue>(reference: string, field: 'value', value: T): T;
+  set(reference: KnownString<keyof C & string>, field: 'visible' | 'enabled', value: boolean): boolean;
   /** 選択中のリボンの値を項目のキーでまとめて取得します。 */
   values(): A;
   /** 指定したリボンの値を項目のキーでまとめて取得します。 */
@@ -343,10 +349,9 @@ export interface RibbonAPI<C extends object, W extends { [P in keyof C]: unknown
   /** 項目の有効状態を設定します。有効条件がある場合は併せて評価します。 */
   enable(reference: KnownString<keyof C & string>, enabled?: boolean): boolean;
 }
-export interface ScriptLibrary<R extends object, I extends { [P in keyof R]: unknown }> {
+export interface ScriptLibrary<R extends object, I extends { [P in keyof R]: unknown }> extends EntityValues<SavedScriptLookup, SavedScript, Partial<Omit<SavedScript, 'id'>>> {
   /** 保存したスクリプトのIDと名前を取得します。 */
   list(): Array<{ id: ScriptId; name: ScriptName }>;
-  get(reference: KnownString<keyof SavedScriptLookup & string> | EntityRef): SavedScript;
   create(spec?: Partial<Omit<SavedScript, 'id'>>): SavedScript;
   update(reference: KnownString<keyof SavedScriptLookup & string> | EntityRef, patch: Partial<Omit<SavedScript, 'id'>>): SavedScript;
   delete(reference: KnownString<keyof SavedScriptLookup & string> | EntityRef): boolean;
@@ -386,6 +391,45 @@ export type MutableRequest<S extends Request> = Omit<S, 'url' | 'header' | 'body
   get auth(): S['auth'];
   set auth(value: Request['auth']);
 };
+export type PairScalar = string | number | boolean | null;
+export interface RequestPairs {
+  /** 同じ名前の有効な値を取得します。getは先頭、getAllはすべての値を返します。 */
+  get(name: string): string | undefined;
+  getAll(name: string): string[];
+  /** 値を文字列にして設定します。配列で複数値を指定できます。 */
+  set(name: string, value: PairScalar | ReadonlyArray<PairScalar>): string | undefined;
+  has(name: string): boolean;
+  delete(name: string): boolean;
+  toObject(): Record<string, string | string[]>;
+}
+export interface RequestJSON<J = unknown> {
+  /** JSON本文を取得します。パスを省略すると本文全体です。 */
+  get(): J;
+  get<const P extends JSONPathFor<J>>(path: P): PathValue<J,P>;
+  /** 本文をJSONにして置き換えます。 */
+  set<V extends JsonValue>(value: V): V;
+  /** JSON本文の同じパスへ値を設定します。 */
+  set<const P extends JSONPathFor<J>, V extends JsonValue>(path: P, value: V): V;
+  delete(path: JSONPathFor<J>): boolean;
+}
+export type RequestPathValue<S, P> = PathParts<P> extends readonly ['url'] ? string : PathValue<S,P>;
+export type RequestSnapshotResult<T> = T extends { url: unknown } ? Omit<T, 'url'> & { url: Request['url'] } : T;
+export interface RequestAccess<S extends Request, J = unknown> {
+  /** リクエストのコピーを取得します。 */
+  get(): S;
+  /** 同じパスで取得・設定できます。urlは送信URLを文字列で返します。 */
+  get<const P extends JSONPathFor<S>>(path: P): RequestPathValue<S,P>;
+  set<T extends Request>(snapshot: T): RequestSnapshotResult<T>;
+  set<const P extends JSONPathFor<Request>, V>(path: P, value: V): PathParts<P> extends readonly [] ? RequestSnapshotResult<V> : PathParts<P> extends readonly ['url'] ? string : V;
+  /** ヘッダー名は大文字・小文字を区別しません。 */
+  headers: RequestPairs;
+  /** クエリ名をそのままのキーとして扱います。 */
+  query: RequestPairs;
+  /** フォームのテキスト項目を操作します。ファイル項目は保持します。 */
+  form: RequestPairs;
+  json: RequestJSON<J>;
+}
+export type RequestEditor<S extends Request = Request, J = unknown> = RequestAccess<S,J>;
 export interface RequestSettings { verify_tls?: boolean; follow_redirects?: boolean; timeout_ms?: number; [key: string]: unknown; }
 export interface RequestDescriptor { id: string; name: string; path: string; collectionId?: string; itemId?: string; draftId?: string; parentId?: string; }
 export interface RequestEntry extends RequestDescriptor { request: Request; settings: RequestSettings; }
@@ -442,12 +486,12 @@ export interface PostmanAPI {
   test(name: string, fn: () => unknown): void | Promise<void>;
   expect(actual: unknown): Expectation;
 }
-export interface RequestsAPI {
+export interface RequestsAPI extends EntityValues<RequestLookup, RequestEntry, RequestSpec> {
   /** 保存済みリクエストと下書きの一覧を取得します。 */
   list(): RequestEntry[];
-  /** ID、一意の名前またはパスから設定を取得します。 */
-  get<K extends keyof RequestLookup & string>(reference: K): RequestLookup[K];
-  get(reference: string | EntityRef): RequestEntry;
+  /** 保存したリクエストをget/set、headers・query・form・jsonで編集します。 */
+  edit<K extends keyof RequestLookup & string>(reference: K): RequestEditor<RequestLookup[K]['request'], RequestJSONLookup[K]>;
+  edit(reference: string | EntityRef): RequestEditor;
   create(spec: RequestSpec & { parent: ParentRef }): RequestEntry;
   update(reference: RequestRef, patch: RequestSpec): RequestEntry;
   delete(reference: RequestRef): boolean;
@@ -456,10 +500,8 @@ export interface RequestsAPI {
   /** HTTP処理を一度実行します。送信前後の処理は自動では呼びません。 */
   send(reference: KnownString<keyof RequestLookup & string> | RequestEntry | Request, options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<ResponseMetadata>;
 }
-export interface EnvironmentsAPI {
+export interface EnvironmentsAPI extends EntityValues<EnvironmentLookup, Environment, { name?: string; values?: VariableRow[] }> {
   list(): Environment[];
-  get<K extends keyof EnvironmentLookup & string>(idOrName: K): EnvironmentLookup[K];
-  get(idOrName: string | EntityRef): Environment;
   create(spec?: { name?: string; values?: VariableRow[] }): Environment;
   update(reference: EnvironmentRef, patch: { name?: string; values?: VariableRow[] }): Environment;
   delete(reference: EnvironmentRef): boolean;
@@ -482,10 +524,20 @@ export interface ModelVariables {
   set(key: string, value: unknown, metadata?: { enabled?: boolean; disabled?: boolean; description?: string; type?: string }): string;
   unset(key: string): boolean; clear(): number; toObject(): Record<string,string>;
 }
-export interface EntityAPI<L extends object, T, S> {
-  list(): T[];
+export interface EntityValues<L extends object, T, S> {
+  /** ID・一意の名前・パスからコピーを取得します。 */
   get<K extends keyof L & string>(reference: K): L[K];
   get(reference: string | EntityRef): T;
+  /** 指定したパスの値を取得します。見つからなければundefinedです。 */
+  get<K extends keyof L & string, const P extends JSONPathFor<L[K]>>(reference: K, path: P): PathValue<L[K],P>;
+  get<const P extends JSONPathFor<T>>(reference: string | EntityRef, path: P): PathValue<T,P>;
+  /** 取得したコピーを編集して保存します。 */
+  set(reference: KnownString<keyof L & string> | EntityRef, snapshot: T | S): T;
+  /** getと同じパスへ値を設定し、設定後の値を返します。 */
+  set<const P extends JSONPathFor<T>, V>(reference: KnownString<keyof L & string> | EntityRef, path: P, value: V): WrittenValue<T,P>;
+}
+export interface EntityAPI<L extends object, T, S> extends EntityValues<L,T,S> {
+  list(): T[];
   create(spec?: S): T;
   update(reference: KnownString<keyof L & string> | EntityRef, patch: DeepPatch<S>): T;
   delete(reference: KnownString<keyof L & string> | EntityRef): boolean;
@@ -494,9 +546,8 @@ export interface Collection { id: string; name: string; _mpId: string; info: { n
 export interface CollectionSpec { name?: string; info?: { name?: string; description?: string; schema?: string }; variable?: VariableRow[]; auth?: Request['auth']; }
 export interface CollectionsAPI extends EntityAPI<CollectionLookup,Collection,CollectionSpec> { variables(reference: KnownString<keyof CollectionLookup & string> | EntityRef): ModelVariables; }
 export interface Folder extends RequestDescriptor { collectionId: string; itemId: string; parentId: string; item: CollectionItem[]; variable?: VariableRow[]; }
-export interface FoldersAPI {
+export interface FoldersAPI extends EntityValues<FolderLookup, Folder, { name?: string; variable?: VariableRow[]; auth?: Request['auth'] }> {
   list(): Folder[];
-  get<K extends keyof FolderLookup & string>(reference: K): FolderLookup[K]; get(reference: string | EntityRef): Folder;
   create(spec: { parent: ParentRef; name?: string; variable?: VariableRow[]; auth?: Request['auth'] }): Folder;
   update(reference: KnownString<keyof FolderLookup & string> | EntityRef, patch: { name?: string; variable?: VariableRow[]; auth?: Request['auth'] }): Folder;
   delete(reference: KnownString<keyof FolderLookup & string> | EntityRef): boolean;
@@ -505,7 +556,10 @@ export interface FoldersAPI {
 }
 export interface RequestSpec { name?: string; request?: DeepPatch<Request>; settings?: RequestSettings; ribbonState?: RequestRibbonState; }
 export interface Draft extends RequestEntry { draftId: string; dirty?: boolean; }
-export type DraftsAPI = EntityAPI<DraftLookup,Draft,RequestSpec>;
+export interface DraftsAPI extends EntityAPI<DraftLookup,Draft,RequestSpec> {
+  edit<K extends keyof DraftLookup & string>(reference: K): RequestEditor<DraftLookup[K]['request'], DraftJSONLookup[K]>;
+  edit(reference: string | EntityRef): RequestEditor;
+}
 export interface RelationCondition { enabled: boolean; source: 'response' | 'primary' | 'variables' | 'result'; path: string; operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'exists' | 'missing' | 'truthy' | 'falsy'; value?: string; }
 export interface RelationStep {
   id: string; type?: 'request' | 'repeat' | 'forEach' | 'while' | 'if' | 'wait' | 'script' | 'break' | 'continue';
@@ -536,6 +590,13 @@ export interface RibbonsForRequestAPI extends EntityAPI<{},RibbonDefinition,Part
   controls(reference: string | EntityRef, group: string | EntityRef): RibbonControlAPI;
 }
 export interface WorkspaceSettings { theme?: 'light' | 'dark'; editorSettings?: { tabSize?: number; fontSize?: number; [key: string]: unknown }; settings?: RequestSettings; }
+export interface SettingsAPI {
+  get(): WorkspaceSettings;
+  get<const P extends JSONPathFor<WorkspaceSettings>>(path: P): PathValue<WorkspaceSettings,P>;
+  set(snapshot: WorkspaceSettings): WorkspaceSettings;
+  set<const P extends JSONPathFor<WorkspaceSettings>, V>(path: P, value: V): WrittenValue<WorkspaceSettings,P>;
+  update(patch: DeepPatch<WorkspaceSettings>): WorkspaceSettings;
+}
 export interface HistoryEntry { id: string; name: string; method?: string; url?: string; status?: number; [key: string]: unknown; }
 export interface StoredResponse { id: string; requestId: string; name: string; response: ResponseMetadata; }
 export interface Attachment { slot: string; index: number; name: string; type: string; size: number; lastModified: number; }
@@ -562,7 +623,7 @@ export interface MiniPostAPI<R extends object, I extends { [P in keyof R]: unkno
   collections: CollectionsAPI; folders: FoldersAPI; requests: RequestsAPI; drafts: DraftsAPI;
   environments: EnvironmentsAPI; relations: RelationsAPI; ribbons: RibbonsModelAPI;
   workspace: { read(): Workspace };
-  settings: { get(): WorkspaceSettings; get<K extends keyof WorkspaceSettings>(key: K): WorkspaceSettings[K]; update(patch: DeepPatch<WorkspaceSettings>): WorkspaceSettings };
+  settings: SettingsAPI;
   history: { list(): HistoryEntry[]; get(reference: string | EntityRef): HistoryEntry; delete(reference: string | EntityRef): boolean; clear(): number };
   responses: { list(): Promise<StoredResponse[]>; get(reference?: RequestRef): Promise<StoredResponse | null> };
   attachments: AttachmentsAPI;
@@ -620,7 +681,9 @@ export function buildLanguageProject(source, context = {}) {
   declarations.push(`export type EnvironmentVariables = Variables<${literalUnion(variableNames(context.environment))}>;`);
   declarations.push(`export type GlobalVariables = Variables<${literalUnion(variableNames(context.globals))}>;`);
   declarations.push(`export type StoreData = ${object(context.data) ? reader.shape(context.data) : '{}'};`);
-  declarations.push(`export type CurrentRequest = MutableRequest<Request${context.request ? ` & ${reader.shape(context.request)}` : ''}>;`);
+  const requestJSONType = entry => own(entry,'requestJSON') ? reader.shape(entry.requestJSON) : 'unknown';
+  declarations.push(`export type CurrentRequestData = Request${context.request ? ` & ${reader.shape(context.request)}` : ''};`);
+  declarations.push(`export type CurrentRequest = MutableRequest<CurrentRequestData> & RequestEditor<CurrentRequestData, ${requestJSONType(context)}>;`);
   declarations.push(`export type ResponseBody = ${context.response && own(context.response, 'body') ? reader.shape(context.response.body) : 'unknown'};`);
   const json = responseJSON(context);
   declarations.push(`export type ResponseJSON = ${json.type || reader.shape(json.value)};`);
@@ -631,10 +694,12 @@ export function buildLanguageProject(source, context = {}) {
   const requestReferences = catalogReferences(requests, entry => [entry.name,entry.path,entry.itemId,entry.draftId]);
   const requestTypes = new Map(requests.map((entry,index) => {
     const name = `Request_${index}`;
-    declarations.push(`export type ${name} = RequestEntry & ${reader.shape(entry)};`);
+    const {requestJSON,request,...snapshot}=entry;
+    declarations.push(`export type ${name} = Omit<RequestEntry, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<Request${request ? ` & ${reader.shape(request)}` : ''}> };`);
     return [entry, name];
   }));
   declarations.push(`export type RequestLookup = ${mapType([...requestReferences].map(([reference,entry]) => [reference,requestTypes.get(entry)]))};`);
+  declarations.push(`export type RequestJSONLookup = ${mapType([...requestReferences].map(([reference,entry]) => [reference,requestJSONType(entry)]))};`);
   const environments = Array.isArray(context.environments) ? context.environments.filter(object) : [];
   declarations.push(`export type EnvironmentId = ${literalUnion(environments.map(env => env.id))};`);
   declarations.push(`export type EnvironmentName = ${literalUnion(environments.map(env => env.name))};`);
@@ -651,7 +716,14 @@ export function buildLanguageProject(source, context = {}) {
   for (const [property,type] of [['collections','Collection'],['folders','Folder'],['drafts','Draft'],['relations','Relation']]) {
     const entries=(Array.isArray(context[property])?context[property]:property==='drafts'?requests.filter(entry=>entry.draftId):[]).filter(object);
     const references=catalogReferences(entries,entry=>[entry.name,entry.path,entry.itemId,entry.draftId]);
-    declarations.push(`export type ${type}Lookup = ${mapType([...references].map(([reference])=>[reference,type]))};`);
+    const types=new Map(entries.map((entry,index)=>{
+      if(type!=='Draft')return [entry,type];
+      const {requestJSON,request,...snapshot}=entry,name=`Draft_${index}`;
+      declarations.push(`export type ${name} = Omit<Draft, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<Request${request ? ` & ${reader.shape(request)}` : ''}> };`);
+      return [entry,name];
+    }));
+    declarations.push(`export type ${type}Lookup = ${mapType([...references].map(([reference,entry])=>[reference,types.get(entry)]))};`);
+    if(type==='Draft')declarations.push(`export type DraftJSONLookup = ${mapType([...references].map(([reference,entry])=>[reference,requestJSONType(entry)]))};`);
   }
 
   const ribbonCatalogData = ribbonCatalog(context), ribbonValueTypes = new Map(), ribbonWriteTypes = new Map();

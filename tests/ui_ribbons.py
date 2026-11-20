@@ -170,6 +170,8 @@ def main():
                 close_navigation()
 
             def choose(identifier):
+                if page.locator('#ribbonCanvas').is_hidden():
+                    page.locator('#ribbonMobileContext [data-ribbon-back-to-list]').click()
                 page.locator(f'#ribbonCanvas [data-control-id="{identifier}"]').click()
                 expect(props).to_be_visible()
 
@@ -191,8 +193,13 @@ def main():
                 page.locator('.ribbon-editor-tools').get_by_role('button', name='項目を追加 ▾', exact=True).click()
                 page.get_by_role('menuitem', name=kind, exact=True).click()
                 props.get_by_label('項目のラベル', exact=True).fill(label)
+                reference = props.locator('.ribbon-reference-settings')
+                if not reference.evaluate('node=>node.open'):
+                    reference.locator('summary').click()
                 props.get_by_label('項目の参照キー', exact=True).fill(key)
                 props.get_by_label('項目の参照キー', exact=True).press('Tab')
+                if reference.evaluate('node=>node.open'):
+                    reference.locator('summary').click()
                 return next(control['id'] for ribbon in current_scope()['ribbons'] for group in ribbon['groups']
                             for control in group['controls'] if control['key'] == key)
 
@@ -271,6 +278,51 @@ def main():
             expect(page.locator('#customRibbon')).not_to_be_visible()
             passed('a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon')
 
+            control_sections = [('button', run_id, None), ('text', query_id, 'input'),
+                                ('number', count_id, 'input'), ('select', mode_id, 'options'),
+                                ('toggle', toggle_id, 'state'), ('display', output_id, 'display')]
+            for width, height in [(1440, 900), (320, 720)]:
+                page.set_viewport_size({'width': width, 'height': height})
+                for kind, identifier, section in control_sections:
+                    choose(identifier)
+                    expect(props).to_have_attribute('data-object-type', kind)
+                    expect(props.get_by_label('項目の参照キー', exact=True)).not_to_be_visible()
+                    assert not props.locator('.ribbon-reference-settings').evaluate('node=>node.open')
+                    for candidate in ['input', 'state', 'options', 'display']:
+                        target = props.locator(f'[data-property-section="{candidate}"]')
+                        if candidate == section:
+                            expect(target).to_be_visible()
+                        else:
+                            expect(target).to_have_count(0)
+                    if kind == 'display':
+                        expect(props.locator('.ribbon-actions-editor')).to_have_count(0)
+                        expect(props.get_by_label('操作を許可', exact=True)).to_have_count(0)
+                        expect(props.get_by_role('button', name='有効条件を追加', exact=True)).to_have_count(0)
+                    else:
+                        expect(props.locator('.ribbon-actions-editor')).to_be_visible()
+                    if kind == 'button':
+                        expect(props.get_by_label('項目の値', exact=True)).to_have_count(0)
+                        expect(props.get_by_label('表示する値', exact=True)).to_have_count(0)
+                    elif kind in ['text', 'number']:
+                        expect(props.get_by_label('項目の値', exact=True)).to_have_attribute('type', kind)
+                    elif kind == 'select':
+                        options = props.locator('[data-property-section="options"]')
+                        expect(options.get_by_role('radio')).to_have_count(2)
+                        expect(options.locator('select')).to_have_count(0)
+                        options.get_by_role('radio').nth(1).check()
+                        assert control_state(saved(), mode_id, owner_a)['value'] == 'detail'
+                        options.get_by_role('radio').first.check()
+                        assert control_state(saved(), mode_id, owner_a)['value'] == 'normal'
+                    props.locator('.ribbon-property-heading').scroll_into_view_if_needed()
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (kind, width)
+                    assert props.evaluate('''node=>[...node.querySelectorAll('input,select,textarea,button')]
+                        .filter(control=>control.offsetParent!==null).every(control=>{
+                            const rect=control.getBoundingClientRect();return rect.left>=-1&&rect.right<=innerWidth+1;
+                        })'''), (kind, width)
+                    capture(f'ribbon-type-{kind}-{width}')
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            passed('six control types expose relevant bounded settings, direct selection radios and compact hidden reference details at desktop and 320px')
+
             operate()
             expect(live(output_id)).not_to_be_visible()
             live(count_id).fill('0')
@@ -295,7 +347,35 @@ def main():
             expect(page.locator('#customRibbon')).not_to_be_visible()
             open_ribbon(main_id)
             choose(run_id)
-            action('script', script_id)
+            script_action = action('script', script_id)
+            original_source = next(script['source'] for script in saved()['scripts'] if script['id'] == script_id)
+            edited_source = "store.set('embeddedRibbonEdited',true);\n" + original_source
+            selected_owner = page.locator('#ribbonOwnerSelect').input_value()
+            expect(script_action.locator('.embedded-script-editor')).not_to_be_visible()
+            script_action.locator('.ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
+            source = script_action.get_by_label('リボンのスクリプト', exact=True)
+            expect(source).to_be_visible();expect(source).to_be_focused()
+            source.evaluate('node=>window.__embeddedRibbonEditor=node')
+            expect(page.locator('html')).to_have_attribute('data-workspace-view', 'ribbons')
+            expect(page.locator('#ribbonOwnerSelect')).to_have_value(selected_owner)
+            expect(props.get_by_label('項目のラベル', exact=True)).to_have_value('集計を実行')
+            source.press('Control+a');page.keyboard.insert_text(edited_source)
+            assert next(script['source'] for script in saved()['scripts'] if script['id'] == script_id) == edited_source
+            assert source.evaluate('node=>node===window.__embeddedRibbonEditor && node.selectionStart===node.value.length')
+            source.press('Control+z');expect(source).to_have_value(original_source);expect(source).to_be_focused()
+            assert next(script['source'] for script in saved()['scripts'] if script['id'] == script_id) == original_source
+            source.press('Control+Shift+z');expect(source).to_have_value(edited_source);expect(source).to_be_focused()
+            assert next(script['source'] for script in saved()['scripts'] if script['id'] == script_id) == edited_source
+            assert source.evaluate('node=>node===window.__embeddedRibbonEditor')
+            capture('ribbon-embedded-script-desktop')
+            page.set_viewport_size({'width': 320, 'height': 720})
+            source.scroll_into_view_if_needed()
+            expect(source).to_be_visible()
+            expect(page.locator('#ribbonMobileContext')).to_contain_text(request_a)
+            expect(page.locator('#ribbonMobileContext')).to_contain_text('集計を実行')
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            capture('ribbon-embedded-script-320')
+            page.set_viewport_size({'width': 1440, 'height': 900})
             operate()
             live(run_id).click()
             expect(live(output_id)).to_have_text('{"value":6}')
@@ -305,6 +385,13 @@ def main():
             assert event['type'] == 'click' and event['controlId'] == run_id and event['ribbonId'] == main_id
             assert event['values']['count'] == 3 and event['values']['query'] == 'alpha' and workspace['scriptData']['runs'] == 1
             passed('the request ribbon runs parent and child Workers with typed event input and shared writes in its owner')
+            assert workspace['scriptData']['embeddedRibbonEdited'] is True
+            open_ribbon(main_id);choose(run_id)
+            script_action = props.locator('.ribbon-action').first
+            script_action.locator('.ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
+            script_action.get_by_label('リボンのスクリプト', exact=True).fill(original_source)
+            assert next(script['source'] for script in saved()['scripts'] if script['id'] == script_id) == original_source
+            passed('ribbon action Edit retains its owner and control, native Undo and saved source; execution uses the in-place edited script')
 
             open_ribbon(main_id)
             choose(count_id)
@@ -688,6 +775,71 @@ def main():
                 metrics['editor_item'] = first_item.evaluate('node => {const b=node.getBoundingClientRect();return {top:b.top,bottom:b.bottom,height:b.height};}')
                 capture(f'single-button-editor-{width}x{height}')
             passed('one-button ribbons keep framing within 18 px of the readable button and show the first editor item immediately on desktop and mobile')
+
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            log_script = create_script('ログのスクロール確認', """
+for(let index=0;index<40;index++)console.log('initial '+index);
+for(let index=0;index<120;index++){
+  console.log('stream '+index);
+  await tools.flow.delay(80);
+}
+return {lines:160};
+""")
+            page.get_by_role('button', name='スクリプトの操作', exact=True).click()
+            page.get_by_role('menuitem', name='実行設定', exact=True).click()
+            page.locator('#modal').get_by_label('スクリプト制限時間', exact=True).fill('30000')
+            page.locator('#modalSubmit').click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            assert next(script['timeoutMs'] for script in saved()['scripts'] if script['id'] == log_script) == 30000
+            open_ribbon(single_ribbon)
+            choose(single_button)
+            action('script', log_script)
+            operate()
+            live(single_button).click()
+            expect(page.locator('#ribbonLiveResult')).to_have_attribute('data-state', 'running')
+            open_ribbon(single_ribbon)
+            choose(single_button)
+            log = props.locator('#ribbonOperationResult [data-ribbon-result="logs"]')
+            expect(log).to_be_visible()
+            log.scroll_into_view_if_needed()
+            log.evaluate('node=>window.__ribbonScrollingLog=node')
+            page.wait_for_function('''()=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.textContent.split('\\n').length>=50 &&
+                    node.scrollHeight-node.clientHeight>600 &&
+                    node.scrollHeight-node.clientHeight-node.scrollTop<=2;
+            }''', timeout=30000)
+            initial_log_top = log.evaluate('node=>node.scrollTop')
+            log.hover()
+            page.mouse.wheel(0, -360)
+            page.wait_for_function('''before=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.scrollTop>20 && node.scrollTop<before-200;
+            }''', arg=initial_log_top, timeout=30000)
+            reading = log.evaluate('''node=>({top:node.scrollTop,left:node.scrollLeft,
+                lines:node.textContent.split('\\n').length,page:document.querySelector('#workspacePage').scrollTop})''')
+            page.wait_for_function('''count=>window.__ribbonScrollingLog?.textContent.split('\\n').length>=count+8''', arg=reading['lines'], timeout=30000)
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog')
+            assert log.evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['top']), reading
+            assert log.evaluate('(node,left)=>node.scrollLeft===left', reading['left'])
+            assert page.locator('#workspacePage').evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['page'])
+            capture('ribbon-stream-log-reading')
+            remaining = log.evaluate('node=>node.scrollHeight-node.clientHeight-node.scrollTop')
+            log.hover()
+            page.mouse.wheel(0, remaining + 24)
+            page.wait_for_function('''()=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.scrollHeight-node.clientHeight-node.scrollTop<=2;
+            }''', timeout=30000)
+            tail_count = log.evaluate("node=>node.textContent.split('\\n').length")
+            page.wait_for_function('''count=>window.__ribbonScrollingLog?.textContent.split('\\n').length>=count+8''', arg=tail_count, timeout=30000)
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog && node.scrollHeight-node.clientHeight-node.scrollTop<=2')
+            expect(props.locator('#ribbonOperationResult')).to_have_attribute('data-state', 'success', timeout=35000)
+            expect(log).to_contain_text('stream 119')
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog && node.scrollHeight-node.clientHeight-node.scrollTop<=2')
+            expect(props.locator('[data-ribbon-result="value"]')).to_contain_text('160')
+            capture('ribbon-stream-log-complete')
+            passed('native wheel scrolling retains the same ribbon log and reading position during streamed updates, resumes tail following only at the bottom, and survives completion')
             assert not errors and not dialogs and not crashes, (errors, dialogs, crashes)
             assert not requests, requests
             passed('request-owned ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends')

@@ -400,6 +400,60 @@ def main():
                 capture(current_case)
                 passed(f'short {width}x{height} window keeps request controls and both content panes reachable without hiding the footer')
 
+            current_case = 'saved-editor-scroll-setup'
+            page.set_viewport_size({'width': 1440, 'height': 920})
+            page.locator('#saveRequest').click()
+            expect(page.locator('#modal')).to_be_visible()
+            page.locator('#modalSubmit').click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            for editor in ['body', 'scripts']:
+                current_case = editor+'-native-inner-scroll'
+                page.locator(f'#editor-tab-{editor}').click()
+                area = page.get_by_label('Raw body' if editor == 'body' else '送信前スクリプト', exact=True)
+                original = area.input_value()
+                long_rows = [f'line {index:03d} '+('horizontal content 日本語 '*35) for index in range(120)]
+                source = json.dumps({'rows': long_rows}, ensure_ascii=False, indent=2) if editor == 'body' else '\n'.join('// '+line for line in long_rows)
+                area.fill(source)
+                area.press('Control+Home')
+                page.keyboard.insert_text('\n')
+                area.evaluate('node=>window.__scrollEditor=node')
+                box = area.bounding_box()
+                page.mouse.move(box['x']+box['width']/2, box['y']+box['height']/2)
+                page.mouse.wheel(240, 420)
+                page.wait_for_function('window.__scrollEditor.scrollTop > 100 && window.__scrollEditor.scrollLeft > 50')
+                settle()
+                before = area.evaluate('e=>({top:e.scrollTop,left:e.scrollLeft,start:e.selectionStart,end:e.selectionEnd})')
+                assert before['start'] == before['end'] == 1, (current_case, 'wheel changed caret', before)
+                page.set_viewport_size({'width': 1440, 'height': 800})
+                settle()
+                after = area.evaluate('e=>({top:e.scrollTop,left:e.scrollLeft,start:e.selectionStart,end:e.selectionEnd})')
+                assert abs(after['top']-before['top']) <= 1 and abs(after['left']-before['left']) <= 1, (current_case, 'resize jumped back to off-screen caret', before, after)
+                area.press('Control+s')
+                expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
+                settle()
+                saved_scroll = area.evaluate('e=>({same:e===window.__scrollEditor,top:e.scrollTop,left:e.scrollLeft,start:e.selectionStart,end:e.selectionEnd})')
+                assert saved_scroll['same'] and abs(saved_scroll['top']-after['top']) <= 1 and abs(saved_scroll['left']-after['left']) <= 1, (current_case, 'save rebuilt or reset scrolled editor', after, saved_scroll)
+                assert saved_scroll['start'] == saved_scroll['end'] == 1, (current_case, 'save changed caret', saved_scroll)
+                box = area.bounding_box()
+                page.mouse.move(box['x']+box['width']/2, box['y']+box['height']/2)
+                page.mouse.wheel(100000, 100000)
+                page.wait_for_function('''() => {const e=window.__scrollEditor;return e.scrollTop >= e.scrollHeight-e.clientHeight-1 && e.scrollLeft >= e.scrollWidth-e.clientWidth-1;}''')
+                settle()
+                alignment = area.evaluate('''e=>{const p=e.closest('.source-editor').querySelector('.source-highlight');return {
+                    input:{top:e.scrollTop,left:e.scrollLeft,width:e.clientWidth,height:e.clientHeight,padding:getComputedStyle(e).padding},
+                    highlight:{top:p.scrollTop,left:p.scrollLeft,width:p.clientWidth,height:p.clientHeight,padding:getComputedStyle(p).padding}};}''')
+                for key in ['top', 'left', 'width', 'height']:
+                    assert abs(alignment['input'][key]-alignment['highlight'][key]) <= 1, (current_case, 'highlight and input scroll apart', key, alignment)
+                assert alignment['input']['padding'] == alignment['highlight']['padding'], (current_case, 'highlight padding differs', alignment)
+                capture(current_case)
+                area.press('Control+z')
+                expect(area).to_have_value(source)
+                assert area.evaluate('e=>e===window.__scrollEditor'), (current_case, 'save discarded editor history')
+                area.fill(original)
+                area.press('Control+s')
+                page.set_viewport_size({'width': 1440, 'height': 920})
+                passed(f'{editor} native wheel scroll survives resize and save, stays aligned at both edges and retains Undo')
+
             for width, height in [(1440, 920), (1024, 768), (390, 844), (320, 720)]:
                 current_case = f'history-{width}'
                 page.set_viewport_size({'width': width, 'height': height})

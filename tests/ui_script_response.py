@@ -96,10 +96,14 @@ def main():
             raise
 
     before_source = (
-        'request.method = "POST";\n'
-        'request.url = ' + json.dumps(target + '/wire?stage=before') + ';\n'
-        'request.header = [{key:"X-Script-Wire",value:"changed"}, {key:"Content-Type",value:"application/json"}];\n'
-        'request.body = {mode:"raw",raw:JSON.stringify({edited:true,label:"日本語"}),options:{raw:{language:"json"}}};'
+        'request.set("method", "POST");\n'
+        'request.set("url", ' + json.dumps(target + '/wire') + ');\n'
+        'request.query.set("stage", "before");\n'
+        'request.headers.set("X-Script-Wire", "changed");\n'
+        'request.json.set({edited:true,label:"日本語"});\n'
+        'if (request.get("method") !== "POST" || request.query.get("stage") !== "before" ||\n'
+        '    request.headers.get("x-script-wire") !== "changed" || request.json.get("label") !== "日本語")\n'
+        '  throw new Error("Request editor did not retain its writes");'
     )
     after_source = '''const wire = response.json();
 response.body = {wire, processed:{label:"加工された値",total:21}, route:"continue"};

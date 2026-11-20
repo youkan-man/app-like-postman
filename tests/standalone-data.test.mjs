@@ -215,7 +215,7 @@ test('failed or cancelled saved hook results never partially commit script data 
 test('standalone APIs provide completions and signatures without requiring request code',()=>{
   const names=source=>completionContext(source)?.items.map(item=>item.label)||[];
   assert.ok(names('inp').includes('input'));assert.deepEqual(names('scripts.r'),['run']);assert.deepEqual(names('store.k'),['keys']);
-  assert.deepEqual(names('minipost.requests.s'),['send']);assert.deepEqual(names('minipost.environments.g'),['get']);
+  assert.deepEqual(names('minipost.requests.s'),['send','set']);assert.deepEqual(names('minipost.environments.g'),['get']);
   assert.deepEqual(names('minipost.store.d'),['delete']);assert.deepEqual(names('minipost.variables.s'),['set']);
   assert.equal(signatureHelp('scripts.run("Normalize", ').argument,1);assert.equal(signatureHelp('minipost.workspace.read(').name,'minipost.workspace.read');
 });

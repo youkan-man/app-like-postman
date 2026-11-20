@@ -27,7 +27,8 @@
 .variables-page-heading h1 {flex-shrink:0;margin-right:0;}
 .variables-page-heading > input {flex:1;min-width:0;}
 .variables-page-heading > button {flex-shrink:0;}
-.source-editor {position:relative;display:grid;grid-template-rows:minmax(0,1fr)22px;min-width:0;width:100%;height:clamp(280px,38vh,580px);min-height:260px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;tab-size:2;}
+/* The measured highlight viewport must not set the column's intrinsic width. */
+.source-editor {position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)22px;min-width:0;width:100%;height:clamp(280px,38vh,580px);min-height:260px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;tab-size:2;}
 .source-editor .source-input,.source-editor .source-highlight {grid-area:1/1;margin:0;padding:10px 12px;min-width:0;min-height:0;width:100%;height:100%;border:0;border-radius:0;font:inherit;line-height:inherit;letter-spacing:normal;white-space:pre;overflow-wrap:normal;word-break:normal;text-align:left;tab-size:2;}
 .source-editor .source-highlight {pointer-events:none;overflow:hidden;color:var(--text);background:transparent;}
 .source-editor .source-input {position:relative;color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--text);background:transparent;resize:none;overflow:auto;outline-offset:-2px;}
@@ -94,21 +95,27 @@
 .relation-settings-form {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;}
 .relation-settings-form .form-field {margin:0;min-width:0;}
 .relation-settings-form .settings-line {margin:0;grid-column:1/-1;}
-.relation-editor {min-width:0;}
+.relation-editor {min-width:0;min-height:38px;}
 .relation-step {min-width:0;border:1px solid var(--line);border-left:3px solid var(--line);border-radius:3px;margin:0 0 6px;padding:6px 8px;background:var(--surface);}
+.relation-group {border-left-color:var(--accent);}
 .relation-step.running {border-left-color:var(--accent);background:var(--accent-bg);}
-.relation-step.drop-target {outline:2px solid var(--accent);}
+.relation-editor.drop-target,.relation-block.drop-target {outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-bg);}
+.relation-step.drop-before {box-shadow:inset 0 3px var(--accent);}
+.relation-step.drop-after {box-shadow:inset 0 -3px var(--accent);}
 .relation-step-heading {display:flex;align-items:center;gap:5px;min-width:0;}
 .step-drag {cursor:grab;color:var(--muted);font-size:20px;}
-.step-number {flex:0 0 auto;min-width:20px;color:var(--accent);font-size:12px;}
+.step-drag:active {cursor:grabbing;}
+.step-number {flex:0 0 auto;min-width:20px;max-width:7ch;overflow-wrap:anywhere;color:var(--accent);font-size:12px;}
 .relation-kind {flex:1;min-width:0;padding:5px 0;border:0;background:transparent;text-align:left;font-size:13px;font-weight:650;overflow-wrap:anywhere;}
 button.relation-kind::before {content:'▾';display:inline-block;width:16px;color:var(--muted);}
 button.relation-kind[aria-expanded=false]::before {content:'▸';}
 .relation-step-body {min-width:0;}
-.relation-block {min-width:0;border-left:1px solid var(--line);padding-left:8px;margin-top:5px;}
-.relation-block:empty {display:none;}
-.relation-block-heading {display:flex;align-items:center;gap:8px;min-width:0;margin:0 0 3px;font-size:12px;}
-.relation-block-heading > button {margin-left:auto;min-height:28px;padding:3px 6px;}
+.relation-block {min-width:0;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:3px;padding:2px 4px 4px 7px;margin-top:5px;background:var(--accent-bg);}
+.relation-block[data-empty=true] {min-height:36px;}
+.relation-block-heading {display:flex;align-items:center;gap:6px;min-width:0;min-height:30px;margin:0 0 3px;font-size:12px;}
+.relation-block-heading > strong {min-width:0;overflow-wrap:anywhere;}
+.relation-block-heading > button {flex:0 0 auto;margin-left:auto;min-height:30px;padding:3px 6px;}
+.relation-block[data-empty=true] > .relation-block-heading {margin-bottom:0;}
 .relation-block > .relation-step:last-child {margin-bottom:0;}
 .step-fields {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:6px 8px;margin-top:5px;min-width:0;}
 .step-fields .form-field {min-width:0;margin:0;}
@@ -120,7 +127,9 @@ button.relation-kind[aria-expanded=false]::before {content:'▸';}
 .step-loop-fields .form-field {display:flex;flex-direction:row;align-items:center;gap:5px;}
 .step-loop-fields .form-field label {margin:0;white-space:nowrap;}
 .step-loop-fields input {width:80px;max-width:100%;}
-.relation-add-child {flex:0 0 auto;min-height:30px;padding:3px 6px;white-space:nowrap;}
+.relation-script-picker {display:flex;align-items:center;gap:4px;min-width:0;}
+.relation-script-picker > select {flex:1;min-width:0;width:0;}
+.relation-script-picker > button {flex:0 0 auto;min-height:30px;padding:3px 6px;}
 .relation-step-heading > .form-field {display:flex;align-items:center;gap:5px;margin:0;min-width:0;}
 .relation-step-heading > .form-field label {white-space:nowrap;margin:0;font-size:12px;}
 .relation-step-heading > .form-field input {width:80px;min-width:0;min-height:30px;padding:5px;}
@@ -173,6 +182,7 @@ button.relation-kind[aria-expanded=false]::before {content:'▸';}
  .relation-settings-form {gap:8px;}
  .step-fields {grid-template-columns:repeat(2,minmax(0,1fr));}
  .relation-block {padding-left:4px;}
+ .relation-step[data-step-type=script] > .relation-step-body > .step-fields > .form-field:first-child {grid-column:1/-1;}
  .relation-step {padding:7px 6px;}
  .variables-page .kv-table,.variables-page .kv-table tbody {display:block;min-width:0;width:100%;}
  .variables-page .kv-table thead {display:none;}
@@ -183,6 +193,11 @@ button.relation-kind[aria-expanded=false]::before {content:'▸';}
  .variables-page .kv-table input:not([type=checkbox]) {min-height:30px;padding:5px 3px;font-size:12px;}
  #extractResponse {font-size:11px;}
  #stopRelationGlobal {font-size:11px;padding:5px;}
+}
+@media(max-width:480px) {
+ .relation-step-heading [data-step-action=up],.relation-step-heading [data-step-action=down] {display:none;}
+ .relation-step-heading {gap:4px;}
+ .relation-block .relation-step {padding:5px 4px;}
 }
 @media(forced-colors:active) {.source-highlight {display:none;}.source-editor .source-input {color:CanvasText;-webkit-text-fill-color:CanvasText;}}
 .script-phase-tabs {flex-shrink:0;margin:0;}

@@ -36,7 +36,15 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(hideHint){hint.hidden=true;hintInfo=null;}
     if(state!=='error')setState('idle');
   }
-  function sync(){pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;}
+  function sync(){
+    // Only the textarea owns native scrollbars. Match its usable viewport so
+    // the highlight layer does not clamp sooner at the bottom/right edges.
+    const width=area.clientWidth+'px',height=area.clientHeight+'px',padding=getComputedStyle(area).padding;
+    if(pre.style.width!==width)pre.style.width=width;
+    if(pre.style.height!==height)pre.style.height=height;
+    if(pre.style.padding!==padding)pre.style.padding=padding;
+    pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;
+  }
   function paint(){
     if(renderedSource!==area.value||renderedLanguage!==language){
       renderedSource=area.value;renderedLanguage=language;highlightHTML=highlight(area.value,language)+'\n';
@@ -100,7 +108,11 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     // Workspace navigation removes editor nodes without an explicit dispose.
     // Cancel their queued parses so an abandoned editor cannot delay the new one.
     if(!root.isConnected){dispose();return;}
-    ensureCaretVisible();place();search?.position();diagnostics?.position();
+    // An open completion stays with its caret as the viewport narrows. Ordinary
+    // reading keeps its scroll position; input, navigation and search reveal
+    // the caret through their own explicit paths.
+    if(!suggestions.hidden)ensureCaretVisible();
+    sync();place();search?.position();diagnostics?.position();
   }):null;
   resizeObserver?.observe(root);
   resizeObserver?.observe(area);
@@ -333,6 +345,29 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   function dispose(){if(disposed)return;disposed=true;invalidate();document.removeEventListener('input',foreignInput,true);resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
   root.append(pre,area,status,suggestions,hint);paint();
   return {element:root,textarea:area,
+    get isComposing(){return composing;},
+    setReadOnly(next){
+      next=Boolean(next);if(readOnly===next)return;
+      invalidate();history.breakGroup();readOnly=next;area.readOnly=next;
+      // Search owns its replace controls, while the textarea and its undo
+      // journal stay mounted when a saved-script preview becomes editable.
+      search.dispose();search.button.remove();
+      search=createEditorSearch({root,area,readOnly,edit,select});status.insertBefore(search.button,diagnostics.button);
+      if(!next)update(false,75,false);
+    },
+    syncValue(next,{resetHistory=false}={}){
+      if(disposed||composing)return false;
+      next=String(next??'');const before=area.value,saved=selection(),scroll={top:area.scrollTop,left:area.scrollLeft};
+      if(before===next){if(resetHistory){history.reset(next);fallbackMode=true;}return true;}
+      applying=true;invalidate();
+      try{
+        area.value=next;knownValue=next;restoreSelection({start:Math.min(saved.start,next.length),end:Math.min(saved.end,next.length),direction:saved.direction});
+        if(resetHistory)history.reset(next);else history.record(before,next,saved,selection());
+        fallbackMode=true;pendingInputSelection=null;lastSelection=selection();diagnostics.clear();search.refresh();paint();
+        area.scrollTop=scroll.top;area.scrollLeft=scroll.left;sync();
+      }finally{applying=false;}
+      update(false,75,false);return true;
+    },
     setLanguage(next){invalidate();diagnostics.clear();language=next;root.dataset.language=next;setState('idle');paint();},
     setValue(next){
       next=String(next??'');

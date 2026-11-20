@@ -1,4 +1,5 @@
 /** JSON model editing shared by the Worker and the committing host. */
+import {createRequestEditor} from './script-request.mjs';
 
 /** Stable selectors keep independent edits to other entities and fields intact. */
 export function workspaceChanges(before, after) {
@@ -141,6 +142,51 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
     }
     return target;
   }
+  const same=(left,right)=>Object.is(left,right)||left!==null&&right!==null&&typeof left==='object'&&typeof right==='object'&&Array.isArray(left)===Array.isArray(right)&&Object.keys(left).length===Object.keys(right).length&&Object.keys(left).every(key=>Object.hasOwn(right,key)&&same(left[key],right[key]));
+  function pathParts(path){
+    if(Array.isArray(path))return path.map(part=>{if(typeof part!=='string'&&(!Number.isInteger(part)||part<0))throw new TypeError('パスの要素が不正です。');return String(part);});
+    if(typeof path!=='string')throw new TypeError('パスは文字列または配列で指定してください。');
+    if(path==='')return [];
+    if(path.startsWith('/'))return path.slice(1).split('/').map(part=>{if(/~(?:[^01]|$)/.test(part))throw new TypeError('JSON Pointerのエスケープが不正です。');return part.replace(/~1/g,'/').replace(/~0/g,'~');});
+    if(path==='$')return [];if(path.startsWith('$.'))path=path.slice(2);else if(path.startsWith('$['))path=path.slice(1);
+    const result=[];let index=0,expectSegment=true;
+    while(index<path.length){
+      if(path[index]==='['){const start=index++;let part;if(path[index]==='"'){const begin=index++;let escaped=false;while(index<path.length){const char=path[index++];if(char==='"'&&!escaped)break;escaped=char==='\\'&&!escaped;}try{part=JSON.parse(path.slice(begin,index));}catch{throw new TypeError('パスの引用符が不正です。');}if(path[index++]!==']')throw new TypeError('パスの括弧が不正です。');}
+        else{const end=path.indexOf(']',index);if(end<0)throw new TypeError('パスの括弧が不正です。');part=path.slice(index,end);if(!/^(?:0|[1-9]\d*|\*)$/.test(part))throw new TypeError('配列の添字が不正です。');index=end+1;}if(index<=start)throw new TypeError('パスが不正です。');result.push(part);expectSegment=false;}
+      else if(path[index]==='.') {if(expectSegment)throw new TypeError('パスに空の要素があります。');index++;expectSegment=true;}
+      else{if(!expectSegment)throw new TypeError('パスの区切りが不正です。');const begin=index;while(index<path.length&&!'.['.includes(path[index]))index++;const part=path.slice(begin,index);if(!part||part.includes(']'))throw new TypeError('パスが不正です。');result.push(part);expectSegment=false;}
+    }
+    if(expectSegment)throw new TypeError('パスの末尾が不正です。');return result;
+  }
+  function atPath(value,parts){for(const key of parts){if(value===null||typeof value!=='object'||!Object.hasOwn(value,key))return undefined;value=value[key];}return value;}
+  function withPath(value,parts,next){
+    if(!parts.length)return json(next);
+    const result=copy(value);let cursor=result;
+    for(let index=0;index<parts.length;index++){
+      const key=parts[index],last=index===parts.length-1;
+      if(cursor===null||typeof cursor!=='object')throw new TypeError('パスの途中にオブジェクトまたは配列を指定してください。');
+      if(Array.isArray(cursor)){if(!/^(?:0|[1-9]\d*)$/.test(key))throw new TypeError('配列には非負の添字を指定してください。');if(Number(key)>cursor.length)throw new RangeError('配列に空の要素は作成できません。');}
+      if(last)field(cursor,key,json(next));
+      else{if(!Object.hasOwn(cursor,key))field(cursor,key,/^(?:0|[1-9]\d*)$/.test(parts[index+1])?[]:{});cursor=cursor[key];}
+    }
+    return result;
+  }
+  function replaceFields(target,next,blocked=[]){
+    for(const key of Object.keys(target))if(!blocked.includes(key)&&!Object.hasOwn(next,key))delete target[key];
+    for(const [key,value] of Object.entries(next))if(!blocked.includes(key))field(target,key,copy(value));
+  }
+  function entityAccess(resolve,{view=value=>copy(value),target=value=>value,blocked=['id'],normalize=value=>value}={}){return {
+    get(reference,path){checkActive();return copy(atPath(view(resolve(reference)),path===undefined?[]:pathParts(path)));},
+    set(reference,...args){
+      if(args.length!==1&&args.length!==2)throw new TypeError('値、またはパスと値を指定してください。');
+      const parts=args.length===2?pathParts(args[0]):[];let identity;
+      mutate(()=>{const entry=resolve(reference),before=view(entry);identity=before.id;let next=object(withPath(before,parts,args.at(-1)));
+        for(const key of blocked)if(Object.hasOwn(next,key)&&(!Object.hasOwn(before,key)||!same(next[key],before[key])))throw new TypeError(`${key} は変更できません。`);
+        next=normalize(next,before);replaceFields(target(entry),next,blocked);
+      });
+      return copy(atPath(view(resolve(identity)),parts));
+    }
+  };}
   const listRoot=key=>Array.isArray(state[key])?state[key]:[];
   const ensureRoot=key=>state[key]??(state[key]=[]);
   function choose(entries,reference,label) {
@@ -250,21 +296,43 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
     toObject(){checkActive();return Object.fromEntries((resolveRows(false)||[]).filter(row=>row.enabled!==false&&row.disabled!==true&&row.key).map(row=>[row.key,text(row.value)]));}
   };}
   function entityAPI(root,defaults,validator){return {
-    list(){checkActive();return copy(listRoot(root));},get(reference){checkActive();return copy(choose(listRoot(root),reference,root));},
+    ...entityAccess(reference=>choose(listRoot(root),reference,root)),
+    list(){checkActive();return copy(listRoot(root));},
     create(spec={}){return mutate(()=>{spec=object(spec);if(Object.hasOwn(spec,'id'))throw new TypeError('IDは自動生成されます。');const value={...defaults(),...spec,id:id()};validator?.(value);ensureRoot(root).push(value);return value;});},
     update(reference,spec){return mutate(()=>{const value=choose(listRoot(root),reference,root);patch(value,spec,['id']);validator?.(value);return value;});},
     delete(reference){return mutate(()=>{const value=choose(listRoot(root),reference,root);state[root].splice(state[root].indexOf(value),1);if(root==='environments'&&state.environmentId===value.id)state.environmentId='';return true;});}
   };}
   const api={workspace:{read(){checkActive();return copy(state);}}};
+  function collectionSnapshot(next,before){
+    if(Object.hasOwn(next,'info')&&!record(next.info))throw new TypeError('info はオブジェクトで指定してください。');
+    const hasName=Object.hasOwn(next,'name'),hasInfoName=Object.hasOwn(next.info||{},'name');
+    if(!hasName&&!hasInfoName)throw new TypeError('コレクション名を指定してください。');
+    if(hasName)name(next.name);if(hasInfoName)name(next.info.name);
+    const aliasChanged=hasName&&next.name!==before.name,infoChanged=hasInfoName&&next.info.name!==before.info.name;
+    if(aliasChanged&&infoChanged&&next.name!==next.info.name)throw new TypeError('name と info.name に同じコレクション名を指定してください。');
+    const label=aliasChanged?next.name:infoChanged?next.info.name:hasName?next.name:next.info.name;
+    next.info||={};field(next.info,'name',label);delete next.name;return next;
+  }
   api.collections={
-    list(){checkActive();return collections().map(descriptor);},get(reference){checkActive();return descriptor(choose(collections(),reference,'コレクション'));},
+    ...entityAccess(reference=>choose(collections(),reference,'コレクション'),{view:descriptor,target:entry=>entry.node,blocked:['id','_mpId','item'],normalize:collectionSnapshot}),
+    list(){checkActive();return collections().map(descriptor);},
     create(spec={}){return mutate(()=>{spec=object(spec);if(['id','_mpId','item'].some(key=>Object.hasOwn(spec,key)))throw new TypeError('IDと子項目は各作成APIで設定してください。');const {name:label='新しいコレクション',...rest}=spec,node={...rest,_mpId:id(),info:{schema:'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',...rest.info,name:name(label)},item:[]};ensureRoot('collections').push(node);return descriptor(collections().find(entry=>entry.node===node));});},
     update(reference,spec){return mutate(()=>{const entry=choose(collections(),reference,'コレクション'),next=object(spec);if(Object.hasOwn(next,'name')){entry.node.info.name=name(next.name);delete next.name;}patch(entry.node,next,['id','_mpId','item']);return descriptor(collections().find(value=>value.id===entry.id));});},
     delete(reference){return mutate(()=>{const entry=choose(collections(),reference,'コレクション');state.collections.splice(state.collections.indexOf(entry.node),1);state.tabs=(state.tabs||[]).filter(tab=>tab.collectionId!==entry.id);return true;});},
     variables(reference){return variables(create=>{const node=choose(collections(),reference,'コレクション').node;return node.variable||(create?(node.variable=[]):[]);});}
   };
+  function itemSnapshot(next,before){
+    name(next.name);
+    if(before.ribbonState&&next.ribbonState&&next.ribbonState.id!==before.ribbonState.id)throw new TypeError('ribbonState.id は変更できません。');
+    if(record(next.request)&&record(before.request)&&Object.hasOwn(next.request,'url')&&!same(next.request.url,before.request.url)){
+      const request={url:copy(before.request.url)},editor=createRequestEditor({read:()=>request,change:callback=>callback(request)});
+      editor.set('url',next.request.url);next.request.url=editor.get().url;
+    }
+    return next;
+  }
   function itemAPI(kind){const folders=kind==='folders',entries=folders?folderRows:requestRows;return {
-    list(){checkActive();return entries().map(descriptor);},get(reference){checkActive();return descriptor(choose(entries(),reference,folders?'フォルダー':'リクエスト'));},
+    ...entityAccess(reference=>choose(entries(),reference,folders?'フォルダー':'リクエスト'),{view:descriptor,target:entry=>entry.node,blocked:['id','_mpId','item','collectionId','itemId','draftId','parentId','path',...(folders?['request']:[])],normalize:itemSnapshot}),
+    list(){checkActive();return entries().map(descriptor);},
     create(spec){return mutate(()=>{spec=object(spec);const destination=parent(spec.parent),node={_mpId:id(),name:name(spec.name||(folders?'新しいフォルダー':'新しいリクエスト'))};for(const [key,value] of Object.entries(spec))if(!['parent','id','_mpId','name'].includes(key))field(node,key,copy(value));if(folders){if(node.request)throw new TypeError('フォルダーに request は設定できません。');node.item=[];}else{if(node.item)throw new TypeError('リクエストに item は設定できません。');node.request={...newRequest(),...object(spec.request||{})};node.settings={verify_tls:false,follow_redirects:true,timeout_ms:30000,...spec.settings};}destination.items.push(node);return descriptor(tree().find(entry=>entry.node===node));});},
     update(reference,spec){return mutate(()=>{const entry=choose(entries(),reference,kind);patch(entry.node,spec,['id','_mpId','item','collectionId','itemId','draftId','parentId','path']);if(Object.hasOwn(spec,'name'))name(entry.node.name);return descriptor(entries().find(value=>value.node===entry.node));});},
     delete(reference){return mutate(()=>{const entry=choose(entries(),reference,kind);if(entry.draftId){state.tabs.splice(state.tabs.indexOf(entry.node),1);}else{const removed=new Set(tree().filter(value=>value.node===entry.node||value.parents.includes(entry.node)).map(value=>value.id));entry.siblings.splice(entry.siblings.indexOf(entry.node),1);state.tabs=(state.tabs||[]).filter(tab=>!removed.has(`${tab.collectionId}:${tab.itemId}`));}return true;});},
@@ -272,9 +340,16 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
   };}
   api.folders=itemAPI('folders');api.folders.variables=reference=>variables(create=>{const node=choose(folderRows(),reference,'フォルダー').node;return node.variable||(create?(node.variable=[]):[]);});
   api.requests=itemAPI('requests');
+  function requestEditor(reference){
+    checkActive();const referenceId=requestEntry(reference).id;
+    return createRequestEditor({checkActive,read:()=>requestEntry(referenceId).node.request,change:callback=>mutate(()=>callback(requestEntry(referenceId).node.request))});
+  }
+  api.requests.edit=requestEditor;
   api.requests.clone=(reference,options={})=>mutate(()=>{const entry=requestEntry(reference),spec=object(options),node=copy(entry.node);node.name=spec.name===undefined?`${node.name} コピー`:name(spec.name);if(node.ribbonState)node.ribbonState.id=id();if(entry.draftId&&!spec.parent){node.id=id();delete node.collectionId;delete node.itemId;ensureRoot('tabs').push(node);return descriptor(draftRows().find(value=>value.node===node));}node._mpId=id();delete node.id;const destination=parent(spec.parent||entry.parentId);destination.items.push(node);return descriptor(tree().find(value=>value.node===node));});
   api.drafts={
-    list(){checkActive();return draftRows().map(descriptor);},get(reference){checkActive();return descriptor(choose(draftRows(),reference,'下書き'));},
+    list(){checkActive();return draftRows().map(descriptor);},get(reference,path){checkActive();return api.requests.get(choose(draftRows(),reference,'下書き').id,path);},
+    set(reference,...args){checkActive();return api.requests.set(choose(draftRows(),reference,'下書き').id,...args);},
+    edit(reference){checkActive();return requestEditor(choose(draftRows(),reference,'下書き').id);},
     create(spec={}){return mutate(()=>{spec=object(spec);if(['id','collectionId','itemId'].some(key=>Object.hasOwn(spec,key)))throw new TypeError('下書きのIDは自動生成されます。');const node={name:'新しいリクエスト',...spec,id:id(),request:{...newRequest(),...spec.request},settings:{verify_tls:false,follow_redirects:true,timeout_ms:30000,...spec.settings},dirty:true};ensureRoot('tabs').push(node);return descriptor(draftRows().find(value=>value.node===node));});},
     update(reference,spec){return api.requests.update(choose(draftRows(),reference,'下書き').id,spec);},delete(reference){return api.requests.delete(choose(draftRows(),reference,'下書き').id);}
   };
@@ -290,7 +365,8 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
     const getState=create=>{const selected=owner(reference);if(!selected){if(create)throw new Error('リボンを編集するリクエストを指定してください。');return null;}return selected.ribbonState||(create?(selected.ribbonState={id:id(),ribbons:[],activeRibbonId:'',ribbonBindings:{}}):null);};
     const select=ref=>choose(getState(false)?.ribbons||[],ref,'リボン');
     function nested(resolve,defaults,blocked=[]){return {
-      list(){checkActive();return copy(resolve(false)||[]);},get(ref){checkActive();return copy(choose(resolve(false)||[],ref,'リボン項目'));},
+      ...entityAccess(ref=>choose(resolve(false)||[],ref,'リボン項目'),{blocked:['id',...blocked]}),
+      list(){checkActive();return copy(resolve(false)||[]);},
       create(spec={}){return mutate(()=>{spec=object(spec);if(Object.hasOwn(spec,'id'))throw new TypeError('IDは自動生成されます。');const value={...defaults(spec),...spec,id:id()};resolve(true).push(value);return value;});},
       update(ref,spec){return mutate(()=>{const value=choose(resolve(false)||[],ref,'リボン項目');patch(value,spec,['id',...blocked]);return value;});},
       delete(ref){return mutate(()=>{const rows=resolve(false)||[],value=choose(rows,ref,'リボン項目');rows.splice(rows.indexOf(value),1);const current=getState(false);if(current?.activeRibbonId===value.id)current.activeRibbonId='';return true;});}
@@ -303,7 +379,19 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
   }
   api.ribbons=ribbonAPI();
   const settingKeys=new Set(['theme','editorSettings','settings']);
-  api.settings={get(key){checkActive();if(key===undefined)return copy(Object.fromEntries([...settingKeys].filter(key=>Object.hasOwn(state,key)).map(key=>[key,state[key]])));if(!settingKeys.has(key))throw new TypeError('不明なワークスペース設定です。');return copy(state[key]);},update(spec){return mutate(()=>{spec=object(spec);for(const key of Object.keys(spec)){if(!settingKeys.has(key))throw new TypeError(`変更できない設定です: ${key}`);if(key==='theme'&&!['light','dark'].includes(spec[key]))throw new TypeError('theme は light / dark で指定してください。');}patch(state,spec);return api.settings.get();});}};
+  const settingsSnapshot=()=>Object.fromEntries([...settingKeys].filter(key=>Object.hasOwn(state,key)).map(key=>[key,copy(state[key])]));
+  function settingPath(path){const parts=path===undefined?[]:pathParts(path);if(parts.length&&!settingKeys.has(parts[0]))throw new TypeError('不明なワークスペース設定です。');return parts;}
+  function checkSettings(spec){for(const key of Object.keys(spec)){if(!settingKeys.has(key))throw new TypeError(`変更できない設定です: ${key}`);if(key==='theme'&&!['light','dark'].includes(spec[key]))throw new TypeError('theme は light / dark で指定してください。');}}
+  api.settings={
+    get(path){checkActive();return copy(atPath(settingsSnapshot(),settingPath(path)));},
+    set(...args){
+      if(args.length!==1&&args.length!==2)throw new TypeError('値、またはパスと値を指定してください。');
+      const parts=args.length===2?settingPath(args[0]):[];
+      mutate(()=>{const next=object(withPath(settingsSnapshot(),parts,args.at(-1)));checkSettings(next);if(Object.hasOwn(next,'settings'))validateSettings(next.settings);if(Object.hasOwn(next,'editorSettings'))object(next.editorSettings,'エディター設定');for(const key of settingKeys)if(Object.hasOwn(next,key))field(state,key,copy(next[key]));else delete state[key];});
+      return copy(atPath(settingsSnapshot(),parts));
+    },
+    update(spec){return mutate(()=>{spec=object(spec);checkSettings(spec);patch(state,spec);return api.settings.get();});}
+  };
   api.history={list(){checkActive();return copy(listRoot('history'));},get(ref){checkActive();return copy(choose(listRoot('history'),ref,'送信履歴'));},delete(ref){return mutate(()=>{const value=choose(listRoot('history'),ref,'送信履歴');state.history.splice(state.history.indexOf(value),1);return true;});},clear(){return mutate(()=>{const count=listRoot('history').length;state.history=[];return count;});}};
   return {state,api,validate,owner,getRibbonState(reference=requestRef){return owner(reference)?.ribbonState||null;},
     contextVariables(reference,primary={},fallback){const values={};const apply=rows=>{for(const row of rows||[])if(row.key&&row.enabled!==false&&row.disabled!==true)field(values,row.key,text(row.value));};apply(state.globals);let selected;
