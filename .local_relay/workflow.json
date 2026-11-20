@@ -45,5 +45,5 @@
       "run": "bash ci/relay_2vm_collect_browser.sh --check"
     }
   ],
-  "environment_revision": "minipost-2vm-chromium-20261016-v2"
+  "environment_revision": "minipost-2vm-chromium-20261120-v3"
 }
