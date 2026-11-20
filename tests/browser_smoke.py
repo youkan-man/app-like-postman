@@ -143,18 +143,30 @@ def main():
             preview = page.locator('iframe.preview-frame')
             preview.evaluate('node=>window.__previewScrollFrame=node')
             frame = preview.element_handle().content_frame()
-            frame.wait_for_function('document.scrollingElement.scrollHeight > innerHeight * 4')
+
+            def frame_until(expression, arg=None):
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    if frame.evaluate(expression, arg):
+                        return
+                    page.wait_for_timeout(50)
+                raise AssertionError('Sandbox frame condition timed out: ' + expression)
+
+            frame_until('() => document.scrollingElement.scrollHeight > innerHeight * 4')
 
             def settled_frame_scroll():
-                return frame.evaluate('''() => new Promise(resolve => {
-                    let last=-1,stable=0;
-                    function sample(){
-                        const next=document.scrollingElement.scrollTop;
-                        stable=next===last?stable+1:0;last=next;
-                        if(stable>=3)resolve(next);else requestAnimationFrame(sample);
-                    }
-                    sample();
-                })''')
+                # Sandbox previews disable page scripts. Poll from the test
+                # process instead of scheduling callbacks inside the frame.
+                deadline = time.monotonic() + 10
+                last, stable = None, 0
+                while time.monotonic() < deadline:
+                    current = frame.evaluate('document.scrollingElement.scrollTop')
+                    stable = stable + 1 if current == last else 0
+                    if stable >= 3:
+                        return current
+                    last = current
+                    page.wait_for_timeout(50)
+                raise AssertionError('Sandbox frame scrolling did not settle')
 
             for width, height in [(1440, 920), (390, 480)]:
                 page.set_viewport_size({'width': width, 'height': height})
@@ -173,7 +185,7 @@ def main():
                     assert metrics['frameHeight'] < 180, metrics
                 before_scroll = settled_frame_scroll()
                 page.mouse.wheel(0, 480)
-                frame.wait_for_function('previous=>document.scrollingElement.scrollTop > previous + 40', arg=before_scroll)
+                frame_until('previous=>document.scrollingElement.scrollTop > previous + 40', before_scroll)
                 scrolled = settled_frame_scroll()
                 assert preview.evaluate('node=>node.parentElement.scrollTop') == metrics['outerTop']
                 assert preview.evaluate("node=>node.closest('.response-panel').scrollTop") == metrics['panelTop']
@@ -192,13 +204,13 @@ def main():
                 assert not page.evaluate('Boolean(window.__PWNED)')
 
                 preview.hover();page.mouse.wheel(0, -100000)
-                frame.wait_for_function('document.scrollingElement.scrollTop === 0')
+                frame_until('() => document.scrollingElement.scrollTop === 0')
                 settled_frame_scroll()
                 preview.hover();page.mouse.wheel(0, 100000)
-                frame.wait_for_function('document.scrollingElement.scrollHeight-document.scrollingElement.clientHeight-document.scrollingElement.scrollTop <= 1')
+                frame_until('() => document.scrollingElement.scrollHeight-document.scrollingElement.clientHeight-document.scrollingElement.scrollTop <= 1')
                 assert frame.locator('#preview-end').evaluate('node=>node.getBoundingClientRect().bottom<=innerHeight+1')
                 preview.hover();page.mouse.wheel(0, -100000)
-                frame.wait_for_function('document.scrollingElement.scrollTop === 0')
+                frame_until('() => document.scrollingElement.scrollTop === 0')
                 settled_frame_scroll()
             page.set_viewport_size({'width': 1440, 'height': 920})
             passed('native HTML iframe wheel scrolling reaches both ends without outer scrolling at desktop and a response pane shorter than 180px')
