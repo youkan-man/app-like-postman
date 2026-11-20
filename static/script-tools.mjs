@@ -85,7 +85,7 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
   };
   const url = {
     parse(value,base){active();const parsed=new URL(value,base);return {href:parsed.href,origin:parsed.origin,protocol:parsed.protocol,hostname:parsed.hostname,port:parsed.port,username:parsed.username,password:parsed.password,path:parsed.pathname,hash:parsed.hash.slice(1),query:pairs(parsed.search)};},
-    build(value,{base,path,query:values,hash,username,password}={}){active();const parsed=new URL(value,base);if(path!==undefined)parsed.pathname=String(path);if(values!==undefined)parsed.search=query.stringify(values);if(hash!==undefined)parsed.hash=String(hash);if(username!==undefined)parsed.username=String(username);if(password!==undefined)parsed.password=String(password);return parsed.href;},
+    build(value,{base,path,query:values,hash,username,password}={}){active();const parsed=new URL(value,base);if(path!==undefined)parsed.pathname=String(path);if(values!==undefined)parsed.search=query.stringify(values).replaceAll('+','%20');if(hash!==undefined)parsed.hash=String(hash);if(username!==undefined)parsed.username=String(username);if(password!==undefined)parsed.password=String(password);return parsed.href;},
     join(base,...segments){active();const parsed=new URL(base);if(segments.length)parsed.pathname=parsed.pathname.replace(/\/$/,'')+'/'+segments.map(value=>encodeURIComponent(String(value))).join('/');return parsed.href;}
   };
   const cookieToken = value => {if(!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(String(value)))throw new TypeError('Cookie名が不正です。');return String(value);};

@@ -95,7 +95,8 @@ export function validateRelation(relation,workspace){
         condition(step.condition);
       }else if(type==='script'){
         if(!workspace.scripts?.some(script=>script.id===step.scriptId))throw new Error('削除済み、または未選択のスクリプトがあります。');
-        if(!['saved','json','text','response'].includes(step.inputFormat)||typeof step.input!=='string')throw new Error('スクリプトの入力が不正です。');
+        const format=step.inputFormat===undefined?'saved':step.inputFormat;
+        if(!['saved','json','text','response'].includes(format)||(step.input!==undefined&&typeof step.input!=='string')||(['json','text'].includes(format)&&typeof step.input!=='string'))throw new Error('スクリプトの入力が不正です。');
         if(step.resultVariable)checkName(step.resultVariable);
       }else if(type==='wait')count(step.delayMs,'待機時間',true);
       else if(type==='break'||type==='continue'){
@@ -106,8 +107,8 @@ export function validateRelation(relation,workspace){
         if(type==='if')condition(step.condition,true);
         if(LOOPS.has(type))count(step.intervalMs,'ループの間隔',true);
         if(type==='forEach'){
-          if(!['literal','primary','response','variables','result'].includes(step.source)||typeof step.path!=='string'||typeof step.value!=='string')throw new Error('配列の参照元が不正です。');
-          readPath({},step.path);checkName(step.itemVariable);checkName(step.indexVariable);
+          if(!['literal','primary','response','variables','result'].includes(step.source)||(step.path!==undefined&&typeof step.path!=='string')||(step.value!==undefined&&typeof step.value!=='string')||(step.source==='literal'&&typeof step.value!=='string'))throw new Error('配列の参照元が不正です。');
+          readPath({},step.path??'');checkName(step.itemVariable);checkName(step.indexVariable);
           if(step.itemVariable.trim()===step.indexVariable.trim())throw new Error('要素と番号には異なる変数名を指定してください。');
         }
         visit(step.steps,loopDepth+(LOOPS.has(type)?1:0),depth+1);
@@ -165,9 +166,10 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
     return entry;
   }
   function scriptInput(step,script){
-    if(step.inputFormat==='response')return responseMetadata(lastResponse);
-    const format=step.inputFormat==='saved'?(script.inputFormat||'json'):step.inputFormat;
-    const raw=step.inputFormat==='saved'?(script.input||''):resolver(currentContext().variables||{})(step.input);
+    const inputFormat=step.inputFormat===undefined?'saved':step.inputFormat;
+    if(inputFormat==='response')return responseMetadata(lastResponse);
+    const format=inputFormat==='saved'?(script.inputFormat||'json'):inputFormat;
+    const raw=inputFormat==='saved'?(script.input||''):resolver(currentContext().variables||{})(step.input);
     if(format==='text')return raw;
     try{return JSON.parse(raw.trim()||'null');}catch{throw new Error('スクリプトの入力を有効なJSONにしてください。');}
   }

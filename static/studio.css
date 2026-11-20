@@ -106,6 +106,7 @@ button.relation-kind::before {content:'▾';display:inline-block;width:16px;colo
 button.relation-kind[aria-expanded=false]::before {content:'▸';}
 .relation-step-body {min-width:0;}
 .relation-block {min-width:0;border-left:1px solid var(--line);padding-left:8px;margin-top:5px;}
+.relation-block:empty {display:none;}
 .relation-block-heading {display:flex;align-items:center;gap:8px;min-width:0;margin:0 0 3px;font-size:12px;}
 .relation-block-heading > button {margin-left:auto;min-height:28px;padding:3px 6px;}
 .relation-block > .relation-step:last-child {margin-bottom:0;}
@@ -114,6 +115,12 @@ button.relation-kind[aria-expanded=false]::before {content:'▸';}
 .step-fields .form-field label {font-size:12px;margin-bottom:3px;}
 .step-fields input,.step-fields select {width:100%;min-width:0;min-height:30px;padding:5px 6px;}
 .step-fields .step-wide {grid-column:1/-1;}
+.step-array-fields {grid-template-columns:repeat(3,minmax(0,1fr)) minmax(72px,.55fr);}
+.step-loop-fields {display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;}
+.step-loop-fields .form-field {display:flex;flex-direction:row;align-items:center;gap:5px;}
+.step-loop-fields .form-field label {margin:0;white-space:nowrap;}
+.step-loop-fields input {width:80px;max-width:100%;}
+.relation-add-child {flex:0 0 auto;min-height:30px;padding:3px 6px;white-space:nowrap;}
 .relation-step-heading > .form-field {display:flex;align-items:center;gap:5px;margin:0;min-width:0;}
 .relation-step-heading > .form-field label {white-space:nowrap;margin:0;font-size:12px;}
 .relation-step-heading > .form-field input {width:80px;min-width:0;min-height:30px;padding:5px;}
@@ -143,6 +150,7 @@ button.relation-kind[aria-expanded=false]::before {content:'▸';}
 @media(max-width:820px) {
  .workspace-page {padding:10px 9px;}
  .step-branch {grid-template-columns:1fr 1fr;}
+ .step-array-fields {grid-template-columns:repeat(2,minmax(0,1fr));}
  .step-timing {margin-left:0;}
 }
 @media(max-width:650px) {

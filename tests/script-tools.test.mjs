@@ -42,7 +42,7 @@ test('header parsing and edits retain duplicate Set-Cookie and match names case-
 
 test('URL construction handles Unicode, duplicate query values, relative base and encoded segments',()=>{
   const value=tools.url.build('/api',{base:'https://example.test/root',path:'/users/雪',query:{tag:['a','b'],space:'a b'},hash:'part'});
-  assert.equal(value,'https://example.test/users/%E9%9B%AA?tag=a&tag=b&space=a+b#part');
+  assert.equal(value,'https://example.test/users/%E9%9B%AA?tag=a&tag=b&space=a%20b#part');
   const parsed=tools.url.parse(value);
   assert.equal(parsed.hostname,'example.test');assert.equal(parsed.hash,'part');assert.deepEqual(parsed.query.slice(0,2),[{key:'tag',value:'a'},{key:'tag',value:'b'}]);
   assert.equal(tools.url.join('https://example.test/api?x=1','a/b','雪'),'https://example.test/api/a%2Fb/%E9%9B%AA?x=1');
@@ -74,7 +74,7 @@ test('request builder produces native MiniPost JSON/form/auth shapes without mut
   assert.throws(()=>tools.request.build({url:'x',basic:{},bearer:'x'}),TypeError);
 });
 
-test('request builder survives the production compiler with spaces, literal plus, escapes and template query values',()=>{
+test('URL and request builders survive the production compiler with spaces, literal plus, escapes and template query values',()=>{
   const options={url:'{{base}}/echo?literal=a+b&encoded=a%2Bb&once=%2520#section',query:{'key with space':'雪 a+b',scope:'{{scope}}',tag:['a b','c+d']},
     method:'POST',headers:{'X-Helper':'yes'},json:{message:'日本語',enabled:false},bearer:'test-token'};
   const request=tools.request.build(options);
@@ -88,6 +88,11 @@ test('request builder survives the production compiler with spaces, literal plus
   const headers=Object.fromEntries(payload.headers.map(row=>[row.key.toLowerCase(),row.value]));
   assert.equal(headers.authorization,'Bearer test-token');assert.equal(headers['content-type'],'application/json');assert.equal(headers['x-helper'],'yes');
   assert.equal(tools.request.build({url:'http://example.test/echo?literal=a+b#section',query:{}}).url,'http://example.test/echo?literal=a+b#section');
+  const url=tools.url.build('http://example.test/echo',{query:{q:'a b',plus:'a+b',unicode:'雪 空',tag:['one two','one+two']}});
+  const built=compileRequest(workspace,{request:normalizeRequest({method:'GET',url}),settings:{}}).payload;
+  assert.equal(built.url,'http://example.test/echo');
+  assert.deepEqual(built.query,[{key:'q',value:'a b'},{key:'plus',value:'a+b'},{key:'unicode',value:'雪 空'},{key:'tag',value:'one two'},{key:'tag',value:'one+two'}]);
+  assert.equal(tools.query.stringify({q:'a b',plus:'a+b'}),'q=a+b&plus=a%2Bb');
 });
 
 test('JSON Pointer and dot/bracket paths preserve escaped keys, missing values and false/null values',()=>{

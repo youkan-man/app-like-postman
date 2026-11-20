@@ -193,7 +193,7 @@ def main():
             passed('primary variables have an editable session-scoped page')
 
             request_menu('Seed');menu('リレーションに追加')
-            page.get_by_label('リレーション名',exact=True).fill('Sequential flow')
+            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Sequential flow')
             page.locator('#modalSubmit').click()
             expect(page.locator('#workspacePage')).to_contain_text('リレーション')
             expect(page.locator('#relationSteps .relation-step')).to_have_count(1)
@@ -210,9 +210,9 @@ def main():
             step.get_by_label('比較する値 / {{変数}}',exact=True).fill('200')
             target=stored()['relations'][0]['steps'][2]['id']
             step.get_by_label('ステップ 1 の条件成立時',exact=True).select_option(target)
-            page.get_by_label('リレーションの操作',exact=True).click()
+            page.locator('#workspacePage').get_by_label('リレーションの操作',exact=True).click()
             menu('実行設定')
-            page.get_by_label('全体の回数',exact=True).fill('2')
+            page.locator('#modal').get_by_label('全体の回数',exact=True).fill('2')
             page.locator('#modalSubmit').click()
             step.get_by_label('開始前 ms',exact=True).fill('20')
             capture('relation-config-desktop')
@@ -311,13 +311,22 @@ def main():
             assert flow['steps'][1]['steps'][0]['steps'][0]['steps'][0]['type']=='continue',flow
             assert flow['steps'][1]['steps'][0]['steps'][2]['steps'][0]['type']=='break',flow
             page.locator('.relation-page-heading').scroll_into_view_if_needed()
+            assert page.locator('#relationSteps').evaluate('''root => {
+                const loops=[...root.querySelectorAll('[data-step-type="repeat"],[data-step-type="forEach"],[data-step-type="while"]')];
+                return loops.every(row=>row.querySelector(':scope > .relation-step-heading > .relation-add-child') &&
+                    !row.querySelector(':scope > .relation-step-body > .relation-block > .relation-block-heading'));
+            }'''), 'loop child actions must share the existing heading'
+            assert page.locator('.step-array-fields').evaluate('''fields => {
+                const boxes=[...fields.children].slice(0,4).map(field=>field.getBoundingClientRect());
+                return Math.max(...boxes.map(box=>box.bottom))-Math.min(...boxes.map(box=>box.bottom))<=1;
+            }'''), 'array source, variable names and interval must share one desktop row'
             capture('relation-control-desktop')
 
             page.locator('#sidebarContent .tree-open').filter(has_text='Sequential flow').click()
-            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Sequential flow')
+            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Sequential flow')
             page.locator(f'#sidebarContent [data-relation-id="{flow_id}"]').click(button='right')
             menu('実行')
-            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Nested flow')
+            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Nested flow')
             expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=30000)
             ws=stored();run=ws['relationRuns'][-1]
             assert run['relationId']==flow_id and run['status']=='succeeded',run

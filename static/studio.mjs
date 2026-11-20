@@ -402,7 +402,7 @@ export function initStudio(api) {
     let id=w().relations[0].id;const box=field('追加先',select([...w().relations.map(r=>[r.id,r.name]),['__new__','新しいリレーション']],id,v=>id=v));showModal('リレーションに追加',box,()=>{closeModal();if(id==='__new__')createRelation(null,reference);else{const relation=w().relations.find(r=>r.id===id);if(!relation)return;relation.steps.push(newStep(reference));persist();openRelation(id);}},'追加');
   }
   const collapsedSteps=new Set();
-  function chooseStep(anchor,relation,siblings=relation.steps,index=siblings.length){
+  function chooseStep(anchor,relation,siblings=relation.steps,index=siblings.length,onChoose=()=>{}){
     const loopDepth=(list,depth=0)=>{
       if(list===siblings)return depth;
       for(const step of list){
@@ -411,7 +411,7 @@ export function initStudio(api) {
       }
     };
     const insideLoop=loopDepth(relation.steps)>0;
-    openItemMenu(anchor,RELATION_STEP_TYPES.map(([type,label])=>({label,disabled:['break','continue'].includes(type)&&!insideLoop,run:()=>addStep(relation,index,siblings,type)})));
+    openItemMenu(anchor,RELATION_STEP_TYPES.map(([type,label])=>({label,disabled:['break','continue'].includes(type)&&!insideLoop,run:()=>{onChoose();addStep(relation,index,siblings,type);}})));
   }
   function addStep(relation,index=relation.steps.length,siblings=relation.steps,type='request'){
     const step=newRelationStep(type);siblings.splice(index,0,step);persist();surfaceKey='';syncView('relations');api.closeNavigation();
@@ -517,22 +517,25 @@ export function initStudio(api) {
           fields.append(field('スクリプト',picker),field('入力形式',format),field('結果の変数',input(step.resultVariable,'ステップ '+label+' の結果の変数',v=>{step.resultVariable=v;save();})),payload);body.append(fields);
         }else if(type==='wait')top.insertBefore(numberField('待機 ms',step.delayMs,v=>{step.delayMs=v;save();}),up);
         else if(group){
-          const fields=el('div','step-fields');
+          const fields=el('div','step-fields'+(type==='forEach'?' step-array-fields':type!=='if'?' step-loop-fields':''));
           if(type==='repeat')fields.append(numberField('回数',step.repeat,v=>{step.repeat=v;save();},1));
           if(type==='while')fields.append(numberField('上限回数',step.maxIterations,v=>{step.maxIterations=v;save();},1));
           if(type==='forEach'){
             const source=select([['literal','JSON'],['primary','一次変数'],['response','レスポンス'],['variables','変数'],['result','スクリプト結果']],step.source,v=>{step.source=v;literal.hidden=v!=='literal';path.hidden=v==='literal';save();});source.setAttribute('aria-label','ステップ '+label+' の配列元');
             const literal=field('配列',input(step.value,'ステップ '+label+' の配列',v=>{step.value=v;save();})),path=field('値 / パス',input(step.path,'ステップ '+label+' の配列パス',v=>{step.path=v;save();}));
             literal.classList.add('step-wide');path.classList.add('step-wide');literal.hidden=step.source!=='literal';path.hidden=step.source==='literal';
-            fields.append(field('参照元',source),field('要素の変数',input(step.itemVariable,'ステップ '+label+' の要素の変数',v=>{step.itemVariable=v;save();})),field('番号の変数',input(step.indexVariable,'ステップ '+label+' の番号の変数',v=>{step.indexVariable=v;save();})),literal,path);
+            fields.append(field('参照元',source),field('要素の変数',input(step.itemVariable,'ステップ '+label+' の要素の変数',v=>{step.itemVariable=v;save();})),field('番号の変数',input(step.indexVariable,'ステップ '+label+' の番号の変数',v=>{step.indexVariable=v;save();})),numberField('間隔 ms',step.intervalMs,v=>{step.intervalMs=v;save();}),literal,path);
           }
-          if(type!=='if')fields.append(numberField('間隔 ms',step.intervalMs,v=>{step.intervalMs=v;save();}));
+          if(type==='repeat'||type==='while')fields.append(numberField('間隔 ms',step.intervalMs,v=>{step.intervalMs=v;save();}));
           if(fields.children.length)body.append(fields);
           if(type==='while'||type==='if')body.append(conditionEditor(step,label,siblings,false));
           for(const [key,title,suffix] of type==='if'?[['steps','成立','T.'],['elseSteps','不成立','F.']]:[['steps','処理','']]){
-            const block=el('div','relation-block'),heading=el('div','relation-block-heading');block.dataset.branch=key;
-            const addChild=btn('追加 ▾',event=>{collapsedSteps.delete(step.id);chooseStep(event.currentTarget,relation,step[key]);},'text-button');addChild.setAttribute('aria-label','ステップ '+label+' の'+title+'に追加');
-            heading.append(el('strong','',title),addChild);block.append(heading);renderSteps(step[key],block,label+'.'+suffix);body.append(block);
+            const block=el('div','relation-block');block.dataset.branch=key;
+            const addChild=btn('追加 ▾',event=>chooseStep(event.currentTarget,relation,step[key],step[key].length,()=>collapsedSteps.delete(step.id)),'text-button');addChild.setAttribute('aria-label','ステップ '+label+' の'+title+'に追加');
+            if(type==='if'){
+              const heading=el('div','relation-block-heading');heading.append(el('strong','',title),addChild);block.append(heading);
+            }else{addChild.classList.add('relation-add-child');top.insertBefore(addChild,up);}
+            renderSteps(step[key],block,label+'.'+suffix);body.append(block);
           }
         }
         parent.append(row);

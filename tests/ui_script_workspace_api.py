@@ -14,6 +14,7 @@ import re
 import shutil
 import tempfile
 from threading import Thread
+from urllib.parse import parse_qsl, urlsplit
 
 from playwright.sync_api import expect, sync_playwright
 from test_proxy import EchoHandler, proxy, start_server
@@ -160,21 +161,24 @@ return {
             passed('real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin')
 
             edit("""
-const request = tools.request.build({method:'POST',url:input.baseUrl+'/echo',
-  query:{tag:['a','b']},headers:{'X-Helper':'yes'},json:{message:'日本語',enabled:false},bearer:'test-token'});
+const url=tools.url.build(input.baseUrl+'/echo',{query:{space:'a b',plus:'a+b'}});
+const request = tools.request.build({method:'POST',url,
+  query:{tag:['a','b'],extra:'雪 空'},headers:{'X-Helper':'yes'},json:{message:'日本語',enabled:false},bearer:'test-token'});
 const response = await minipost.requests.send(request);
 return {status:response.status,body:response.body};
 """)
             run()
             value = result()
             assert value['status'] == 200 and value['body']['method'] == 'POST', value
-            assert value['body']['path'] == '/echo?tag=a&tag=b'
+            wire_url = urlsplit(value['body']['path'])
+            assert wire_url.path == '/echo'
+            assert parse_qsl(wire_url.query) == [('space', 'a b'), ('plus', 'a+b'), ('tag', 'a'), ('tag', 'b'), ('extra', '雪 空')]
             assert json.loads(value['body']['body']) == {'message': '日本語', 'enabled': False}
             wire_headers = {key.lower(): val for key, val in value['body']['headers']}
             assert wire_headers['authorization'] == 'Bearer test-token' and wire_headers['x-helper'] == 'yes'
             assert wire_headers['content-type'] == 'application/json'
             assert len(requests) == 1
-            passed('request builder sends duplicate query values, typed JSON, headers and bearer authentication over real HTTP')
+            passed('URL and request builders preserve spaces, literal plus, Unicode and duplicate query values with JSON and authentication over real HTTP')
 
             edit("""
 const collection=minipost.collections.create({name:'Generated API'});
