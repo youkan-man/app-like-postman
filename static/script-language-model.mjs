@@ -196,6 +196,9 @@ export type JSONSchema = boolean | { $schema?: string; title?: string; descripti
   minimum?: number; maximum?: number; exclusiveMinimum?: number; exclusiveMaximum?: number; multipleOf?: number;
   anyOf?: JSONSchema[]; allOf?: JSONSchema[]; oneOf?: JSONSchema[]; not?: JSONSchema };
 export interface ValidationResult { valid: boolean; errors: Array<{ path: string; keyword: string; message: string }> }
+export type JSONPatchChange = { op: 'add' | 'replace'; path: string; value: JsonValue } | { op: 'remove'; path: string };
+export type JSONPatchOperation = JSONPatchChange | { op: 'test'; path: string; value: JsonValue } | { op: 'move' | 'copy'; path: string; from: string };
+export interface DecodedJWT { header: Record<string,JsonValue>; payload: Record<string,JsonValue>; signature: string; signingInput: string; }
 export interface JSONTools {
   pointer(path: JSONPath): string;
   get<T, const P extends JSONPath>(value: T, path: P): PathValue<T,P>;
@@ -206,7 +209,8 @@ export interface JSONTools {
   remove<T, const P extends JSONPath>(value: T, path: P): RemoveParts<T,PathParts<P>>;
   select<T, const P extends JSONPath>(value: T, path: P): Array<{ path: string; value: SelectParts<T,PathParts<P>> }>;
   flatten(value: JsonValue): Record<string,JsonValue>;
-  diff(before: JsonValue, after: JsonValue): Array<{ op: 'add' | 'remove' | 'replace'; path: string; value?: JsonValue }>;
+  diff(before: JsonValue, after: JsonValue): JSONPatchChange[];
+  patch(value: JsonValue, operations: readonly JSONPatchOperation[]): JsonValue;
   pick<T, K extends keyof T>(value: T, keys: readonly K[]): Pick<T,K>;
   omit<T, K extends keyof T>(value: T, keys: readonly K[]): Omit<T,K>;
   merge<V extends JsonValue[]>(...values: V): MergeValues<V>;
@@ -224,12 +228,13 @@ export interface ScriptTools {
   };
   query: PairTools; headers: PairTools;
   cookies: {
-    parse(value: string): Record<string,string>; stringify(value: PairInput): string;
-    parseSetCookie(value: string): { name: string; value: string; attributes: Record<string,string | true> };
+    parse(value: string, options?: { decode?: boolean }): Record<string,string>; stringify(value: PairInput): string;
+    parseSetCookie(value: string, options?: { decode?: boolean }): { name: string; value: string; attributes: Record<string,string | true> };
     serialize(name: string, value: unknown, attributes?: Record<string,string | number | boolean | Date | null>): string;
   };
   request: { build(options: { method?: string; url: string; query?: PairInput; headers?: PairInput; json?: JsonValue; form?: PairInput; body?: string | RequestBody; basic?: { username: string; password: string }; bearer?: string }): Request & { url: string; header: VariableRow[] } };
   json: JSONTools;
+  jwt: { /** Decode token content without verifying its signature or claims. */ decode(token: string): DecodedJWT };
   csv: {
     parse(source: string, options: { header: true; delimiter?: string; skipEmptyLines?: boolean }): Array<Record<string,string>>;
     parse(source: string, options?: { header?: false; delimiter?: string; skipEmptyLines?: boolean }): string[][];

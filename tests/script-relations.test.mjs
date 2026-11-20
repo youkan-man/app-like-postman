@@ -85,3 +85,21 @@ test('request hooks inside a script relation use isolated executor and the same 
   applyScriptWrites(state.workspace,state.primary,state.workspace.environments[0],output);
   assert.equal(state.workspace.scriptData.hookCount,2);assert.equal(state.workspace.globals[0].value,'yes');
 });
+
+test('script-invoked relation clear carries disabled primary rows through child execution and final commit',async()=>{
+  const state=fixture();state.primary.rows=[{key:'visible',value:'old'},{key:'hidden',value:'old',disabled:true},{key:'',value:''}];
+  state.child.source=`store.set('removed',vars.clear());vars.set('remaining','child');`;
+  state.relation.steps=[{...newRelationStep('script'),scriptId:'child'}];
+  const run=execute(state,`await minipost.relations.run('flow');return {removed:store.get('removed'),remaining:vars.get('remaining')};`),output=await run.task;
+  assert.deepEqual(output.result,{removed:3,remaining:'child'});assert.equal(state.primary.rows.length,3);
+  applyScriptWrites(state.workspace,state.primary,state.workspace.environments[0],output);assert.deepEqual(state.primary.snapshot(),{remaining:'child'});assert.equal(state.primary.rows.length,1);
+});
+
+test('temporary loop bindings restore duplicate and disabled rows with their metadata intact',async()=>{
+  const state=fixture(),original=[{key:'item',value:'first',disabled:true,description:'first item'},{key:'index',value:'old index',enabled:false,description:'index'},{key:'item',value:'last',enabled:false,description:'last item'}];
+  state.primary.rows=clone(original);
+  const output=await execute(state,`await minipost.relations.run('flow');return {item:vars.has('item'),index:vars.has('index')};`).task;
+  assert.deepEqual(output.result,{item:false,index:false});applyScriptWrites(state.workspace,state.primary,state.workspace.environments[0],output);
+  assert.deepEqual(state.primary.rows.filter(row=>row.key==='item'||row.key==='index'),original);
+  assert.equal(state.primary.get('lastItem'),'20');
+});

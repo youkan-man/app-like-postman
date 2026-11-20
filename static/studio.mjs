@@ -573,6 +573,7 @@ export function initStudio(api) {
     const scriptCatalog=clone(target.scripts||[]),bindings=clone(target.scriptBindings||{});
     try{
       const result=await runRelation(relation,{workspace:target,primary:()=>primary.snapshot(),variables:tab=>contextFor({...target,environmentId:chosenEnv},tab||{request:newRequest()},primary.rows).vars,signal:controller.signal,
+        capturePrimary:keys=>{const restore=primary.capture(keys);return ()=>{restore();ribbonWorkspace.refresh();};},
         writePrimary:writes=>{primary.apply(writes);ribbonWorkspace.refresh();},
         execute:async(tab,{signal})=>{ensureWorkspace();const response=await execute(tab,{signal,environmentId:chosenEnv,files:api.filesFor(tab,signal),relationAncestors:[relation.id]});ensureWorkspace();api.recordBackground(tab,response,chosenEnv);return response;},
         executeScript:async(script,{signal,input:payload,raw})=>{
@@ -597,7 +598,7 @@ export function initStudio(api) {
     if(api.side()==='scripts')scriptWorkspace.refreshForChanges(output);
     if(api.side()==='relations'&&affects('relations',relationId)){surfaceKey='';syncView('relations');}
     if(api.side()==='environments'){
-      let changed=envSelection==='globals'?roots.has('globals'):envSelection==='primary'?stages.some(stage=>stage.writes?.primary?.length):affects('environments',envSelection);
+      let changed=envSelection==='globals'?roots.has('globals'):envSelection==='primary'?stages.some(stage=>stage.writes?.primary?.length||stage.primaryRowsWrites?.length):affects('environments',envSelection);
       if(roots.has('environmentId')&&!['primary','globals'].includes(envSelection)){envSelection=w().environmentId||'';changed=true;}
       if(changed){surfaceKey='';syncView('environments');}
     }

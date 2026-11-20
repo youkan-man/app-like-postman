@@ -14,13 +14,14 @@ export function createScriptRelationRunner({filesFor=()=>({}),requestFor=()=>nul
     if(ancestors.includes(relation.id))throw new Error('同じリレーションを再帰的に実行できません。');
     if(ancestors.length>=16)throw new Error('リレーションの呼び出しが深すぎます。');
     const stack=[...ancestors,relation.id],primary=new PrimaryVariables(),logs=[];
-    primary.apply(Object.entries(context.primary||{}).map(([key,value])=>({key,value})));
+    if(Array.isArray(context.primaryRows))primary.rows=clone(context.primaryRows);
+    else primary.apply(Object.entries(context.primary||{}).map(([key,value])=>({key,value})));
     const nested=(next,options)=>run(next,options,stack);
     const host=()=>createScriptHost({workspace,primary,environmentId,requestRef,filesFor,onResponse,getResponses,runRelation:nested,...(send?{send}:{})});
     const environment=()=>workspace.environments?.find(item=>item.id===environmentId);
     const rememberLogs=output=>{for(const entry of output.logs||[])logs.push(clone(entry));};
     const result=await runRelation(relation,{
-      workspace,signal,primary:()=>primary.snapshot(),writePrimary:writes=>primary.apply(writes),
+      workspace,signal,primary:()=>primary.snapshot(),writePrimary:writes=>primary.apply(writes),capturePrimary:keys=>primary.capture(keys),
       variables:tab=>contextFor({...workspace,environmentId},tab||{request:newRequest()},primary.rows).vars,
       execute:async(tab,{signal})=>{
         const files=await filesFor(tab,signal);throwIfAborted(signal);
@@ -44,7 +45,7 @@ export function createScriptRelationRunner({filesFor=()=>({}),requestFor=()=>nul
     if(result.status==='failed')throw Object.assign(new Error(result.error||'リレーションの実行に失敗しました。'),{logs});
     throwIfAborted(signal);
     workspace.relationRuns||=[];workspace.relationRuns.push(clone(result));
-    return {result,primary:primary.snapshot(),logs};
+    return {result,primary:primary.snapshot(),primaryRows:clone(primary.rows),logs};
   }
   return (relation,context)=>run(relation,context,context.ancestorRelationIds||[]);
 }

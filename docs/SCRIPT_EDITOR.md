@@ -54,6 +54,8 @@ return {collectionId: collection.id, requestId: saved.id};
 
 `collections.variables(ref)`、`folders.variables(ref)`、`environments.variables(ref)` は、その保存先の `list/get/has/set/unset/clear/toObject` を提供します。`set(key, value, metadata?)` は文字列化した値を返し、metadataに `enabled`・`disabled`・`description` などを指定できます。`unset` は削除できたかの真偽値、`clear` は削除件数です。`vars`、`pm.environment`、`pm.globals` の既存APIにも `list()` と `clear()` があり、既存の `set/unset` の戻り値は `undefined` です。`environments.activate` は画面で選択する環境を変更しますが、実行中の `pm.environment` の対象は開始時の環境を維持します。送信時に切り替える場合は `requests.send` の `environmentId` を明示します。
 
+同じ名前の変数が複数ある場合、`set` は最後の行を更新し、既定で有効化します。説明などの既存情報は保持します。保存先を指定するAPIで `enabled:false` や `disabled:true` を明示した場合は、その状態を使います。`clear` は無効な行・重複行・空名の行を含めて消去し、削除した行数を返します。`vars.clear()` の対象は一次変数だけで、環境やコレクションから継承した値は引き続き参照できます。
+
 ワークスペースへの書き込みは、親と子のスクリプトを含む実行全体の成功時にまとめて反映します。同じ実行中の読み取りは保留中の変更を参照できます。失敗・停止・時間切れでは保留中の書き込みを破棄します。実行中に画面から同じ項目・フィールドを変更した場合は競合として扱い、古い値で上書きしません。関係のない項目の変更は保持します。HTTP送信など、既に完了した外部処理は取り消されません。
 
 ### 保存レスポンスと添付内容
@@ -88,12 +90,14 @@ return {name: first.name, sha256: await tools.crypto.hash(bytes)};
 | `tools.query.parse/stringify` | クエリとキー値の行配列を相互変換 |
 | `tools.query.get/getAll/set/append/remove/toObject` | 第1引数が元データ、第2引数がキー。`set/append` は第3引数が値。変更後の新しい行配列を返す |
 | `tools.headers.parse/stringify/get/getAll/set/append/remove/toObject` | 同じ操作をヘッダーに適用。名前は大小文字を区別しない。`stringify` はCRLFで結合 |
-| `tools.cookies.parse/stringify` | リクエストCookieとオブジェクト・キー値データを相互変換 |
-| `tools.cookies.parseSetCookie(value)` | 1行を `{name, value, attributes}` へ解析。属性名は小文字、フラグは `true` |
+| `tools.cookies.parse(value, {decode?})`／`stringify(value)` | リクエストCookieとオブジェクト・キー値データを相互変換 |
+| `tools.cookies.parseSetCookie(value, {decode?})` | 1行を `{name, value, attributes}` へ解析。属性名は小文字、フラグは `true` |
 | `tools.cookies.serialize(name, value, attributes?)` | Set-Cookieの1行を作成。`Expires` に `Date`、`Secure/HttpOnly` に `true` を指定可能 |
 | `tools.request.build(options)` | `method/url/header/body/auth` を持つMiniPostのリクエスト設定 |
 
 `get` は最初の値または `undefined`、`getAll` は全値を返します。`toObject` は重複を文字列配列にまとめ、ヘッダー名を小文字へ揃えます。Cookieの `parse` は同名キーの最後の値を採用します。`Set-Cookie` は `Expires` 内にカンマを含むため、複数のヘッダーを連結せず1行ずつ `parseSetCookie` へ渡します。
+
+Cookieの値を囲む引用符は除きます。既定では `%E9%9B%AA` などを復号し、`50%` や `%FF` のようにパーセント復号できない値はそのまま返します。`{decode:false}` でパーセント符号化を保持できます。`+` は空白へ変換しません。Cookie値はパーセント符号化を必須としないためです（[RFC 6265 §4.1.1](https://www.rfc-editor.org/rfc/rfc6265.html#section-4.1.1)）。
 
 ```javascript
 const request = tools.request.build({
@@ -123,6 +127,7 @@ return {status: result.status, body: result.body};
 | `select(value, path)` | `*` による抽出。`{path, value}` の配列を返す |
 | `flatten(value)` | JSON Pointerをキー、葉の値を値とするオブジェクト。空オブジェクト・空配列・nullも保持 |
 | `diff(before, after)` | `add/remove/replace` と `path/value` によるJSON Patch差分 |
+| `patch(value, operations)` | JSON Patchの `add/remove/replace/move/copy/test` を順に適用したJSON値のコピー |
 | `pick(value, keys)`／`omit(value, keys)` | 最上位のキーを選択・除外 |
 | `merge(...values)` | オブジェクトを再帰的に結合。後の値が優先し、配列は置換 |
 | `schema(value)` | 値から基本的なJSON Schemaを生成 |
@@ -133,6 +138,7 @@ const data = {items: [{id: 1, price: 100}, {id: 2, price: 200}]};
 const updated = tools.json.update(data, '/items/0/price', value => value * 1.1);
 const prices = tools.json.select(updated, '/items/*/price').map(row => row.value);
 const patch = tools.json.diff(data, updated);
+tools.assert.deepEqual(tools.json.patch(data, patch), updated);
 tools.assert.schema(updated, {
   type: 'object', required: ['items'],
   properties: {items: {type: 'array', items: {
@@ -145,7 +151,36 @@ return {updated, prices, patch};
 
 `set` は存在しないオブジェクト・配列の親を作成できます。配列への末尾追加は `/items/-` を使い、欠損要素のある配列を作る添字は拒否します。編集・差分・スキーマの対象はJSON値です。循環参照、`undefined`、非有限数、DateなどのJSONでない値はエラーにします。結果はコピーで、`__proto__` などの文字列キーからプロトタイプを変更しません。
 
+`patch` の操作形式は [JSON Patch（RFC 6902）](https://www.rfc-editor.org/rfc/rfc6902.html) です。`path` と `from` にはJSON Pointerを指定します。`add` は既存の親要素が必要で、配列では要素を挿入し、`-` で末尾へ追加します。`replace/remove/test` の対象や `move/copy` の移動元・コピー元がない場合はエラーです。`move` は移動元を取り除いてから移動先へ挿入します。`test` はオブジェクトのキー順に依存しない比較を行い、不一致時は `JSONPatchError` です。いずれかの操作に失敗しても入力値・操作配列は変わりません。ルートの削除はMiniPostの `json.remove` と同じく `null` を返します。
+
+```javascript
+const result = tools.json.patch({items: ['A', 'C']}, [
+  {op: 'add', path: '/items/1', value: 'B'},
+  {op: 'copy', from: '/items', path: '/original'},
+  {op: 'move', from: '/items/0', path: '/items/-'},
+  {op: 'test', path: '/items', value: ['B', 'C', 'A']}
+]);
+return result;
+```
+
 スキーマは `type/enum/const/properties/required/additionalProperties/items/minItems/maxItems/uniqueItems/minLength/maxLength/pattern/minimum/maximum/exclusiveMinimum/exclusiveMaximum/multipleOf/anyOf/allOf/oneOf/not` に対応します。`$schema/title/description/default/examples` は注釈として受け付けます。`$ref`・`format` など未対応のキーワードや不正なスキーマはエラーにし、検証を通ったことにはしません。文字数はUnicodeのコードポイントで数えます。`tools.assert.schema` は検証に成功すると元の値を返し、失敗すると `errors` を持つ `AssertionError` を投げます。
+
+### JWTの内容確認
+
+`tools.jwt.decode(token)` は3区間のJWTを読み、`{header, payload, signature, signingInput}` を返します。`Bearer ` で始まるAuthorization値も渡せます。`header/payload` はJSONオブジェクト、`signature` は元のBase64URL文字列、`signingInput` は署名対象となる最初の2区間です。UTF-8とBase64URLの不正な値、JSONオブジェクトでない内容、暗号化された5区間のJWTはエラーです。
+
+```javascript
+const decoded = tools.jwt.decode(vars.get('accessToken'));
+return {
+  header: decoded.header,
+  claims: decoded.payload,
+  expiresAt: typeof decoded.payload.exp === 'number'
+    ? new Date(decoded.payload.exp * 1000).toISOString()
+    : null
+};
+```
+
+このメソッドは内容の確認用です。署名、有効期限、issuer、audienceの検証は行わず、期限切れや署名を検証していないトークンも読み取れます。認証可否の判定には使いません。JWTの構成は [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html) を参照してください。
 
 ### CSV、エンコード、暗号処理
 

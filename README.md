@@ -202,7 +202,8 @@ return converted;
 | `tools.url`／`query` | URL解析・組立、クエリの取得・追加・置換・削除。重複キーを保持 |
 | `tools.headers`／`cookies` | ヘッダーとCookieの解析・組立・取得・更新、Set-Cookie解析 |
 | `tools.request` | JSON・フォーム・本文・Basic/Bearer認証を含むMiniPostリクエストの組立 |
-| `tools.json` | JSON Pointerとパスの取得・更新・削除・抽出、平坦化、差分、選択・除外・統合、スキーマ推定・検証 |
+| `tools.json` | JSON Pointerとパスの取得・更新・削除・抽出、平坦化、差分とJSON Patch適用、選択・除外・統合、スキーマ推定・検証 |
+| `tools.jwt` | JWT・Bearer値のヘッダーとクレームの読取。署名・有効期限の検証は行わない |
 | `tools.csv` | CSV解析・出力、見出し、区切り文字、引用符と改行の処理 |
 | `tools.encoding` | UTF-8・Base64・Base64URL・16進・URLエンコード |
 | `tools.crypto` | SHAハッシュ・HMAC、UUID v4、乱数バイト。SHA-256/HMAC-SHA256は通常HTTP環境にも対応 |

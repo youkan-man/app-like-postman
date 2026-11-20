@@ -24,6 +24,14 @@ export class PrimaryVariables {
   set(key,value) {upsertVariable(this.rows,key,value); this.save();}
   unset(key) {this.rows = this.rows.filter(r => r.key !== key); this.save();}
   clear() {this.rows = []; this.save();}
+  capture(keys) {
+    const selected=new Set(keys),saved=this.rows.flatMap((row,index)=>selected.has(row.key)?[{index,row:structuredClone(row)}]:[]);
+    return () => {
+      const restored=this.rows.filter(row=>!selected.has(row.key));
+      for(const {index,row} of saved)restored.splice(Math.min(index,restored.length),0,structuredClone(row));
+      this.rows.splice(0,this.rows.length,...restored);this.save();
+    };
+  }
   save() {try {this.storage?.setItem(PRIMARY_KEY, JSON.stringify(this.rows));} catch (error) {this.onError(error);}}
   snapshot() {return Object.fromEntries(this.rows.filter(r => r.key && r.disabled !== true && r.enabled !== false).map(r => [r.key,r.value]));}
   apply(writes = []) {

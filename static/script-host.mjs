@@ -1,6 +1,6 @@
 /** App capabilities available to scripts. Execution does not depend on an open request. */
 import {clone,uid,rows,enabled,walkItems,normalizeRequest,compileRequest,contextFor,newRequest} from './core.mjs';
-import {responseMetadata} from './runtime.mjs';
+import {responseMetadata,upsertVariable} from './runtime.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {getRequestRibbonState,findRequestRibbonState} from './ribbons.mjs';
 import {createWorkspaceModel,workspaceChanges} from './workspace-api.mjs';
@@ -36,7 +36,7 @@ export function makeScriptContext(workspace, primary, {input,scriptId,tab,ribbon
     workspace:clone(workspace),environmentId:environmentId || '',requestRef:existingReference(tab),ribbonOwnerRef:ownerReference,
     variableContext:tab?clone({collectionId:tab.collectionId,pendingFolderId:tab.pendingFolderId,request:tab.request}):null,
     input,scriptId,scripts:clone(workspace.scripts || []),bindings:clone(workspace.scriptBindings || {}),bindingId:tab?.request?._minipost?.scriptBindingId,data:clone(workspace.scriptData || {}),
-    variables:context.vars,primary:primary.snapshot(),environment:valueMap(context.environment?.values),globals:valueMap(workspace.globals),
+    variables:context.vars,primary:primary.snapshot(),primaryRows:clone(primary.rows || variableRows(primary.snapshot())),environment:valueMap(context.environment?.values),globals:valueMap(workspace.globals),
     request:tab ? clone(tab.request) : null,response:responseMetadata(result),raw:result
   };
 }
@@ -71,7 +71,7 @@ export function createScriptHost({workspace,primary,environmentId=workspace.envi
   // One run sees a consistent catalog. Variable snapshots supplied by the worker
   // include its pending writes without committing them to the live workspace.
   const snapshot=clone(workspace),originalCatalog=scriptRequestCatalog(snapshot),responses=clone(getResponses() || []);
-  return async function call(method,args=[],{signal,variables,workspace:pending,requestRef:callerRequestRef=requestRef,ribbonScopeId}={}) {
+  return async function call(method,args=[],{signal,variables,primaryRows:callerPrimaryRows,workspace:pending,requestRef:callerRequestRef=requestRef,ribbonScopeId}={}) {
     if(signal?.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
     const source=pending || snapshot,catalog=pending?scriptRequestCatalog(source,{preferCanonical:true}):originalCatalog;
     const [reference,options={}]=args;
@@ -111,13 +111,17 @@ export function createScriptHost({workspace,primary,environmentId=workspace.envi
       const staged=clone(source),before=clone(staged),model=createWorkspaceModel(staged),relation=model.api.relations.get(reference),selected=options.environmentId??(relation.environmentId||environmentId);
       if(selected&&!(staged.environments||[]).some(value=>value.id===selected))throw new Error('実行に使用する環境がありません。');
       const originalPrimary=clone(variables?.primary||primary.snapshot()),initialPrimary=clone(originalPrimary);
-      const result=await runRelation(clone(relation),{workspace:staged,primary:initialPrimary,signal,environmentId:selected,requestRef:callerRequestRef,ribbonScopeId});
+      const originalPrimaryRows=clone(callerPrimaryRows || (variables?variableRows(originalPrimary):primary.rows || variableRows(originalPrimary)));
+      const result=await runRelation(clone(relation),{workspace:staged,primary:initialPrimary,primaryRows:clone(originalPrimaryRows),signal,environmentId:selected,requestRef:callerRequestRef,ribbonScopeId});
       if(signal?.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
       createWorkspaceModel(staged).validate();
       const finalPrimary=result?.primary??initialPrimary,primaryWrites=[];
       for(const key of new Set([...Object.keys(originalPrimary),...Object.keys(finalPrimary)]))if(!Object.hasOwn(finalPrimary,key))primaryWrites.push({key,remove:true});else if(finalPrimary[key]!==originalPrimary[key])primaryWrites.push({key,value:finalPrimary[key]});
       const primaryExpected=primaryWrites.map(({key})=>({key,exists:Object.hasOwn(originalPrimary,key),...(Object.hasOwn(originalPrimary,key)?{value:originalPrimary[key]}:{})}));
-      return {__minipostTransaction:true,value:result?.result,workspaceWrites:workspaceChanges(before,staged),primaryWrites,primaryExpected,logs:result?.logs||[]};
+      const finalPrimaryRows=clone(result?.primaryRows || originalPrimaryRows);
+      if(!result?.primaryRows)for(const row of primaryWrites){if(row.remove){for(let at=finalPrimaryRows.length-1;at>=0;at--)if(finalPrimaryRows[at].key===row.key)finalPrimaryRows.splice(at,1);}else upsertVariable(finalPrimaryRows,row.key,row.value);}
+      return {__minipostTransaction:true,value:result?.result,workspaceWrites:workspaceChanges(before,staged),primaryWrites,primaryExpected,
+        primaryRowsWrites:workspaceChanges({globals:originalPrimaryRows},{globals:finalPrimaryRows}),logs:result?.logs||[]};
     }
     if(method!=='requests.send')throw new Error(`利用できないAPIです: ${method}`);
     if(options===null||typeof options!=='object'||Array.isArray(options))throw new Error('送信オプションはオブジェクトで指定してください。');

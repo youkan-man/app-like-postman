@@ -135,7 +135,7 @@ export function wait(ms,signal){
 }
 /** writePrimary must also allow cleanup after abort. executeScript commits its
  * own writes and returns the runScript {result,logs} shape. */
-export async function runRelation(relation,{workspace,execute,executeScript,writePrimary,primary=()=>({}),variables=()=>primary(),signal,onProgress=()=>{}}){
+export async function runRelation(relation,{workspace,execute,executeScript,writePrimary,capturePrimary,primary=()=>({}),variables=()=>primary(),signal,onProgress=()=>{}}){
   validateRelation(relation,workspace);
   const plan=clone(relation),snapshots=new Map(),scripts=new Map();
   walkRelationSteps(plan.steps,step=>{
@@ -215,6 +215,7 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
         }
         const bindingKeys=type==='forEach'?[step.itemVariable.trim(),step.indexVariable.trim()]:[],before=primary();
         const restore=bindingKeys.map(key=>Object.hasOwn(before,key)?{key,value:before[key]}:{key,remove:true});
+        const restoreRows=bindingKeys.length&&capturePrimary?capturePrimary(bindingKeys):null;
         try{
           let iteration=0;
           while(type==='while'?evaluateCondition(step.condition,currentContext()):iteration<(type==='forEach'?values.length:step.repeat)){
@@ -228,7 +229,7 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
             // Includes continue and all-control bodies; Stop must get an event turn.
             await wait(0,signal);
           }
-        }finally{if(restore.length)await writePrimary(restore);}
+        }finally{if(restoreRows)await restoreRows();else if(restore.length)await writePrimary(restore);}
       }
       index++;await wait(0,signal);
     }

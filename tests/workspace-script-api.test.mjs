@@ -7,6 +7,7 @@ import {createWorkspaceModel,workspaceChanges,applyWorkspaceChanges} from '../st
 import {PrimaryVariables} from '../static/runtime.mjs';
 import {validRibbonWorkspace} from '../static/ribbons.mjs';
 import {validScripts,validScriptBindings} from '../static/scripts.mjs';
+import {executeRequest} from '../static/execution.mjs';
 
 const request=()=>({method:'GET',url:'https://example.invalid/start',header:[],body:{mode:'none',raw:''}});
 const saved=(id,name=id,source='')=>({id,name,source,input:'null',inputFormat:'json',timeoutMs:0});
@@ -294,4 +295,79 @@ test('an initially empty request scope can create a ribbon from a request hook c
   assert.equal(context.ribbonScopeId,null);assert.equal(context.ribbonOwnerRef,'draft:draft');
   const output=await executeScript(`const r=minipost.ribbons.create({key:'main'});const g=minipost.ribbons.groups(r.id).create({});minipost.ribbons.controls(r.id,g.id).create({type:'number',key:'count',value:6});return ribbon.get('main.count');`,context);
   assert.equal(output.result,6);commit(workspace,primary,output);assert.equal(tab.ribbonState.ribbons[0].groups[0].controls[0].value,6);
+});
+
+test('scoped variable setters update the effective duplicate and reactivate imported disabled rows',()=>{
+  const workspace=fixture(),values=()=>[{key:'duplicate',value:'first',description:'first row'},{key:'duplicate',value:'last',description:'last row'},{key:'hidden',value:'old',disabled:true,enabled:false,description:'keep'}];
+  workspace.globals=values();workspace.environments[0].values=values();workspace.collections[0].variable=values();workspace.collections[0].item.push({_mpId:'folder',name:'Folder',variable:values(),item:[]});
+  const model=createWorkspaceModel(workspace,{environmentId:'env'}),api=model.api;
+  for(const scope of [api.globals,api.environment,api.environments.variables('env'),api.collections.variables('collection'),api.folders.variables('collection:folder')]){
+    assert.equal(scope.set('duplicate','updated'),'updated');assert.equal(scope.get('duplicate'),'updated');
+    assert.equal(scope.list()[0].value,'first');assert.equal(scope.list()[1].description,'last row');
+    scope.set('hidden','visible');assert.equal(scope.get('hidden'),'visible');assert.equal(scope.list()[2].description,'keep');
+    scope.set('hidden','disabled explicitly',{disabled:true});assert.equal(scope.get('hidden'),undefined);
+    scope.set('hidden','visible again');assert.equal(scope.get('hidden'),'visible again');
+    scope.set('hidden','disabled explicitly',{enabled:false});assert.equal(scope.get('hidden'),undefined);
+  }
+});
+
+test('legacy environment and globals clear remove disabled and blank rows in their pending scope',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),values=[{key:'duplicate',value:'first'},{key:'duplicate',value:'last'},{key:'hidden',value:'old',disabled:true},{key:'',value:'blank'}];
+  workspace.environments[0].values=structuredClone(values);workspace.globals=structuredClone(values);primary.set('keep','primary');
+  const output=await run(workspace,primary,`
+    pm.environment.set('duplicate','updated');pm.environment.set('hidden','visible');
+    minipost.globals.set('duplicate','global');pm.globals.set('hidden','visible');
+    const effective=[pm.environment.get('duplicate'),pm.environment.get('hidden'),vars.get('duplicate'),pm.globals.get('duplicate'),minipost.globals.get('hidden')];
+    const removed=[pm.environment.clear(),minipost.globals.clear()];
+    return {effective,removed,environment:pm.environment.list(),globals:pm.globals.list(),primary:vars.get('keep')};
+  `);
+  assert.deepEqual(output.result,{effective:['updated','visible','updated','global','visible'],removed:[4,4],environment:[],globals:[],primary:'primary'});
+  assert.equal(workspace.globals.length,4);commit(workspace,primary,output);assert.deepEqual(workspace.globals,[]);assert.deepEqual(workspace.environments[0].values,[]);assert.equal(primary.get('keep'),'primary');
+});
+
+test('primary clear includes disabled and blank rows and still reads inherited variables',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables();primary.rows=[{key:'duplicate',value:'first'},{key:'duplicate',value:'last'},{key:'hidden',value:'old',disabled:true},{key:'',value:'blank'}];
+  workspace.scripts[0].source=`const count=pm.variables.clear();vars.set('remaining','ok');return count;`;
+  const original=structuredClone(primary.rows),output=await run(workspace,primary,`const removed=await scripts.run('child');return {removed,global:vars.get('global'),host:vars.get('host'),remaining:vars.get('remaining')};`);
+  assert.deepEqual(output.result,{removed:4,global:'before',host:'before',remaining:'ok'});assert.deepEqual(primary.rows,original);
+  commit(workspace,primary,output);assert.deepEqual(primary.rows,[{key:'remaining',value:'ok',enabled:true,disabled:false}]);
+});
+
+test('primary row clears preserve unrelated concurrent additions but reject edits to a deleted disabled row atomically',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables();primary.rows=[{key:'visible',value:'old'},{key:'hidden',value:'old',disabled:true,description:'original'}];
+  const output=await run(workspace,primary,`vars.clear();store.set('committed',true);`);primary.set('unrelated','kept');
+  commit(workspace,primary,output);assert.deepEqual(primary.snapshot(),{unrelated:'kept'});assert.equal(workspace.scriptData.committed,true);
+  primary.rows.push({key:'hidden',value:'old',disabled:true,description:'original'});
+  const conflict=await run(workspace,primary,`vars.clear();store.set('leak',true);`);primary.rows.at(-1).description='edited while running';const before=structuredClone(workspace),rows=structuredClone(primary.rows);
+  assert.throws(()=>commit(workspace,primary,conflict),/同じ項目/);assert.deepEqual(workspace,before);assert.deepEqual(primary.rows,rows);
+});
+
+test('response extraction uses its original row baseline and explicit primary clear wins over extraction',async()=>{
+  for(const clear of [false,true]){
+    const workspace=fixture(),primary=new PrimaryVariables(),tab=workspace.tabs[0];primary.rows=[{key:'hidden',value:'old',disabled:true}];
+    tab.request._minipost={after:`response.body.id=42;${clear?"vars.clear();vars.set('remaining','ok');":""}`,extractions:[{name:'extracted',path:'/body/id'}]};
+    const response=await executeRequest({workspace,primary,tab,script:executeScript,send:async()=>({status:200,headers:[],body:'{"id":1}',body_encoding:'text'})});
+    assert.deepEqual(response.automationErrors,[]);
+    if(clear)assert.deepEqual(primary.snapshot(),{remaining:'ok'});else assert.equal(primary.get('extracted'),'42');
+    assert.equal(primary.rows.some(row=>row.key==='hidden'),!clear);
+  }
+});
+
+test('removed response fields never commit their read-only extraction preview',async()=>{
+  for(const existing of [false,true]){
+    const workspace=fixture(),primary=new PrimaryVariables(),tab=workspace.tabs[0];if(existing)primary.set('extracted','original');
+    tab.request._minipost={after:`delete response.body.id;vars.set('other','explicit');`,extractions:[{name:'extracted',path:'/body/id'}]};
+    const response=await executeRequest({workspace,primary,tab,script:executeScript,send:async()=>({status:200,headers:[],body:'{"id":1,"name":"old"}',body_encoding:'text'})});
+    assert.deepEqual(response.automationErrors,[]);assert.equal(primary.get('extracted'),existing?'original':undefined);assert.equal(primary.get('other'),'explicit');
+  }
+});
+
+test('nested relation row changes reject a parent edit to a disabled primary row without leaking model writes',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables();primary.rows=[{key:'hidden',value:'old',disabled:true}];workspace.relations=[{id:'flow',name:'Flow',steps:[]}];
+  let release;const pending=new Promise(resolve=>{release=resolve;});
+  const host=createScriptHost({workspace,primary,runRelation:async(_relation,context)=>{await pending;context.workspace.scriptData.leak='relation';return {result:{status:'succeeded'},primary:{},primaryRows:[]};}});
+  const output=await run(workspace,primary,`const child=minipost.relations.run('flow');vars.set('hidden','parent');await minipost.responses.list();try{await child;}catch(error){store.set('error',error.message);}return {value:vars.get('hidden'),leak:store.get('leak')};`,{
+    onCall:async(method,...args)=>{if(method==='responses.list'){release();return [];}return host(method,...args);}
+  });
+  assert.deepEqual(output.result,{value:'parent',leak:undefined});commit(workspace,primary,output);assert.equal(primary.get('hidden'),'parent');assert.equal(workspace.scriptData.leak,undefined);assert.match(workspace.scriptData.error,/同じ項目/);
 });
