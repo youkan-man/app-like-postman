@@ -96,7 +96,9 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     }
     if(!suggestions.hidden){
       const belowList=Math.max(0,available-pos.y-pos.line),room=Math.max(above,belowList);
-      suggestions.style.maxHeight=`${Math.max(0,Math.min(180,room))}px`;
+      // offsetHeight rounds to whole pixels. A fractional cap can otherwise
+      // look too tall for the space below and cover the caret from above.
+      suggestions.style.maxHeight=`${Math.max(0,Math.floor(Math.min(180,room)))}px`;
       const width=suggestions.offsetWidth,height=suggestions.offsetHeight;
       const top=belowList>=height?pos.y+pos.line:Math.max(4,pos.y-height);
       suggestions.style.left=`${Math.max(4,Math.min(pos.x,root.clientWidth-width-4))}px`;
