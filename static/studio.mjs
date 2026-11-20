@@ -434,7 +434,7 @@ export function initStudio(api) {
     const step=newRelationStep(type);try{insertRelationStep(relation,step,relationDestination(relation,siblings,index));}catch(error){toast(error.message);return;}
     persist();surfaceKey='';syncView('relations');api.closeNavigation();
     const row=[...$('workspacePage').querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===step.id);
-    row?.querySelector('select,input,button')?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
+    (row?.querySelector('select,input')||row?.querySelector('button'))?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
   }
   function numberField(title,value,change,min=0){
     const control=input(value,title,v=>change(Number(v)),'number');control.min=String(min);control.step='1';return field(title,control);
@@ -572,7 +572,7 @@ export function initStudio(api) {
             {label:'外へ移動',disabled:!outside||!canMoveRelationStep(relation,step.id,outside),run:()=>moveStep(step,outside)},
             {label:'上へ',disabled:siblings.indexOf(step)===0,run:()=>move(-1)},
             {label:'下へ',disabled:siblings.indexOf(step)===siblings.length-1,run:()=>move(1)},
-            {label:'複製',run:()=>{try{const copied=cloneRelationSteps([step])[0];insertRelationStep(relation,copied,relationDestination(relation,siblings,siblings.indexOf(step)+1));repaint(copied.id,'move');}catch(error){toast(error.message);}}},
+            {label:'複製',run:()=>{try{const copied=cloneRelationSteps([step])[0];insertRelationStep(relation,copied,relationDestination(relation,siblings,siblings.indexOf(step)+1));repaint(copied.id);}catch(error){toast(error.message);}}},
             {label:'削除',danger:true,run:remove}
           ],e);
         });row.append(top,body);

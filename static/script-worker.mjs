@@ -1,10 +1,11 @@
 /** A script transaction. The browser host runs this function in an isolated Worker. */
 import {createWorkspaceModel,workspaceChanges,applyWorkspaceChanges} from './workspace-api.mjs';
 import {createScriptTools} from './script-tools.mjs';
+import {createRequestEditor} from './script-request.mjs';
 
 /** The exact dependency bundle used by the opaque-origin browser Worker. */
 export function scriptExecutorSource() {
-  return `const applyWorkspaceChanges = ${applyWorkspaceChanges.toString()};\nconst workspaceChanges = ${workspaceChanges.toString()};\nconst createWorkspaceModel = ${createWorkspaceModel.toString()};\nconst createScriptTools = ${createScriptTools.toString()};\nconst executeScript = ${executeScript.toString()};`;
+  return `const createRequestEditor = ${createRequestEditor.toString()};\nconst applyWorkspaceChanges = ${applyWorkspaceChanges.toString()};\nconst workspaceChanges = ${workspaceChanges.toString()};\nconst createWorkspaceModel = ${createWorkspaceModel.toString()};\nconst createScriptTools = ${createScriptTools.toString()};\nconst executeScript = ${executeScript.toString()};`;
 }
 export async function executeScript(source, context = {}, options = {}) {
   const logs = [], writes = {primary:[], environment:[], globals:[]}, dataWrites = [], ribbonWrites = [];
@@ -180,8 +181,16 @@ export async function executeScript(source, context = {}, options = {}) {
             ribbonId:ribbon.id, ribbonKey:ribbon.key, ribbonName:ribbon.name, groupId:group.id, groupName:group.name}));
         },
         values(reference) {checkActive();return Object.fromEntries(selectedRows(reference).map(({control}) => [control.key, copy(control.value)]));},
-        get(reference) {checkActive();return copy(resolveControl(reference).control.value);},
-        set(reference, value) {
+        get(reference, field = 'value') {
+          checkActive();
+          if (!['value','visible','enabled'].includes(field)) throw new TypeError('リボンのフィールドはvalue・visible・enabledで指定してください。');
+          const {control} = resolveControl(reference);
+          return field === 'value' ? copy(control.value) : control[field] !== false;
+        },
+        set(reference, field, value) {
+          if (arguments.length === 2) {value = field; field = 'value';}
+          if (!['value','visible','enabled'].includes(field)) throw new TypeError('リボンのフィールドはvalue・visible・enabledで指定してください。');
+          if (field !== 'value') return setFlag(field, reference, value);
           checkActive();const {control} = resolveControl(reference), next = normalizeRibbonValue(control, value);
           if (!same(control.value, next)) {
             stageRibbon('value', control.id, next, control.value, {type:control.type, options:control.options || []});
@@ -222,6 +231,11 @@ export async function executeScript(source, context = {}, options = {}) {
       return row?.type === 'file' && Number.isInteger(source) && initialFilePositions[source] ? source : null;
     });
     const initialFileRows = fileRows();
+    if (request && typeof request === 'object' && !Array.isArray(request)) {
+      const editor = createRequestEditor({read:() => request, change:callback => callback(request), checkActive});
+      for (const [key, value] of Object.entries(editor)) if (!Object.hasOwn(request, key))
+        Object.defineProperty(request, key, {value, enumerable:false});
+    }
     let responseBodySet = false;
     const bodyChanged = () => response && (responseBodySet || !same(response.body, initialResponse?.body) || response.body_encoding !== initialResponse?.body_encoding);
     const responseText = () => {

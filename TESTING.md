@@ -50,6 +50,10 @@ Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポ�
 
 `tests/workspace-script-api.test.mjs` は重複・無効な変数への書き込み、全消去、同時編集の競合、受信後抽出と明示的な消去の順序も検証します。ネイティブのワークスペースAPI試験では、画面で無効化した一次変数を使い、分離Workerからリレーションを呼び出した場合も、ループで一時的に使った変数行を元の状態へ戻せることを確認します。
 
+リクエスト編集は `get`／`set`、名前によるヘッダー・クエリ・フォーム操作、JSON本文のパス操作を対象にします。`tests/ui_script_response.py` の送信前処理と `tests/ui_script_workspace_api.py` の保存リクエスト編集では、同じ操作で読み書きした値を実HTTPの受信結果と照合します。重複値、Unicode・空白・リテラルの `+`、無効なヘッダー、JSONの型、子スクリプトからの編集、失敗時の保存取り消し、本文形式とContent-Typeの切替を含みます。取得したモデル全体の書き戻し、入れ子の設定、IDの保持、コレクション名の編集、実際の言語Workerによる補完も確認します。
+
+`tests/script-request-editor.test.mjs` は従来のプロパティ編集との混在、同じリクエストを扱う複数の編集ハンドル、取得・設定を通した添付ファイル行の対応、実際に直列化したWorkerの依存解決を検証します。`tests/script-access-intelligence.test.mjs` は補完・ホバー・引数の診断と、JSON本文の値を含めず構造を更新することを確認します。
+
 `tests/script-tools.test.mjs` は重複クエリ・Cookie・CSV・JSON解析・文字コードの境界、SHA256/HMACの既知ベクトル、Web Cryptoなしの実行、非同期処理の期限・並列数・中断を確認します。JSON Patchの配列操作・移動・コピー・値比較・失敗時の入力保持、JWTのUTF-8とBase64URL、Cookieの引用符・不完全なパーセント表記も対象です。関数をシリアライズして別のVMコンテキストで実行し、Workerへ渡せない外部依存も検出します。
 
 `python tests/ui_script_workspace_api.py` は実際の分離Workerからワークスペースを作成・編集し、子スクリプトとリレーションの実行、失敗・停止時の取り消し、同時編集の衝突と別項目の保持、実HTTPのリクエスト構築・送信、添付読取、再読込、補完と検索リファレンスを検証します。通常HTTPでのSHA256/HMAC動作と320pxの画面を含み、`script-workspace-api/` に結果と画像を保存します。GitHub ActionsとLocal Relayの2VM試験に同じスイートを組み込みます。

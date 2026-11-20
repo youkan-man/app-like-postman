@@ -454,6 +454,85 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
             assert not any(e['id'] == ids['environment'] for e in after['environments'])
             passed('history and model deletion APIs remove only their explicitly selected entries')
 
+            edit("""
+const created=minipost.requests.create({name:'Editable request',parent:store.get('created').collection,
+  request:{method:'GET',url:input.baseUrl+'/echo?keep=a%2Bb&tag=old',
+    header:[{key:'X-Disabled',value:'kept',disabled:true}],body:{mode:'none'}}});
+store.set('editableRequest',created.id);
+const target=minipost.requests.edit(created.id);
+target.set('method','POST');
+target.query.set('tag',['日本語','a+b']);
+target.query.set('page',2);
+target.headers.set('X-Token','first');
+target.headers.set('x-token','updated');
+target.json.set({user:{name:'before'},items:[{count:0}],enabled:false,nullable:null,temporary:true});
+target.json.set('user.name','日本語');
+target.json.set(['items',0,'count'],3);
+target.json.delete('temporary');
+const child=minipost.scripts.create({name:'Edit request child',source:
+  "const target=minipost.requests.edit(input); target.json.set('child',target.query.get('page')); return target.headers.get('X-TOKEN');"});
+const childValue=await scripts.run(child.id,created.id);
+const snapshot=minipost.requests.get(created.id);
+snapshot.name='Edited request';
+minipost.requests.set(created.id,snapshot);
+minipost.requests.set(created.id,'settings.timeout_ms',12000);
+minipost.settings.set('settings.timeout_ms',15000);
+const collection=minipost.collections.get(store.get('created').collection);
+collection.name='Generated API edited';
+minipost.collections.set(collection.id,collection);
+let identityRejected=false;
+try { minipost.requests.set(created.id,{...minipost.requests.get(created.id),id:'changed-id'}); }
+catch { identityRejected=true; }
+const response=await minipost.requests.send(created.id);
+return {wire:response.body,childValue,identityRejected,url:target.get('url'),
+  page:target.query.get('page'),tags:target.query.getAll('tag'),json:target.json.get(),
+  token:target.headers.get('X-Token'),name:minipost.requests.get(created.id,'name'),
+  timeout:minipost.requests.get(created.id,'settings.timeout_ms'),
+  setting:minipost.settings.get('settings.timeout_ms'),
+  collection:minipost.collections.get(collection.id,'info.name')};
+""")
+            run()
+            value = result()
+            assert value['wire']['method'] == 'POST', value
+            assert parse_qsl(urlsplit(value['wire']['path']).query) == [
+                ('keep', 'a+b'), ('tag', '日本語'), ('tag', 'a+b'), ('page', '2')], value
+            expected_body = {'user': {'name': '日本語'}, 'items': [{'count': 3}],
+                             'enabled': False, 'nullable': None, 'child': '2'}
+            assert json.loads(value['wire']['body']) == expected_body == value['json'], value
+            headers = {key.lower(): val for key, val in value['wire']['headers']}
+            assert headers['x-token'] == 'updated' and 'x-disabled' not in headers, headers
+            assert headers['content-type'] == 'application/json', headers
+            assert value['childValue'] == value['token'] == 'updated' and value['identityRejected'], value
+            assert value['page'] == '2' and value['tags'] == ['日本語', 'a+b'], value
+            assert value['name'] == 'Edited request' and value['collection'] == 'Generated API edited', value
+            assert value['timeout'] == 12000 and value['setting'] == 15000, value
+            assert urlsplit(value['url']).path == '/echo', value
+            capture('request-editing-desktop')
+            passed('saved request editors use matching get/set operations for fields, named headers, repeated queries and JSON paths; child scripts and real HTTP observe pending edits')
+            passed('entity snapshots and nested settings use the same get/set selectors, retain identity and accept an edited collection name alias')
+
+            before = saved()
+            edit("const target=minipost.requests.edit(store.get('editableRequest')); target.query.set('page',99); target.json.set('user.name','rollback'); throw new Error('request rollback');")
+            run('error')
+            assert saved()['collections'] == before['collections']
+            passed('a failed request-editing script leaves saved request fields, headers, query and body unchanged')
+
+            edit("""
+const id=store.get('editableRequest'), target=minipost.requests.edit(id);
+target.form.set('tag',['one','two']);
+target.form.set('enabled',false);
+target.form.set('a.b','雪 空+');
+const response=await minipost.requests.send(id);
+return {wire:response.body,tags:target.form.getAll('tag'),enabled:target.form.get('enabled'),value:target.form.get('a.b')};
+""")
+            run()
+            value = result()
+            assert parse_qsl(value['wire']['body']) == [('tag', 'one'), ('tag', 'two'), ('enabled', 'false'), ('a.b', '雪 空+')], value
+            headers = {key.lower(): val for key, val in value['wire']['headers']}
+            assert headers['content-type'].startswith('application/x-www-form-urlencoded'), headers
+            assert value['tags'] == ['one', 'two'] and value['enabled'] == 'false' and value['value'] == '雪 空+', value
+            passed('named form get/set edits send repeated values, booleans, literal dotted keys and Unicode with the correct content type')
+
             durable = saved()
             page.reload(wait_until='domcontentloaded')
             ready()
@@ -464,7 +543,11 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
             passed('native IndexedDB reload preserves created structures, loop runs and typed shared data')
 
             for source, expected in [('minipost.collections.', 'create'), ('tools.crypto.', 'hmac'),
-                                     ('tools.json.', 'patch'), ('tools.jwt.', 'decode')]:
+                                     ('tools.json.', 'patch'), ('tools.jwt.', 'decode'),
+                                     ('minipost.requests.', 'set'),
+                                     ('minipost.requests.edit("Edited request").headers.', 'set'),
+                                     ('minipost.requests.edit("Edited request").query.', 'get'),
+                                     ('minipost.requests.edit("Edited request").json.', 'set')]:
                 area = page.get_by_label('スクリプトのコード', exact=True)
                 area.fill(source)
                 area.press('End')
@@ -473,7 +556,7 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
                 expect(editor).to_have_attribute('data-intelligence', 'ready', timeout=20000)
                 expect(editor.locator('.source-suggestions').get_by_role('option', name=expected, exact=True)).to_be_attached()
                 area.press('Escape')
-            passed('the actual language Worker offers workspace CRUD and API helper methods')
+            passed('the actual language Worker offers workspace get/set, request header/query/JSON editors and API helper methods')
 
             edit("return {sha256:await tools.crypto.hash('abc'), requests:minipost.requests.list().length};")
             run()

@@ -112,6 +112,7 @@ return result;
 | `ribbon.values(reference?)` | 指定したリボンの値を項目のキーを持つオブジェクトで取得 |
 | `ribbon.get(reference)` | 項目の値を型を保って取得 |
 | `ribbon.set(reference, value)` | 項目の値を設定し、項目の型に合わせた値を返す |
+| `ribbon.get(reference, field)`／`set(reference, field, value)` | 同じ参照とフィールドで `value`・`visible`・`enabled` を読み書き |
 | `ribbon.show(reference, visible = true)` | 項目の表示を切り替え |
 | `ribbon.enable(reference, enabled = true)` | 項目の有効状態を切り替え |
 
@@ -187,7 +188,22 @@ return converted;
 
 データの一覧・取得・編集は同期APIです。既存コードの `await` 付き呼び出しも利用できます。HTTP送信、リレーション実行、受信結果・添付ファイルの読取は非同期APIなので `await` を使用します。コードは分離Workerで実行します。
 
-各モデルAPIは `list()`／`get(reference)`／`create(spec)`／`update(reference, partial)`／`delete(reference)` を基本とします。更新はオブジェクトの指定フィールドを統合し、配列は置き換えます。IDは作成時に生成され、変更できません。参照にはIDまたは一意の名前・階層パスを使い、同名が複数ならIDで指定します。リクエスト・フォルダーの作成先は `parent` にコレクションまたはフォルダーの参照を指定します。
+各モデルAPIは `list()`／`get(reference)`／`set(reference, value)`／`create(spec)`／`delete(reference)` を基本とします。`get(reference, path)` と `set(reference, path, value)` なら、同じ参照とパスで一つの値を読み書きできます。`get(reference)` の取得結果を編集し、そのまま `set(reference, value)` で書き戻すこともできます。参照にはIDまたは一意の名前・階層パスを使い、同名が複数ならIDで指定します。
+
+```javascript
+const ref = 'ユーザー登録';
+const timeout = minipost.requests.get(ref, 'settings.timeout_ms');
+minipost.requests.set(ref, 'settings.timeout_ms', 10000);
+
+const saved = minipost.scripts.get('認証');
+saved.name = 'トークンを取得';
+minipost.scripts.set(saved.id, saved);
+
+minipost.settings.get('settings.timeout_ms');
+minipost.settings.set('settings.timeout_ms', 10000);
+```
+
+パスは `settings.timeout_ms`、`steps[0].delayMs`、JSON Pointer、キーの配列で指定できます。取得結果のID・所属・子項目を保ったまま書き戻せます。IDの変更や、子項目の追加・移動は、それぞれの作成・移動APIで扱います。リクエスト・フォルダーの作成先は `parent` に指定します。既存の `update(reference, partial)` は指定フィールドを統合し、配列を置き換える動作を維持します。
 
 読み取り結果はコピーです。更新APIの変更は同じ実行内の後続処理・子スクリプトへ直ちに見え、実行成功時にまとめて保存されます。例外・停止・時間切れでは保存しません。実行中に画面で同じ項目を編集した場合は衝突をエラーとして扱い、画面の変更を保持します。別項目への編集は維持したまま反映します。送信済みHTTP処理とその実送信履歴は取り消されません。
 
@@ -238,6 +254,44 @@ return response.body;
 既存の `vars.get/set/unset`（`pm.variables`）、`pm.environment`、`pm.globals`、`response.body`、`response.headers`、`pm.response.json()`／`text()`、`pm.test()` も維持します。Postmanの全APIや外部ライブラリーとの完全互換ではありません。
 
 送信前スクリプトで `request.method`／`url`／`header`／`body`／`auth` を変更すると、その内容で変数展開とHTTP送信を行います。`pm.request` と `minipost.request` も同じ対象です。自動の送信前処理は送信に使うコピーを変更します。手動で送信前処理を実行した場合は、現在のリクエスト編集へ反映し、通常と同じ自動保存を行います。コレクション登録済みなら保存した設定にも反映します。送信前の `response` は `null` です。受信後のリクエスト変更は送信や保存済み設定へ反映しません。
+
+### リクエストを編集する
+
+ヘッダー・クエリ・フォームは名前で、JSON本文は項目のパスで読み書きできます。配列の検索や本文の文字列化は不要です。
+
+| 対象 | 取得 | 設定 |
+| --- | --- | --- |
+| メソッド | `request.get('method')` | `request.set('method', 'POST')` |
+| URL | `request.get('url')` | `request.set('url', 'https://example.com/users')` |
+| ヘッダー | `request.headers.get('Authorization')` | `request.headers.set('Authorization', token)` |
+| クエリ | `request.query.get('page')` | `request.query.set('page', 2)` |
+| JSON本文全体 | `request.json.get()` | `request.json.set({user: {name: '太郎'}})` |
+| JSON本文の項目 | `request.json.get('user.name')` | `request.json.set('user.name', '花子')` |
+| フォーム | `request.form.get('name')` | `request.form.set('name', '花子')` |
+
+```javascript
+request.set('method', 'POST');
+request.headers.set('Authorization', `Bearer ${vars.get('token')}`);
+request.query.set('tag', ['new', 'active']);
+request.json.set({user: {name: '太郎'}, active: true});
+request.json.set('user.name', '花子');
+```
+
+保存済みリクエストは `minipost.requests.edit(reference)`、下書きは `minipost.drafts.edit(reference)` で対象を選び、同じ操作で編集します。
+
+```javascript
+const target = minipost.requests.edit('ユーザー登録');
+target.headers.set('Authorization', `Bearer ${vars.get('token')}`);
+target.query.set('page', Number(target.query.get('page') || 0) + 1);
+target.json.set('user.name', '花子');
+const result = await minipost.requests.send('ユーザー登録');
+```
+
+ヘッダー名は大文字・小文字を区別せず、クエリ・フォームの名前はそのままのキーとして扱います。`getAll(name)` は重複する有効な値をすべて返し、`set(name, [value1, value2])` で複数値を設定できます。数値・真偽値は文字列、`null` は空文字列になります。`has(name)`／`delete(name)`／`toObject()` も同じ対象で使えます。無効な行とフォームの添付ファイル行は保持します。
+
+`json.set` はJSON本文とContent-Typeを設定し、`form.set` はフォーム形式を設定します。既存のmultipartフォームでは添付ファイル行を保ってテキスト項目を編集します。URLのクエリは必要なエンコードを行い、`{{変数}}` は送信時に展開します。JSONのキーにドットが含まれる場合は `request.json.set(['user.name'], value)` のように配列パスで指定できます。
+
+取得した値はコピーです。`request.get()`／`set(snapshot)` ではリクエスト全体も読み書きでき、既存のプロパティへの直接代入も使用できます。保存済みリクエストへの変更は、同じ実行内の後続処理・子スクリプト・HTTP送信に反映され、スクリプト全体が成功したときに保存されます。
 
 ### レスポンスを加工して表示
 

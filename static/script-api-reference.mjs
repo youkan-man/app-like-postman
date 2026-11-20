@@ -10,9 +10,17 @@ export const SCRIPT_API_SECTIONS = [
     ['tools.assert.throws(fn, match?) / await tools.assert.rejects(fn, match?)','同期・非同期の例外を確認します。matchはメッセージの部分文字列または正規表現です。']
   ]},
   {id:'request',title:'送信内容・レスポンス',entries:[
-    ['request / minipost.request / pm.request','同じ実行対象リクエストです。url・header・body・authを編集できます。送信前は実際の送信内容へ反映します。'],
+    ['request.get(path?) / request.set(path, value)','同じパスで読み書きします。例: request.get("method")、request.set("method", "POST")。urlの取得値はURL文字列です。request・pm.request・minipost.requestは同じ対象です。'],
+    ['request.get() / request.set(snapshot)','リクエスト全体のコピーを取得し、編集したコピーを設定します。url・header・body・authへの直接代入も利用できます。送信前の変更は実際の送信内容へ反映します。'],
+    ['request.headers.get(name) / request.headers.set(name, value)','ヘッダーを読み書きします。例: request.headers.set("Authorization", "Bearer " + token)。名前の大文字・小文字は区別しません。'],
+    ['request.query.get(name) / request.query.set(name, value)','クエリを読み書きします。例: request.query.set("page", 2)。ドットを含む名前もそのままのキーとして扱います。'],
+    ['request.form.get(name) / request.form.set(name, value)','フォームのテキスト項目を読み書きします。ファイル項目は保持します。headers・query・formはgetAll・has・delete・toObjectにも対応し、setに配列を渡すと複数値になります。'],
+    ['request.json.get(path?) / request.json.set(path, value)','JSON本文を同じパスで読み書きします。例: request.json.get("user.name")、request.json.set("user.name", "Ada")。本文形式とContent-TypeもJSONに設定します。'],
+    ['request.json.set(value) / request.json.delete(path)','JSON本文全体の置換、指定した項目の削除を行います。get()は本文全体を返します。'],
+    ['minipost.requests.edit(ref) / minipost.drafts.edit(ref)','保存したリクエスト・下書きを同じ方法で編集します。例: const target = minipost.requests.edit("Create"); target.headers.set("Authorization", token); target.query.set("page", 2); target.json.set("user.name", "Ada");'],
     ['response / minipost.response','同じ実行対象レスポンスです。送信前や独立実行ではnullです。'],
-    ['response.body / setBody(value, contentType?)','本文を取得・置換します。受信後や手動実行の成功時に表示・コピー・保存へ反映します。'],
+    ['response.body / response.body = value','同じプロパティで本文を読み書きします。受信後や手動実行の成功時に表示・コピー・保存へ反映します。'],
+    ['response.setBody(value, contentType?)','Content-Typeも指定して本文を置き換えます。省略時は文字列がtext/plain、その他のJSON値がapplication/jsonです。'],
     ['response.getHeader(name) / setHeader(name, value) / removeHeader(name)','大文字・小文字を区別せずレスポンスヘッダーを操作します。setHeaderには文字列または文字列配列を渡せます。'],
     ['response.json() / text() / show(view)','現在の本文を読み取り、pretty・raw・headers・cookies・previewの表示へ切り替えます。'],
     ['pm.response.json() / text() / headers.get(name)','受信したレスポンスを読み取ります。code・status・responseTime・responseSizeも参照できます。'],
@@ -22,21 +30,26 @@ export const SCRIPT_API_SECTIONS = [
     ['await minipost.attachments.read(requestRef, slot, index?, options?)','添付内容を読み取ります。formatはtext・base64・bytes、既定text。bytesは数値配列。maxBytesの既定は10MiBです。']
   ]},
   {id:'workspace',title:'ワークスペースの編集',entries:[
+    ['minipost.requests.get(ref, path) / minipost.requests.set(ref, path, value)','同じ対象・同じパスで値を読み書きします。例: get("Create", "request.method")、set("Create", "request.method", "PATCH")。コレクション・フォルダー・環境・下書き・スクリプト・リレーション・リボン定義も同じget/setです。'],
+    ['minipost.requests.get(ref) / minipost.requests.set(ref, snapshot)','取得したコピーを編集して同じ対象へ設定します。setは設定後の値を返します。部分的な変更にはupdate(ref, patch)も利用できます。変更は実行全体の成功時に反映します。'],
+    ['get/setのパス','ドット・添字（request.body.raw、steps[0].repeat）、JSON Pointer（/request/body/raw）、パス配列を利用できます。空文字列・$・空配列は全体。存在しないパスの取得値はundefinedです。'],
     ['minipost.workspace.read()','実行中の変更を含むワークスペースのコピーを同期で取得します。取得したコピーの直接編集は保存されません。'],
-    ['minipost.collections.list / get / create / update / delete','コレクションを操作します。create({name, variable?})、update(ref, patch)。返り値にid・name・info・itemを含みます。'],
-    ['minipost.folders.list / get / create / update / delete / move','フォルダーを操作します。create({parent, name})、move(ref, parentRef)。parentはコレクションまたはフォルダーのIDです。'],
-    ['minipost.requests.list / get / create / update / delete / move / clone','保存したリクエストと下書きを同期で取得・編集します。create({parent, name, request, settings?})。clone(ref, {name?, parent?})で複製します。'],
-    ['minipost.drafts.list / get / create / update / delete','下書きだけを操作します。create({name?, request?, settings?})。コレクションへの保存はrequests.createに取得したrequestを渡します。'],
-    ['minipost.environments.list / get / create / update / delete','環境を操作します。create({name, values: [{key, value}]})。IDまたは一意の名前で参照します。'],
+    ['minipost.collections.list / get / set / create / update / delete','コレクションを操作します。create({name, variable?})、update(ref, patch)。返り値にid・name・info・itemを含みます。'],
+    ['minipost.folders.list / get / set / create / update / delete / move','フォルダーを操作します。create({parent, name})、move(ref, parentRef)。parentはコレクションまたはフォルダーのIDです。'],
+    ['minipost.requests.list / get / set / edit / create / update / delete / move / clone','保存したリクエストと下書きを同期で取得・編集します。create({parent, name, request, settings?})。clone(ref, {name?, parent?})で複製します。'],
+    ['minipost.drafts.list / get / set / edit / create / update / delete','下書きだけを操作します。create({name?, request?, settings?})。コレクションへの保存はrequests.createに取得したrequestを渡します。'],
+    ['minipost.environments.list / get / set / create / update / delete','環境を操作します。create({name, values: [{key, value}]})。IDまたは一意の名前で参照します。'],
     ['minipost.environments.active() / activate(referenceOrNull)','ワークスペースで選択中の環境を取得・切り替えます。nullで選択を解除します。実行開始時の環境変数の対象は維持します。'],
     ['minipost.collections.variables(ref) / folders.variables(ref) / environments.variables(ref)','指定した保存先の変数APIを取得します。list・get・has・set・unset・clear・toObjectを利用できます。'],
-    ['minipost.settings.get(key?) / update(patch)','theme・editorSettings・settingsを取得・変更します。themeはlight・darkです。'],
+    ['minipost.settings.get(path?) / minipost.settings.set(path, value)','設定を同じパスで読み書きします。例: get("settings.timeout_ms")、set("settings.timeout_ms", 1500)。themeはlight・darkです。'],
+    ['minipost.settings.get() / minipost.settings.set(snapshot)','theme・editorSettings・settingsのコピーを取得・設定します。update(patch)は指定した項目だけを変更します。'],
     ['minipost.history.list() / get(ref) / delete(ref) / clear()','送信履歴を操作します。clearは削除件数を返します。']
   ]},
   {id:'scripts',title:'保存スクリプト・リレーション',entries:[
-    ['scripts.list() / get(ref) / create(spec?) / update(ref, patch) / delete(ref)','保存したコード・入力・制限時間を操作します。createにはname・source・input・inputFormat・timeoutMsを指定できます。minipost.scriptsも同じAPIです。'],
+    ['scripts.list() / get(ref, path?) / set(ref, path, value) / set(ref, snapshot)','保存したコード・入力・制限時間を同じ対象とパスで読み書きします。例: scripts.get("Prepare", "source")、scripts.set("Prepare", "source", code)。minipost.scriptsも同じAPIです。'],
+    ['scripts.create(spec?) / update(ref, patch) / delete(ref)','スクリプトを追加・変更・削除します。createにはname・source・input・inputFormat・timeoutMsを指定できます。'],
     ['await scripts.run(idOrName, input?)','別の保存スクリプトへ入力を渡し、戻り値を受け取ります。省略すると保存した入力。同名はIDで指定します。'],
-    ['minipost.relations.list / get / create / update / delete','リレーションを作成・編集します。stepsにrequest・repeat・forEach・while・if・wait・script・break・continueを設定できます。'],
+    ['minipost.relations.list / get / set / create / update / delete','リレーションを作成・編集します。stepsにrequest・repeat・forEach・while・if・wait・script・break・continueを設定できます。'],
     ['await minipost.relations.run(reference, {environmentId?})','保存したリレーションを実行し、状態・実行記録を受け取ります。']
   ]},
   {id:'variables',title:'変数・共有データ',entries:[
@@ -46,14 +59,15 @@ export const SCRIPT_API_SECTIONS = [
     ['store.set(key, value) / delete(key) / clear()','共有JSONデータを保存・削除します。ワークスペースと変数の変更は実行全体の成功時に反映します。']
   ]},
   {id:'ribbon',title:'リボン',entries:[
-    ['ribbon.get(reference) / set(reference, value)','実行対象リクエストの項目をIDまたはリボンのキー.項目のキーで読み書きします。minipost.ribbonも同じAPI。setは変更処理を再実行しません。'],
+    ['ribbon.get(reference) / ribbon.set(reference, value)','実行対象リクエストの項目をIDまたはリボンのキー.項目のキーで読み書きします。minipost.ribbonも同じAPI。setは変更処理を再実行しません。'],
+    ['ribbon.get(reference, field) / ribbon.set(reference, field, value)','value・visible・enabledを同じ指定で読み書きします。例: ribbon.get("search.query", "visible")、ribbon.set("search.query", "visible", true)。'],
     ['ribbon.values(reference?) / controls(reference?)','指定したリボンのキー別の値・項目を取得します。省略すると選択中のリボンです。'],
     ['ribbon.list() / active() / activate(reference)','リボン一覧・選択中のリボンを取得し、切り替えます。'],
     ['ribbon.show(reference, visible = true) / enable(reference, enabled = true)','項目の表示・有効状態を設定します。設定された条件も併せて評価します。'],
     ['input.value / input.previousValue / input.values','リボンの操作から実行すると、現在値・変更前の値・同じリボンの全項目の値を参照できます。'],
-    ['minipost.ribbons.list / get / create / update / delete','実行対象リクエストのリボン定義を編集します。create({name, key})。値の読み書きはribbon.get/setです。'],
+    ['minipost.ribbons.list / get / set / create / update / delete','実行対象リクエストのリボン定義を編集します。create({name, key})。値の読み書きはribbon.get/setです。'],
     ['minipost.ribbons.forRequest(requestRef)','別のリクエストを対象にしたリボン定義APIを取得します。独立実行で対象がない場合にも利用できます。'],
-    ['minipost.ribbons.groups(ribbonRef) / controls(ribbonRef, groupRef)','グループ・項目のlist・get・create・update・deleteを利用します。項目のtypeはbutton・text・number・select・toggle・displayです。']
+    ['minipost.ribbons.groups(ribbonRef) / controls(ribbonRef, groupRef)','グループ・項目のlist・get・set・create・update・deleteを利用します。項目のtypeはbutton・text・number・select・toggle・displayです。']
   ]},
   {id:'url',title:'URL・クエリ・ヘッダー・Cookie',entries:[
     ['tools.url.parse(value, base?) / build(value, options?) / join(base, ...segments)','URLを分解・構築します。buildのpath・query・hash・username・passwordで置換、joinは各パス要素をエンコードします。minipost.toolsも同じAPIです。'],

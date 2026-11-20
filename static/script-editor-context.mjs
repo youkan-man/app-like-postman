@@ -3,6 +3,41 @@ import {contextFor,enabled,newRequest,walkItems} from './core.mjs';
 import {getRequestRibbonState} from './ribbons.mjs';
 
 const names=values=>Object.fromEntries((values||[]).filter(row=>row.key&&enabled(row)).map(row=>[row.key,'']));
+const jsonShapes=new WeakMap(),JSON_SHAPE_NODES=16000,JSON_SOURCE_LIMIT=1024*1024;
+
+/** Cache only sanitized JSON shapes. Large bodies stay unknown to keep typing responsive. */
+function requestJSONReader() {
+  let remaining=JSON_SHAPE_NODES;
+  const included=new WeakSet();
+  return request=>{
+    if(!request||typeof request!=='object')return {};
+    const mode=request.body?.mode,source=request.body?.raw;
+    let cached=jsonShapes.get(request);
+    if(!cached||cached.mode!==mode||cached.source!==source){
+      let count=0,result={};
+      function shape(value,depth=0){
+        if(++count>JSON_SHAPE_NODES||depth>48)throw new RangeError('JSON shape limit');
+        if(value===null)return null;
+        if(typeof value==='string')return '';
+        if(typeof value==='number')return 0;
+        if(typeof value==='boolean')return false;
+        if(Array.isArray(value))return value.map(item=>shape(item,depth+1));
+        return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,shape(item,depth+1)]));
+      }
+      if(mode==='raw'&&typeof source==='string'&&source.length<=JSON_SOURCE_LIMIT){
+        if(!source.trim())result={requestJSON:undefined};
+        else try{result={requestJSON:shape(JSON.parse(source))};}catch{/* Invalid or oversized shapes remain unknown. */}
+      }else if(mode!=='raw'||typeof source!=='string')result={requestJSON:undefined};
+      cached={mode,source,result,count};jsonShapes.set(request,cached);
+    }
+    if(!Object.hasOwn(cached.result,'requestJSON'))return {};
+    if(!included.has(cached)){
+      if(cached.count>remaining)return {};
+      remaining-=cached.count;included.add(cached);
+    }
+    return cached.result;
+  };
+}
 
 /** Request fields only need their types. Do not copy bodies, credentials or files. */
 function requestShape(value,seen=new WeakMap()) {
@@ -17,23 +52,23 @@ function requestShape(value,seen=new WeakMap()) {
   return result;
 }
 
-function catalog(workspace) {
+function catalog(workspace,jsonShape) {
   const entries=[];
   for(const collection of workspace.collections||[])walkItems(collection.item,(item,parents)=>{
     if(item.request)entries.push({id:`${collection._mpId}:${item._mpId}`,name:item.name,path:[collection.info.name,...parents.map(parent=>parent.name),item.name].join(' / '),
-      collectionId:collection._mpId,itemId:item._mpId,parentId:parents.length?`${collection._mpId}:${parents.at(-1)._mpId}`:collection._mpId,request:requestShape(item.request),settings:requestShape(item.settings||{})});
+      collectionId:collection._mpId,itemId:item._mpId,parentId:parents.length?`${collection._mpId}:${parents.at(-1)._mpId}`:collection._mpId,request:requestShape(item.request),settings:requestShape(item.settings||{}),...jsonShape(item.request)});
   });
   for(const tab of workspace.tabs||[]){
     const entry=tab.collectionId&&tab.itemId&&entries.find(item=>item.collectionId===tab.collectionId&&item.itemId===tab.itemId);
-    if(entry){entry.request=requestShape(tab.request);entry.settings=requestShape(tab.settings||{});}
-    else entries.push({id:`draft:${tab.id}`,draftId:tab.id,name:tab.name,path:tab.name,request:requestShape(tab.request),settings:requestShape(tab.settings||{})});
+    if(entry){entry.request=requestShape(tab.request);entry.settings=requestShape(tab.settings||{});delete entry.requestJSON;Object.assign(entry,jsonShape(tab.request));}
+    else entries.push({id:`draft:${tab.id}`,draftId:tab.id,name:tab.name,path:tab.name,request:requestShape(tab.request),settings:requestShape(tab.settings||{}),...jsonShape(tab.request)});
   }
   return entries;
 }
 
 export function scriptEditorContext(workspace,primary,{script,tab,ribbonOwner=tab,result,phase}={}) {
   const current=tab||{request:newRequest()},view=contextFor(workspace,current,primary?.rows||[]),ribbonState=getRequestRibbonState(workspace,ribbonOwner);
-  const requests=catalog(workspace),folders=[];
+  const jsonShape=requestJSONReader(),currentJSON=jsonShape(tab?.request),requests=catalog(workspace,jsonShape),folders=[];
   for(const collection of workspace.collections||[])walkItems(collection.item,(item,parents)=>{
     if(Array.isArray(item.item))folders.push({id:`${collection._mpId}:${item._mpId}`,collectionId:collection._mpId,itemId:item._mpId,
       parentId:parents.length?`${collection._mpId}:${parents.at(-1)._mpId}`:collection._mpId,name:item.name,
@@ -52,6 +87,7 @@ export function scriptEditorContext(workspace,primary,{script,tab,ribbonOwner=ta
     variables:Object.fromEntries(Object.keys(view.vars).map(key=>[key,''])),
     primary:names(primary?.rows),environment:names(view.environment?.values),globals:names(workspace.globals),
     request:tab?requestShape(tab.request):null,
+    ...currentJSON,
     requests,folders,drafts:requests.filter(item=>item.draftId),
     collections:(workspace.collections||[]).map(item=>({id:item._mpId,name:item.info.name})),
     relations:(workspace.relations||[]).map(item=>({id:item.id,name:item.name})),
