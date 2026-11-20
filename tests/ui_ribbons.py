@@ -775,6 +775,71 @@ def main():
                 metrics['editor_item'] = first_item.evaluate('node => {const b=node.getBoundingClientRect();return {top:b.top,bottom:b.bottom,height:b.height};}')
                 capture(f'single-button-editor-{width}x{height}')
             passed('one-button ribbons keep framing within 18 px of the readable button and show the first editor item immediately on desktop and mobile')
+
+            page.set_viewport_size({'width': 1440, 'height': 900})
+            log_script = create_script('ログのスクロール確認', """
+for(let index=0;index<40;index++)console.log('initial '+index);
+for(let index=0;index<120;index++){
+  console.log('stream '+index);
+  await tools.flow.delay(80);
+}
+return {lines:160};
+""")
+            page.get_by_role('button', name='スクリプトの操作', exact=True).click()
+            page.get_by_role('menuitem', name='実行設定', exact=True).click()
+            page.locator('#modal').get_by_label('スクリプト制限時間', exact=True).fill('30000')
+            page.locator('#modalSubmit').click()
+            expect(page.locator('#modal')).not_to_be_visible()
+            assert next(script['timeoutMs'] for script in saved()['scripts'] if script['id'] == log_script) == 30000
+            open_ribbon(single_ribbon)
+            choose(single_button)
+            action('script', log_script)
+            operate()
+            live(single_button).click()
+            expect(page.locator('#ribbonLiveResult')).to_have_attribute('data-state', 'running')
+            open_ribbon(single_ribbon)
+            choose(single_button)
+            log = props.locator('#ribbonOperationResult [data-ribbon-result="logs"]')
+            expect(log).to_be_visible()
+            log.scroll_into_view_if_needed()
+            log.evaluate('node=>window.__ribbonScrollingLog=node')
+            page.wait_for_function('''()=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.textContent.split('\\n').length>=50 &&
+                    node.scrollHeight-node.clientHeight>600 &&
+                    node.scrollHeight-node.clientHeight-node.scrollTop<=2;
+            }''', timeout=30000)
+            initial_log_top = log.evaluate('node=>node.scrollTop')
+            log.hover()
+            page.mouse.wheel(0, -360)
+            page.wait_for_function('''before=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.scrollTop>20 && node.scrollTop<before-200;
+            }''', arg=initial_log_top, timeout=30000)
+            reading = log.evaluate('''node=>({top:node.scrollTop,left:node.scrollLeft,
+                lines:node.textContent.split('\\n').length,page:document.querySelector('#workspacePage').scrollTop})''')
+            page.wait_for_function('''count=>window.__ribbonScrollingLog?.textContent.split('\\n').length>=count+8''', arg=reading['lines'], timeout=30000)
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog')
+            assert log.evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['top']), reading
+            assert log.evaluate('(node,left)=>node.scrollLeft===left', reading['left'])
+            assert page.locator('#workspacePage').evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['page'])
+            capture('ribbon-stream-log-reading')
+            remaining = log.evaluate('node=>node.scrollHeight-node.clientHeight-node.scrollTop')
+            log.hover()
+            page.mouse.wheel(0, remaining + 24)
+            page.wait_for_function('''()=>{
+                const node=window.__ribbonScrollingLog;
+                return node?.isConnected && node.scrollHeight-node.clientHeight-node.scrollTop<=2;
+            }''', timeout=30000)
+            tail_count = log.evaluate("node=>node.textContent.split('\\n').length")
+            page.wait_for_function('''count=>window.__ribbonScrollingLog?.textContent.split('\\n').length>=count+8''', arg=tail_count, timeout=30000)
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog && node.scrollHeight-node.clientHeight-node.scrollTop<=2')
+            expect(props.locator('#ribbonOperationResult')).to_have_attribute('data-state', 'success', timeout=35000)
+            expect(log).to_contain_text('stream 119')
+            assert log.evaluate('node=>node===window.__ribbonScrollingLog && node.scrollHeight-node.clientHeight-node.scrollTop<=2')
+            expect(props.locator('[data-ribbon-result="value"]')).to_contain_text('160')
+            capture('ribbon-stream-log-complete')
+            passed('native wheel scrolling retains the same ribbon log and reading position during streamed updates, resumes tail following only at the bottom, and survives completion')
             assert not errors and not dialogs and not crashes, (errors, dialogs, crashes)
             assert not requests, requests
             passed('request-owned ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends')

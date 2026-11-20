@@ -36,7 +36,15 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(hideHint){hint.hidden=true;hintInfo=null;}
     if(state!=='error')setState('idle');
   }
-  function sync(){pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;}
+  function sync(){
+    // Only the textarea owns native scrollbars. Match its usable viewport so
+    // the highlight layer does not clamp sooner at the bottom/right edges.
+    const width=area.clientWidth+'px',height=area.clientHeight+'px',padding=getComputedStyle(area).padding;
+    if(pre.style.width!==width)pre.style.width=width;
+    if(pre.style.height!==height)pre.style.height=height;
+    if(pre.style.padding!==padding)pre.style.padding=padding;
+    pre.scrollTop=area.scrollTop;pre.scrollLeft=area.scrollLeft;
+  }
   function paint(){
     if(renderedSource!==area.value||renderedLanguage!==language){
       renderedSource=area.value;renderedLanguage=language;highlightHTML=highlight(area.value,language)+'\n';
@@ -100,7 +108,9 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     // Workspace navigation removes editor nodes without an explicit dispose.
     // Cancel their queued parses so an abandoned editor cannot delay the new one.
     if(!root.isConnected){dispose();return;}
-    ensureCaretVisible();place();search?.position();diagnostics?.position();
+    // Keep the user's manually scrolled view when a pane or viewport resizes.
+    // Typing, keyboard navigation and search explicitly reveal the caret.
+    sync();place();search?.position();diagnostics?.position();
   }):null;
   resizeObserver?.observe(root);
   resizeObserver?.observe(area);

@@ -11,11 +11,29 @@ import time
 
 from playwright.sync_api import sync_playwright, expect
 from browser_app import BrowserApp
-from test_proxy import ROOT, proxy, start_server
+from test_proxy import ROOT, EchoHandler, proxy, start_server
+
+
+class PreviewEchoHandler(EchoHandler):
+    def do_GET(self):
+        if self.path.split('?', 1)[0] != '/html':
+            return super().do_GET()
+        lines = ''.join(f'<p>Preview line {index:03d}</p>' for index in range(1, 161))
+        output = ('<!doctype html><html><head><meta charset="utf-8"><style>'
+                  'body{margin:0;font:14px/1.5 sans-serif;color:#19324f;background:white}'
+                  'h1{font-size:20px;margin:0;padding:12px 16px}p{margin:0;padding:8px 16px;border-bottom:1px solid #d9e2ed}'
+                  'p:nth-child(even){background:#f4f7fb}</style></head><body><h1>Preview</h1>'
+                  + lines + '<p id="preview-end">Preview end</p>'
+                  '<script>parent.__PWNED=true</script><img src="http://127.0.0.1:1/external"></body></html>').encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(output)))
+        self.end_headers()
+        self.wfile.write(output)
 
 
 def main():
-    echo, echo_url = start_server()
+    echo, echo_url = start_server(PreviewEchoHandler)
     app, app_url = start_server(proxy.Handler)
     out = Path(os.environ.get('ARTIFACT_DIR', tempfile.mkdtemp(prefix='minipost-browser-')))
     out.mkdir(parents=True, exist_ok=True)
@@ -121,6 +139,70 @@ def main():
             assert page.locator('iframe.preview-frame').get_attribute('sandbox') == ''
             assert 'default-src' in page.locator('iframe.preview-frame').get_attribute('srcdoc')
             passed('HTML preview sandbox and network-restricting CSP')
+
+            preview = page.locator('iframe.preview-frame')
+            preview.evaluate('node=>window.__previewScrollFrame=node')
+            frame = preview.element_handle().content_frame()
+            frame.wait_for_function('document.scrollingElement.scrollHeight > innerHeight * 4')
+
+            def settled_frame_scroll():
+                return frame.evaluate('''() => new Promise(resolve => {
+                    let last=-1,stable=0;
+                    function sample(){
+                        const next=document.scrollingElement.scrollTop;
+                        stable=next===last?stable+1:0;last=next;
+                        if(stable>=3)resolve(next);else requestAnimationFrame(sample);
+                    }
+                    sample();
+                })''')
+
+            for width, height in [(1440, 920), (390, 480)]:
+                page.set_viewport_size({'width': width, 'height': height})
+                expect(preview).to_be_visible()
+                preview.hover()
+                metrics = preview.evaluate('''node=>({
+                    frameHeight:node.getBoundingClientRect().height,
+                    contentHeight:node.parentElement.clientHeight,
+                    contentScrollHeight:node.parentElement.scrollHeight,
+                    outerTop:node.parentElement.scrollTop,
+                    panelTop:node.closest('.response-panel').scrollTop
+                })''')
+                assert metrics['frameHeight'] > 20 and metrics['frameHeight'] <= metrics['contentHeight'] + 1, metrics
+                assert metrics['contentScrollHeight'] <= metrics['contentHeight'] + 1, metrics
+                if height < 500:
+                    assert metrics['frameHeight'] < 180, metrics
+                before_scroll = settled_frame_scroll()
+                page.mouse.wheel(0, 480)
+                frame.wait_for_function('previous=>document.scrollingElement.scrollTop > previous + 40', arg=before_scroll)
+                scrolled = settled_frame_scroll()
+                assert preview.evaluate('node=>node.parentElement.scrollTop') == metrics['outerTop']
+                assert preview.evaluate("node=>node.closest('.response-panel').scrollTop") == metrics['panelTop']
+                page.screenshot(path=str(out / f'html-preview-scroll-{width}x{height}.png'), full_page=True)
+
+                # Re-selecting an active preview runs its renderer; a routine
+                # save must also leave the sandbox document and its scroll intact.
+                page.locator('#response-tab-preview').click()
+                assert preview.evaluate('node=>node===window.__previewScrollFrame')
+                assert settled_frame_scroll() == scrolled
+                page.locator('#requestName').focus();page.keyboard.press('Control+s')
+                expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
+                assert preview.evaluate('node=>node===window.__previewScrollFrame')
+                assert settled_frame_scroll() == scrolled
+                assert preview.get_attribute('sandbox') == '' and 'default-src' in preview.get_attribute('srcdoc')
+                assert not page.evaluate('Boolean(window.__PWNED)')
+
+                preview.hover();page.mouse.wheel(0, -100000)
+                frame.wait_for_function('document.scrollingElement.scrollTop === 0')
+                settled_frame_scroll()
+                preview.hover();page.mouse.wheel(0, 100000)
+                frame.wait_for_function('document.scrollingElement.scrollHeight-document.scrollingElement.clientHeight-document.scrollingElement.scrollTop <= 1')
+                assert frame.locator('#preview-end').evaluate('node=>node.getBoundingClientRect().bottom<=innerHeight+1')
+                preview.hover();page.mouse.wheel(0, -100000)
+                frame.wait_for_function('document.scrollingElement.scrollTop === 0')
+                settled_frame_scroll()
+            page.set_viewport_size({'width': 1440, 'height': 920})
+            passed('native HTML iframe wheel scrolling reaches both ends without outer scrolling at desktop and a response pane shorter than 180px')
+            passed('HTML preview re-selection and saved-request Ctrl+S retain the same sandbox document and in-frame scroll position')
 
             page.locator('#response-tab-pretty').click(); open_request('Slow request'); page.locator('#send').click()
             open_request('Query and bearer'); send(); assert body_json()['path'] == '/echo?edited=yes'

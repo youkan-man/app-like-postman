@@ -23,7 +23,7 @@ const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
 export function initRibbonWorkspace(api){
   const {$,element:el,button:btn,input,select,field,openItemMenu,bindContext,showModal,closeModal,persist,toast,primary}=api;
-  const w=api.workspace,controllers=new Map(),results=new Map(),lastResults=new Map(),expandedReferences=new Set();
+  const w=api.workspace,controllers=new Map(),results=new Map(),lastResults=new Map(),expandedReferences=new Set(),resultViews=new WeakMap();
   const empty={ribbons:[],activeRibbonId:'',ribbonBindings:{}};
   const state=()=>getRequestRibbonState(w(),api.active())||empty;
   const scoped=(workspace=w(),scopeId=state().id)=>requestRibbonWorkspace(workspace,findRequestRibbonState(workspace,scopeId));
@@ -516,11 +516,26 @@ export function initRibbonWorkspace(api){
     if(live){live.replaceChildren();live.hidden=!last;if(last){live.dataset.state=last.state;live.append(el('strong','',last.label),el('span','',last.state==='running'?'実行中…':last.error||'完了'));
       if(last.state==='running')live.append(btn('停止',()=>controllers.get(last.key)?.abort(),'button'));
     }}
-    const box=$('ribbonOperationResult');if(!box)return;const entry=results.get(operationKey(controlId));box.replaceChildren();if(!entry)return;
-    const status=el('span','',entry.state==='running'?'実行中':entry.error||'完了');box.append(status);box.dataset.state=entry.state;
-    if(entry.state==='running')box.append(btn('停止',()=>controllers.get(operationKey(controlId))?.abort(),'text-button'));
-    if(entry.logs?.length)box.append(el('pre','ribbon-action-log',entry.logs.map(line=>line.message).join('\n')));
-    if(Object.hasOwn(entry,'result')&&entry.result!==undefined)box.append(el('pre','ribbon-action-log',formatScriptValue(entry.result)));
+    const box=$('ribbonOperationResult');if(!box)return;const entry=results.get(operationKey(controlId));
+    if(!entry){if(box.children.length)box.replaceChildren();resultViews.delete(box);delete box.dataset.state;return;}
+    let view=resultViews.get(box);
+    if(!view||view.entry!==entry){
+      const status=el('span'),stop=btn('停止',()=>controllers.get(entry.key)?.abort(),'text-button');
+      const log=el('pre','ribbon-action-log'),result=el('pre','ribbon-action-log');
+      log.dataset.ribbonResult='logs';result.dataset.ribbonResult='value';log.tabIndex=0;result.tabIndex=0;
+      log.setAttribute('aria-label','実行ログ');result.setAttribute('aria-label','戻り値');
+      log.hidden=true;result.hidden=true;box.replaceChildren(status,stop,log,result);view={entry,status,stop,log,result};resultViews.set(box,view);
+    }
+    const updateText=(node,value,visible,followTail=false)=>{
+      node.hidden=!visible;if(!visible||node.textContent===value)return;
+      const top=node.scrollTop,left=node.scrollLeft,atBottom=node.scrollHeight-node.clientHeight-top<=4;
+      node.textContent=value;node.scrollTop=followTail&&atBottom?node.scrollHeight:top;node.scrollLeft=left;
+    };
+    const status=entry.state==='running'?'実行中':entry.error||'完了';if(view.status.textContent!==status)view.status.textContent=status;
+    view.stop.hidden=entry.state!=='running';box.dataset.state=entry.state;
+    updateText(view.log,(entry.logs||[]).map(line=>line.message).join('\n'),Boolean(entry.logs?.length),true);
+    const hasResult=Object.hasOwn(entry,'result')&&entry.result!==undefined;
+    updateText(view.result,hasResult?formatScriptValue(entry.result):'',hasResult);
   }
   function refresh(){if(frame)return;frame=requestAnimationFrame(()=>{
     frame=0;selected();if(api.side()==='ribbons'&&!paintedId)render(true);paintBar();paintCanvas();paintHeading();paintMobileContext();paintResult();
