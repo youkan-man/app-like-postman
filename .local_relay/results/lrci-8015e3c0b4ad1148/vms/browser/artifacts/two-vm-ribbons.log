@@ -1,0 +1,26 @@
+PASS a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon
+PASS six control types expose relevant bounded settings, direct selection radios and compact hidden reference details at desktop and 320px
+PASS request ribbon typing retains focus and conditions react to numeric, selected and checkbox values
+PASS the request ribbon runs parent and child Workers with typed event input and shared writes in its owner
+PASS ribbon action Edit retains its owner and control, native Undo and saved source; execution uses the in-place edited script
+PASS user change runs once and script-driven updates do not recursively fire change actions
+PASS ordered set, toggle and conditional activation observe prior changes within the same request
+PASS a failed action rolls back script writes while retaining the direct input and visible execution error
+PASS standalone scripts use the selected request context while the script page has no global live ribbon
+PASS ribbon Ctrl+Enter commits its change once without executing another script or sending the request
+PASS ribbon Ctrl+S saves its owner without registering a request or creating another draft
+PASS two requests reuse identical ribbon keys while keeping definitions, active selection, values and child-script writes independent
+PASS a script completing after request navigation commits to the captured owner and leaves the new request untouched
+PASS request duplication creates an independent ribbon owner, preserves script references and isolates copied values
+PASS registering a draft in a collection preserves its ribbon owner and references without altering other requests
+PASS saved-request and draft ribbons, independent values and linked scripts survive native IndexedDB reload
+PASS whole export and explicit server save contain each request-owned ribbon definition and typed value
+PASS actual import-and-replace restores each request scope and preserves cross-request separation
+PASS 390 px mobile reaches and executes the last ribbon action without horizontal scrolling
+PASS 320 px mobile reaches and executes the last ribbon action without horizontal scrolling
+PASS desktop and narrow mobile separate execution from editing and keep request identity, selected settings and controls within width
+PASS legacy global ribbons remain preserved but do not appear or become an implicit script fallback for a request
+PASS explicit legacy import creates an independently executable request copy without changing the archive or other requests
+PASS one-button ribbons keep framing within 18 px of the readable button and show the first editor item immediately on desktop and mobile
+PASS native wheel scrolling retains the same ribbon log and reading position during streamed updates, resumes tail following only at the bottom, and survives completion
+PASS request-owned ribbon scenarios produce no uncaught errors, native dialogs, crashes or unintended HTTP sends
