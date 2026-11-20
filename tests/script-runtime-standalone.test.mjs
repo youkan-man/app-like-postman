@@ -331,8 +331,10 @@ test('the actual Worker protocol continues through logs and asynchronous RPC rep
     if (message.type === 'call') queueMicrotask(() => self.onmessage({data:{type:'call-result', id:message.id, ok:true, value:{answer:21}}}));
   }};
   new Function('self', module.workerSource)(self);
-  await self.onmessage({data:{type:'start', source:'console.log("start"); const result = await minipost.workspace.read(); console.log("received"); return result.answer * 2;', context:{}}});
+  const primaryRows=[{key:'hidden',value:'retained',disabled:true}];
+  await self.onmessage({data:{type:'start', source:'console.log("start"); const result = await minipost.workspace.read(); console.log("received"); return result.answer * 2;', context:{primaryRows}}});
   assert.deepEqual(messages.map(message => message.type), ['log', 'call', 'log', 'result']);
   assert.equal(messages.at(-1).result.result, 42);
   assert.deepEqual(messages[1].variables, {primary:{}, environment:{}, globals:{}});
+  assert.deepEqual(messages[1].primaryRows,primaryRows);
 });

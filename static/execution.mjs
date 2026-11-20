@@ -29,7 +29,7 @@ export async function executeRequest({workspace,tab,files={},primary,environment
       const scriptContext=makeScriptContext(workspace,previewPrimary,{tab:snapshot,result,ribbonScopeId,environmentId});
       scriptContext.workspace.scripts=clone(scripts);scriptContext.workspace.scriptBindings=clone(bindings);
       const output=await script(source,{...scriptContext,
-        primaryCommitBaseline:primary.snapshot(),
+        primaryCommitBaseline:primary.snapshot(),primaryRowsCommitBaseline:clone(primary.rows),
         scripts:clone(scripts),bindings:clone(bindings),bindingId:automation.scriptBindingId,data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
       {signal,timeoutMs,onCall:scriptCall,onLog:entry=>onScriptLog?.({phase,...entry})});
       throwIfAborted(signal);

@@ -288,6 +288,9 @@ export async function executeScript(source, context = {}, options = {}) {
       environment:new Map(Object.entries(ctx.environment || {})),
       globals:new Map(Object.entries(ctx.globals || {}))
     };
+    const primaryRows=copy(ctx.primaryRows || Object.entries(ctx.primary || {}).map(([key,value])=>({key,value,enabled:true})));
+    const primaryRowsBaseline=copy(ctx.primaryRowsCommitBaseline || primaryRows);
+    const primaryTouchedKeys=new Set();
     const merged = new Map(Object.entries(ctx.variables || {}));
     const variableAPI = kind => ({
       get(key) { checkActive(); key = String(key); if(model&&kind!=='primary')return model.api[kind].get(key);if(maps[kind].has(key))return maps[kind].get(key);if(kind!=='primary')return undefined;if(!model)return merged.get(key);const values=model.contextVariables(ctx.requestRef,Object.fromEntries(maps.primary),ctx.variableContext);return Object.hasOwn(values,key)?values[key]:undefined; },
@@ -295,17 +298,26 @@ export async function executeScript(source, context = {}, options = {}) {
       set(key, value) {
         checkActive(); key = String(key); value = text(value); maps[kind].set(key, value);
         if(model&&kind!=='primary')model.api[kind].set(key,value);
-        if (kind === 'primary') merged.set(key, value);
+        if (kind === 'primary') {primaryTouchedKeys.add(key);merged.set(key, value);const row=primaryRows.findLast(row=>row.key===key);if(row)Object.assign(row,{value,enabled:true,disabled:false});else primaryRows.push({key,value,enabled:true});}
         writes[kind].push({key, value});
       },
       unset(key) {
         checkActive(); key = String(key); maps[kind].delete(key);
         if(model&&kind!=='primary')model.api[kind].unset(key);
-        if (kind === 'primary') merged.delete(key);
+        if (kind === 'primary') {primaryTouchedKeys.add(key);merged.delete(key);for(let at=primaryRows.length-1;at>=0;at--)if(primaryRows[at].key===key)primaryRows.splice(at,1);}
         writes[kind].push({key, remove:true});
       },
       list(){checkActive();return model&&kind!=='primary'?model.api[kind].list():Object.entries(this.toObject()).map(([key,value])=>({key,value,enabled:true}));},
-      clear(){checkActive();const keys=kind==='primary'?[...maps.primary.keys()]:Object.keys(this.toObject());for(const key of keys)this.unset(key);return keys.length;},
+      clear(){
+        checkActive();
+        if(model&&kind!=='primary'){const count=model.api[kind].clear();maps[kind].clear();return count;}
+        if(kind==='primary'){
+          const count=primaryRows.length,keys=[...new Set(primaryRows.map(row=>row.key))];
+          for(const key of keys){primaryTouchedKeys.add(key);if(typeof key==='string'&&key.trim()&&!/[{}\r\n]/.test(key))this.unset(key);else merged.delete(key);}
+          maps.primary.clear();primaryRows.splice(0);return count;
+        }
+        const keys=Object.keys(this.toObject());for(const key of keys)this.unset(key);return keys.length;
+      },
       toObject() { checkActive();if(model)return kind==='primary'?model.contextVariables(ctx.requestRef,Object.fromEntries(maps.primary),ctx.variableContext):model.api[kind].toObject();return copy(Object.fromEntries(kind === 'primary' ? new Map([...merged, ...maps[kind]]) : maps[kind])); }
     });
     const vars = variableAPI('primary'), environment = variableAPI('environment'), globals = variableAPI('globals');
@@ -338,13 +350,22 @@ export async function executeScript(source, context = {}, options = {}) {
       checkActive();
       if (typeof onCall !== 'function') throw new Error(`この実行環境では ${method} を利用できません。`);
       const variables = Object.fromEntries(Object.entries(maps).map(([kind, values]) => [kind, model&&kind!=='primary'?model.api[kind].toObject():copy(Object.fromEntries(values))]));
-      const result = await wait(onCall(method, copy(args), {signal,variables,...(model?{workspace:copy(model.state),requestRef:ctx.requestRef || ctx.ribbonOwnerRef || null,ribbonScopeId}:{} )}));
+      const result = await wait(onCall(method, copy(args), {signal,variables,primaryRows:copy(primaryRows),...(model?{workspace:copy(model.state),requestRef:ctx.requestRef || ctx.ribbonOwnerRef || null,ribbonScopeId}:{} )}));
       checkActive();
       if(method==='relations.run'&&result?.__minipostTransaction===true){
         if(!model)throw new Error('リレーション実行にはワークスペースが必要です。');
         for(const expected of result.primaryExpected||[])if(maps.primary.has(expected.key)!==expected.exists||expected.exists&&maps.primary.get(expected.key)!==expected.value)throw new Error('リレーション実行中に同じ一次変数が変更されました。リレーションの変更は保存していません。');
         for(const row of result.primaryWrites||[])if(typeof row.key!=='string'||!row.key.trim()||/[{}\r\n]/.test(row.key)||!row.remove&&typeof row.value!=='string')throw new TypeError('リレーションの一次変数変更形式が不正です。');
+        const pendingPrimary={globals:copy(primaryRows)};
+        if(result.primaryRowsWrites!==undefined){
+          if(!Array.isArray(result.primaryRowsWrites)||result.primaryRowsWrites.some(change=>change?.path?.[0]!=='globals'))throw new TypeError('一次変数の変更形式が不正です。');
+          applyWorkspaceChanges(pendingPrimary,result.primaryRowsWrites);
+        }
         model.apply(result.workspaceWrites||[]);
+        if(result.primaryRowsWrites!==undefined){
+          for(const key of new Set([...primaryRows,...pendingPrimary.globals].map(row=>row.key)))if(!same(primaryRows.filter(row=>row.key===key),pendingPrimary.globals.filter(row=>row.key===key)))primaryTouchedKeys.add(key);
+          primaryRows.splice(0,primaryRows.length,...pendingPrimary.globals);maps.primary.clear();for(const row of primaryRows)if(row.key&&row.enabled!==false&&row.disabled!==true)maps.primary.set(row.key,text(row.value));
+        }
         for(const row of result.primaryWrites||[])row.remove?vars.unset(row.key):vars.set(row.key,row.value);
         for(const entry of result.logs||[])log(entry.level||'log',entry.message);
         return copy(result.value);
@@ -422,6 +443,12 @@ export async function executeScript(source, context = {}, options = {}) {
       model.validate();output.workspaceTransaction=true;output.workspaceWrites=workspaceChanges(workspaceBefore,model.state);
       const primaryBaseline=ctx.primaryCommitBaseline??ctx.primary??{};
       output.primaryExpected=[...new Set(writes.primary.map(row=>row.key))].map(key=>({key,exists:Object.hasOwn(primaryBaseline,key),...(Object.hasOwn(primaryBaseline,key)?{value:primaryBaseline[key]}:{})}));
+      // Response extraction may appear in the readable context before its final
+      // value is known. Commit only rows explicitly changed by this script.
+      const remaining=new Map([...primaryTouchedKeys].map(key=>[key,primaryRows.filter(row=>row.key===key).slice()])),rebasedRows=[];
+      for(const row of primaryRowsBaseline){if(!primaryTouchedKeys.has(row.key))rebasedRows.push(row);else{const next=remaining.get(row.key).shift();if(next)rebasedRows.push(next);}}
+      for(const row of primaryRows)if(remaining.get(row.key)?.[0]===row){rebasedRows.push(row);remaining.get(row.key).shift();}
+      output.primaryRowsWrites=workspaceChanges({globals:primaryRowsBaseline},{globals:rebasedRows});
       const before=createWorkspaceModel(workspaceBefore).api.requests.list(),after=model.api.requests.list(),ids=new Set([...before,...after].map(row=>row.id));
       output.changedRequests=[...ids].flatMap(id=>{const old=before.find(row=>row.id===id),next=after.find(row=>row.id===id);return same(old?.request,next?.request)?[]:[{id,before:old?.request??null,after:next?.request??null}];});
     }

@@ -308,7 +308,6 @@ function authEditor(owner, inherited = false, changed = () => {}) {
         const control = key === 'in' ? select([['header', 'Header'], ['query', 'Query Params']], value, change) : input(value, label, change, key === 'password' ? 'password' : 'text');
         control.setAttribute('aria-label', label); grid.append(element('label', '', label), control);
       }
-      if (type === 'oauth2') grid.append(element('div', 'input-condition', '取得済みのアクセストークンを入力してください。'));
     }
     box.append(grid);
   }

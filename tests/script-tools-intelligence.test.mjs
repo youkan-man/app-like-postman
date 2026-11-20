@@ -17,12 +17,21 @@ const labels=(source,context)=>analyze(source,context).completion?.items.map(ite
 function includes(source,expected,context){const found=labels(source,context);for(const label of expected)assert.ok(found.includes(label),`${label} missing from ${source}: ${found.join(', ')}`);}
 
 test('tools namespaces, aliases and construction results use semantic member types',()=>{
-  includes('tools.¦',['url','query','headers','cookies','request','json','csv','encoding','crypto','assert','data','flow']);
+  includes('tools.¦',['url','query','headers','cookies','request','json','jwt','csv','encoding','crypto','assert','data','flow']);
   includes('const {url}=minipost.tools; url.parse("https://example.test").¦',['href','path','query','hostname']);
   includes('tools.query.parse("a=1")[0].value.¦',['trim','toUpperCase']);
   includes('tools.headers.getAll("Set-Cookie: a=1","set-cookie").map(value=>value.¦)',['trim']);
   includes('tools.request.build({url:"https://example.test",json:{ready:true}}).header[0].¦',['key','value']);
   includes('tools.cookies.parseSetCookie("session=1; Secure").¦',['name','value','attributes']);
+  includes('tools.cookies.parse("encoded=%20",{¦})',['decode']);
+});
+
+test('JSON Patch operations and JWT inspection have typed argument and result completion',()=>{
+  includes('tools.json.¦',['patch']);
+  includes('tools.json.patch({},[{op:"¦"}])',['add','remove','replace','move','copy','test']);
+  includes('tools.jwt.decode("token").¦',['header','payload','signature','signingInput']);
+  includes('const {jwt}=minipost.tools; jwt.decode("token").signature.¦',['trim','split']);
+  includes('const decoded=tools.jwt.decode("token");if(typeof decoded.payload.exp==="number")decoded.payload.exp.¦',['toFixed']);
 });
 
 test('JSON path extraction and immutable changes retain precise nested value types',()=>{
@@ -126,6 +135,11 @@ const csv=tools.csv.stringify(rows,{lineEnding:'\\n'});
 const parsed=tools.csv.parse(csv,{header:true});
 const name=tools.json.get(rows,'[0].name').toUpperCase();
 const changes=tools.json.diff({value:1},{value:2});
+const applied=tools.json.patch({value:1},changes);
+tools.json.patch(applied,[{op:'copy',from:'/value',path:'/copied'},{op:'test',path:'/copied',value:2}]);
+const decoded=tools.jwt.decode('eyJhbGciOiJub25lIn0.e30.');
+if(typeof decoded.payload.exp==='number')decoded.payload.exp.toFixed(0);
+tools.cookies.parseSetCookie('token=50%',{decode:false}).value.trim();
 const merged=tools.json.merge({user:{id:1}},{user:{name:'A'}});
 const modified=tools.json.set(merged,'/user/name','B');
 modified.user.name.toUpperCase();
@@ -152,5 +166,7 @@ test('reference search covers helper families and CRUD with combined terms and c
   assert.ok(searchScriptAPI('パス','json').flatMap(section=>section.entries).length>=1);
   assert.equal(searchScriptAPI('','crypto').length,1);
   assert.deepEqual(searchScriptAPI('no-such-api-xyz'),[]);
-  for(const family of ['url','query','headers','cookies','request','json','csv','encoding','crypto','assert','data','flow'])assert.ok(searchScriptAPI(`tools.${family}`).length,family);
+  for(const family of ['url','query','headers','cookies','request','json','jwt','csv','encoding','crypto','assert','data','flow'])assert.ok(searchScriptAPI(`tools.${family}`).length,family);
+  assert.ok(searchScriptAPI('JSON Patch').flatMap(section=>section.entries).some(([name])=>name.includes('json.patch')));
+  assert.ok(searchScriptAPI('tools.jwt.decode').flatMap(section=>section.entries).some(([,description])=>description.includes('署名')));
 });

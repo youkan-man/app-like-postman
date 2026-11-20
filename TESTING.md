@@ -42,9 +42,13 @@ Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポ�
 
 `tests/relation-control.test.mjs` は入れ子の繰り返し・配列・条件ループ・分岐・待機・break/continue・保存スクリプト・変数復元を確認します。`tests/script-relations.test.mjs` はスクリプトからリレーションを呼んだ場合の保留データ共有、送信前後の処理、失敗・中断・再帰拒否を検証します。バックアップ試験は入れ子のリクエスト・スクリプト・分岐・変更履歴のID変換も対象です。
 
-`tests/script-tools.test.mjs` は重複クエリ・Cookie・CSV・JSON解析・文字コードの境界、SHA256/HMACの既知ベクトル、Web Cryptoなしの実行、非同期処理の期限・並列数・中断を確認します。関数をシリアライズして別のVMコンテキストで実行し、Workerへ渡せない外部依存も検出します。
+`tests/workspace-script-api.test.mjs` は重複・無効な変数への書き込み、全消去、同時編集の競合、受信後抽出と明示的な消去の順序も検証します。ネイティブのワークスペースAPI試験では、画面で無効化した一次変数を使い、分離Workerからリレーションを呼び出した場合も、ループで一時的に使った変数行を元の状態へ戻せることを確認します。
+
+`tests/script-tools.test.mjs` は重複クエリ・Cookie・CSV・JSON解析・文字コードの境界、SHA256/HMACの既知ベクトル、Web Cryptoなしの実行、非同期処理の期限・並列数・中断を確認します。JSON Patchの配列操作・移動・コピー・値比較・失敗時の入力保持、JWTのUTF-8とBase64URL、Cookieの引用符・不完全なパーセント表記も対象です。関数をシリアライズして別のVMコンテキストで実行し、Workerへ渡せない外部依存も検出します。
 
 `python tests/ui_script_workspace_api.py` は実際の分離Workerからワークスペースを作成・編集し、子スクリプトとリレーションの実行、失敗・停止時の取り消し、同時編集の衝突と別項目の保持、実HTTPのリクエスト構築・送信、添付読取、再読込、補完と検索リファレンスを検証します。通常HTTPでのSHA256/HMAC動作と320pxの画面を含み、`script-workspace-api/` に結果と画像を保存します。GitHub ActionsとLocal Relayの2VM試験に同じスイートを組み込みます。
+
+`tests/ui_standalone_scripts.py` は、複数のスクリプトを同時に実行し、別のスクリプトを編集中でも右クリックした実行だけを停止できることを確認します。停止した処理の未確定データと、継続中の別の処理・選択中のエディターが影響を受けないことも検証します。
 
 `MINIPOST_INLINE_TEST=1` は明示的なDOM用テストダブルです。HTML・モジュールをabout:blankへ渡し、ストレージとHTTPを注入するため、ブラウザネットワークのE2E保証には使用しません。GitHub Actionsの検証ではこのモードを使用せず、実HTTPで実行します。アプリ本体の動作やブラウザポリシーは変更しません。
 

@@ -14,9 +14,9 @@ private IP. Failure at any stage is a failing CI run, not successful hosting.
 
 ## Run via Local Relay
 
-The repository's main branch deliberately retains
-`.local_relay/workflow.json` with `"disabled": true`, because simply merging
-this test should not create two guest VMs or expose an unauthenticated app.
+The repository's `.local_relay/workflow.json` runs the regular application and
+browser regression suite on two VMs. It does not run this optional published-URL
+smoke test or qualify a public deployment.
 
 To run a qualification, use a **dedicated test branch**, and commit the contents
 of `ci/sandbox_published_url.workflow.example.json` as

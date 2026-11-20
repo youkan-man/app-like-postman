@@ -95,8 +95,9 @@ export function applyScriptWrites(workspace, primary, environment, output) {
   if (Array.isArray(output?.stages) || output?.workspaceTransaction) {
     const stages=Array.isArray(output?.stages)?output.stages:[output],candidate=structuredClone(workspace);
     const primaryValues=typeof primary?.snapshot==='function'?structuredClone(primary.snapshot()):Object.fromEntries((primary?.rows||[]).filter(row=>row.enabled!==false&&row.disabled!==true).map(row=>[row.key,variableText(row.value)]));
+    const stagedPrimary={globals:structuredClone(primary?.rows || Object.entries(primaryValues).map(([key,value])=>({key,value,enabled:true})))};
     const pendingPrimary=[],capturedEnvironment=environment?.id;
-    let changed=false;
+    let changed=false,primaryRowsChanged=false;
     function stage(value){
       if(Array.isArray(value?.stages)){for(const child of value.stages)stage(child);return;}
       if(!record(value?.writes))throw new Error('スクリプトの結果形式が不正です。');
@@ -110,6 +111,11 @@ export function applyScriptWrites(workspace, primary, environment, output) {
           if(Object.hasOwn(primaryValues,expected.key)!==expected.exists||expected.exists&&primaryValues[expected.key]!==expected.value)throw new Error('スクリプト実行中に同じ一次変数が変更されました。変更は保存していません。');
         }
       }
+      if(value.primaryRowsWrites!==undefined){
+        if(!Array.isArray(value.primaryRowsWrites)||value.primaryRowsWrites.some(change=>change?.path?.[0]!=='globals')||!validScriptData({changes:value.primaryRowsWrites}))throw new Error('一次変数の変更形式が不正です。');
+        if(value.primaryRowsWrites.length&&(!Array.isArray(primary?.rows)||typeof primary?.apply!=='function'))throw new Error('一次変数を更新できません。');
+        primaryRowsChanged=applyWorkspaceChanges(stagedPrimary,value.primaryRowsWrites)||primaryRowsChanged;
+      }
       if(value.workspaceTransaction){
         if(!validScriptData({changes:value.workspaceWrites}))throw new Error('ワークスペースの変更にはJSONで表せる値を指定してください。');
         changed=applyWorkspaceChanges(candidate,value.workspaceWrites)||changed;
@@ -118,13 +124,16 @@ export function applyScriptWrites(workspace, primary, environment, output) {
         const noopPrimary={apply:()=>{}};
         changed=applyScriptWrites(candidate,noopPrimary,stagedEnvironment,value)||changed;
       }
-      for(const row of writes.primary){if(row.remove)delete primaryValues[row.key];else Object.defineProperty(primaryValues,row.key,{value:row.value,enumerable:true,writable:true,configurable:true});pendingPrimary.push(row);}
+      updateRows(stagedPrimary.globals,writes.primary);pendingPrimary.push(...writes.primary);
+      for(const key of Object.keys(primaryValues))delete primaryValues[key];
+      for(const row of stagedPrimary.globals)if(row.key&&row.enabled!==false&&row.disabled!==true)Object.defineProperty(primaryValues,row.key,{value:variableText(row.value),enumerable:true,writable:true,configurable:true});
     }
     for(const value of stages)stage(value);
     // Validate the resulting model before either the session or persistent data
     // is changed. Existing entity objects survive this final reconciliation.
     if(stages.some(value=>value.workspaceTransaction||value.stages))createWorkspaceModel(candidate).validate();
-    if(pendingPrimary.length)primary.apply(pendingPrimary);
+    if(primaryRowsChanged){reconcileWorkspace({rows:primary.rows},{rows:stagedPrimary.globals});primary.apply([]);}
+    else if(pendingPrimary.length)primary.apply(pendingPrimary);
     reconcileWorkspace(workspace,candidate);
     return changed;
   }

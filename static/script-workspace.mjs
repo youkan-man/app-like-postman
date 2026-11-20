@@ -47,6 +47,7 @@ export function initScriptWorkspace(api) {
   }
   function menu(script){return [
     {label:'実行',disabled:controllers.has(script.id),run:()=>{open(script.id);run(script);}},
+    ...(controllers.has(script.id)?[{label:'停止',run:()=>controllers.get(script.id)?.abort()}]:[]),
     {label:'実行設定',run:()=>settings(script)},
     {label:'変更履歴',run:()=>api.showRevisions(`script:${script.id}`)},
     {label:'IDをコピー',run:()=>api.copyText(script.id)},

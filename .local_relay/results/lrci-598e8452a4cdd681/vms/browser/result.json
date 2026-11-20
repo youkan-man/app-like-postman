@@ -1,0 +1,23 @@
+{
+  "branch": "fix/workspace-followthrough-20261120",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-20T07:07:48.725997Z",
+    "id": "lrce-a3a05647115112a6247394f2",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-c9773c896562",
+    "source_generation": 2
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-598e8452a4cdd681-browser",
+  "source_sha": "44f0e719d7ea70ccf79f2d448eb6314d80094f18",
+  "started_at": "2026-11-20T04:24:40.669522392Z",
+  "status": "ready",
+  "version": 1
+}

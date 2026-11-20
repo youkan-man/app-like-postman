@@ -64,9 +64,19 @@ def main():
             'variable': [], 'item': [{'_mpId': 'api-request', 'name': 'Echo request',
                 'request': {'method': 'GET', 'url': '{{baseUrl}}/echo', 'header': [], 'body': {'mode': 'none'}},
                 'settings': {'timeout_ms': 10000}}]}],
-        'tabs': [], 'history': [], 'globals': [], 'environmentId': 'api-env',
+        'tabs': [], 'history': [], 'globals': [
+            {'key': 'duplicate', 'value': 'first', 'enabled': True},
+            {'key': 'duplicate', 'value': 'last', 'enabled': True},
+            {'key': 'disabled', 'value': 'off', 'disabled': True},
+            {'key': 'inactive', 'value': 'untouched', 'enabled': False},
+            {'key': '', 'value': 'blank'}], 'environmentId': 'api-env',
         'environments': [{'id': 'api-env', 'name': 'API environment', 'values': [
-            {'key': 'baseUrl', 'value': receiver_url, 'enabled': True}]}],
+            {'key': 'baseUrl', 'value': receiver_url, 'enabled': True},
+            {'key': 'duplicate', 'value': 'first', 'enabled': True},
+            {'key': 'duplicate', 'value': 'last', 'enabled': True},
+            {'key': 'disabled', 'value': 'off', 'disabled': True},
+            {'key': 'inactive', 'value': 'untouched', 'enabled': False},
+            {'key': '', 'value': 'blank'}]}],
         'scripts': [{'id': 'api-main', 'name': 'API操作', 'source': '', 'input': json.dumps({'baseUrl': receiver_url}),
                      'inputFormat': 'json', 'timeoutMs': 0}],
         'scriptData': {}, 'relations': [], 'relationRuns': [], 'theme': 'light',
@@ -159,6 +169,103 @@ return {
             assert value['cookies'] == {'mode': 'dark', 'label': '日本語'}
             assert not requests
             passed('real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin')
+
+            edit("""
+const original = {items:[{id:1},{id:2}],mode:'draft'};
+const changes = [
+  {op:'add',path:'/items/1',value:{id:3}},
+  {op:'move',from:'/mode',path:'/state'},
+  {op:'copy',from:'/items/0',path:'/first'},
+  {op:'test',path:'/state',value:'draft'}
+];
+const patched = tools.json.patch(original,changes);
+let rejected = false;
+try { tools.json.patch(original,[{op:'replace',path:'/mode',value:'changed'},{op:'remove',path:'/missing'}]); }
+catch { rejected = true; }
+return {original,patched,rejected,roundTrip:tools.json.patch(original,tools.json.diff(original,patched))};
+""")
+            run()
+            value = result()
+            original = {'items': [{'id': 1}, {'id': 2}], 'mode': 'draft'}
+            patched = {'items': [{'id': 1}, {'id': 3}, {'id': 2}], 'state': 'draft', 'first': {'id': 1}}
+            assert value == {'original': original, 'patched': patched, 'rejected': True, 'roundTrip': patched}, value
+            passed('JSON Patch runs in the isolated Worker, applies array insertion and move/copy/test, round-trips diffs and leaves its input intact on failure')
+
+            edit("""
+const part = value => tools.encoding.base64.encode(JSON.stringify(value),{urlSafe:true});
+const header = part({alg:'HS256',typ:'JWT'});
+const payload = part({sub:'user-1',name:'日本語',roles:['read','write']});
+const token = `${header}.${payload}.AA`;
+return {jwt:tools.jwt.decode(`Bearer ${token}`),signingInput:`${header}.${payload}`,
+  cookies:tools.cookies.parse('discount=50%; quoted="hello%20world"; label=%E6%97%A5%E6%9C%AC%E8%AA%9E'),
+  raw:tools.cookies.parse('label=%E6%97%A5%E6%9C%AC%E8%AA%9E',{decode:false}),
+  setCookie:tools.cookies.parseSetCookie('discount=50%; Path=/; HttpOnly')};
+""")
+            run()
+            value = result()
+            assert value['jwt'] == {'header': {'alg': 'HS256', 'typ': 'JWT'},
+                                    'payload': {'sub': 'user-1', 'name': '日本語', 'roles': ['read', 'write']},
+                                    'signature': 'AA', 'signingInput': value['signingInput']}, value
+            assert value['cookies'] == {'discount': '50%', 'quoted': 'hello world', 'label': '日本語'}
+            assert value['raw'] == {'label': '%E6%97%A5%E6%9C%AC%E8%AA%9E'}
+            assert value['setCookie'] == {'name': 'discount', 'value': '50%', 'attributes': {'path': '/', 'httponly': True}}
+            passed('JWT inspection reads Bearer token Unicode claims and Cookie parsing preserves opaque percent values with optional raw decoding')
+
+            edit("vars.set('primaryLive','on'); vars.set('primaryDisabled','off'); vars.set('primaryRevived','off'); return true;")
+            run()
+            sidebar('environments')
+            page.locator('[data-scope="primary"] .tree-open').click()
+            page.get_by_label('行 2 を有効にする', exact=True).uncheck()
+            page.get_by_label('行 3 を有効にする', exact=True).uncheck()
+            open_script()
+            edit("""
+pm.environment.set('duplicate','env-updated');
+minipost.environments.variables('api-env').set('disabled','env-reenabled');
+pm.globals.set('duplicate','global-updated');
+pm.globals.set('disabled','global-reenabled');
+vars.set('primaryRevived','primary-reenabled');
+const effective={environment:pm.environment.get('duplicate'),inherited:vars.get('duplicate'),
+  disabledEnvironment:pm.environment.get('disabled'),global:pm.globals.get('duplicate'),
+  disabledGlobal:pm.globals.get('disabled'),primary:vars.get('primaryRevived')};
+const removed={environment:pm.environment.clear(),global:pm.globals.clear(),primary:vars.clear()};
+pm.environment.set('baseUrl',input.baseUrl);
+return {effective,removed,environmentRows:minipost.environments.get('api-env').values,globalRows:pm.globals.list()};
+""")
+            run()
+            value = result()
+            assert value['effective'] == {'environment': 'env-updated', 'inherited': 'env-updated',
+                                          'disabledEnvironment': 'env-reenabled', 'global': 'global-updated',
+                                          'disabledGlobal': 'global-reenabled', 'primary': 'primary-reenabled'}, value
+            assert value['removed'] == {'environment': 6, 'global': 5, 'primary': 3}, value
+            assert value['environmentRows'] == [{'key': 'baseUrl', 'value': receiver_url, 'enabled': True}]
+            assert value['globalRows'] == []
+            durable = saved()
+            assert durable['globals'] == [] and durable['environments'][0]['values'] == value['environmentRows']
+            assert page.evaluate("JSON.parse(sessionStorage.getItem('minipost.primary.v1') || '[]')") == []
+            passed('variable setters update the effective duplicate and reactivate disabled rows; clear removes every environment, global and primary row including inactive or blank entries')
+
+            edit("vars.set('nestedHidden','original'); return true;")
+            run()
+            sidebar('environments')
+            page.locator('[data-scope="primary"] .tree-open').click()
+            page.get_by_label('行 1 を有効にする', exact=True).uncheck()
+            open_script()
+            edit("""
+const child=minipost.scripts.create({name:'Clear nested variables',source:
+  "const wasVisible=vars.has('nestedHidden'); const count=vars.clear(); store.set('nestedClear',{wasVisible,count});"});
+const relation=minipost.relations.create({name:'Nested variable scope',steps:[
+  {id:'restore-disabled-binding',type:'forEach',source:'literal',value:'[1,2]',itemVariable:'nestedHidden',indexVariable:'loopIndex',intervalMs:0,
+   steps:[{id:'binding-wait',type:'wait',delayMs:0}]},
+  {id:'clear-nested-rows',type:'script',scriptId:child.id}
+]});
+await minipost.relations.run(relation.id);
+minipost.relations.delete(relation.id);minipost.scripts.delete(child.id);
+return store.get('nestedClear');
+""")
+            run()
+            assert result() == {'wasVisible': False, 'count': 1}
+            assert page.evaluate("JSON.parse(sessionStorage.getItem('minipost.primary.v1') || '[]')") == []
+            passed('the real Worker bridge retains disabled primary rows through a script-invoked loop and nested clear without committing temporary loop bindings')
 
             edit("""
 const url=tools.url.build(input.baseUrl+'/echo',{query:{space:'a b',plus:'a+b'}});
@@ -356,7 +463,8 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
                 assert reloaded[key] == durable[key], key
             passed('native IndexedDB reload preserves created structures, loop runs and typed shared data')
 
-            for source, expected in [('minipost.collections.', 'create'), ('tools.crypto.', 'hmac')]:
+            for source, expected in [('minipost.collections.', 'create'), ('tools.crypto.', 'hmac'),
+                                     ('tools.json.', 'patch'), ('tools.jwt.', 'decode')]:
                 area = page.get_by_label('スクリプトのコード', exact=True)
                 area.fill(source)
                 area.press('End')
@@ -376,17 +484,21 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
             search.fill('crypto.hmac')
             expect(page.locator('#scriptApiResults')).to_contain_text('crypto.hmac')
             assert page.locator('#scriptApiResults .script-api-entry').count() > 0
+            expect(page.locator('#modal .dialog-footer')).not_to_be_visible()
+            expect(page.locator('#closeModal')).to_be_visible()
             capture('api-reference-desktop')
             page.set_viewport_size({'width': 320, 'height': 720})
             expect(search).to_be_visible()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             bounds = search.bounding_box()
             assert bounds and bounds['width'] >= 150, bounds
+            expect(page.locator('#modal .dialog-footer')).not_to_be_visible()
+            expect(page.locator('#closeModal')).to_be_visible()
             capture('api-reference-320')
             search.fill('this-method-does-not-exist')
             expect(page.locator('#scriptApiResults .script-api-entry')).to_have_count(0)
             page.locator('#closeModal').click()
-            passed('API reference search filters methods and remains usable at desktop and 320px without viewport overflow')
+            passed('API reference search filters methods and remains usable at desktop and 320px without viewport overflow or a redundant action footer')
 
             assert not errors, errors
             assert not dialogs, dialogs

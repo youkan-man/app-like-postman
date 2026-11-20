@@ -11,7 +11,7 @@ const workerTools=crypto=>vm.runInNewContext(`(${createScriptTools.toString()})(
 
 test('factory can be serialized with no module dependencies and every public namespace is usable',()=>{
   const rebuilt=new Function(`return (${createScriptTools.toString()})();`)();
-  assert.deepEqual(Object.keys(rebuilt),['url','query','headers','cookies','request','json','csv','encoding','crypto','assert','data','flow']);
+  assert.deepEqual(Object.keys(rebuilt),['url','query','headers','cookies','request','json','jwt','csv','encoding','crypto','assert','data','flow']);
   assert.equal(rebuilt.query.stringify({日本語:'雪 ☃',zero:0,no:false}),'%E6%97%A5%E6%9C%AC%E8%AA%9E=%E9%9B%AA+%E2%98%83&zero=0&no=false');
   assert.deepEqual(rebuilt.json.get({items:[{id:3}]},'items[0].id'),3);
 });
@@ -57,6 +57,19 @@ test('cookie parsing keeps equals in values and Set-Cookie date commas are never
   assert.equal(tools.cookies.serialize('sid','雪',{HttpOnly:true,Secure:false,Path:'/api'}),'sid=%E9%9B%AA; HttpOnly; Path=/api');
   assert.throws(()=>tools.cookies.serialize('bad name','x'),TypeError);
   assert.throws(()=>tools.cookies.serialize('ok','x',{Path:'/; domain=evil'}),TypeError);
+});
+
+test('cookie parsers preserve opaque percent values and support quoted and undecoded values',()=>{
+  assert.deepEqual(tools.cookies.parse('discount=50%; bad=%FF; encoded=%E9%9B%AA; quoted="a=b"; empty=""'),
+    {discount:'50%',bad:'%FF',encoded:'雪',quoted:'a=b',empty:''});
+  assert.deepEqual(tools.cookies.parse('encoded="%E9%9B%AA"; plus=a+b',{decode:false}),{encoded:'%E9%9B%AA',plus:'a+b'});
+  assert.equal(tools.cookies.parseSetCookie('opaque="50%"; HttpOnly').value,'50%');
+  assert.equal(tools.cookies.parseSetCookie('value="%E9%9B%AA"; Path=/%E9%9B%AA').value,'雪');
+  assert.equal(tools.cookies.parseSetCookie('value=%E9%9B%AA; Secure',{decode:false}).value,'%E9%9B%AA');
+  assert.equal(tools.cookies.parseSetCookie('value=x; Path=/%E9%9B%AA').attributes.path,'/%E9%9B%AA');
+  assert.equal(tools.cookies.parse('same=first; same=last').same,'last');
+  assert.equal(tools.cookies.parse('__proto__=safe').__proto__,'safe');
+  assert.equal({}.safe,undefined);
 });
 
 test('request builder produces native MiniPost JSON/form/auth shapes without mutating the input',()=>{
@@ -131,6 +144,90 @@ test('JSON select/flatten/diff preserve empty containers and emit usable JSON Pa
   assert.deepEqual(tools.json.pick(source,['empty','nil','missing']),{empty:[],nil:null});
   assert.deepEqual(tools.json.omit({a:1,b:2},['a']),{b:2});
   assert.deepEqual(tools.json.merge({nested:{a:1},list:[1]},{nested:{b:2},list:[2]}),{nested:{a:1,b:2},list:[2]});
+});
+
+test('JSON Patch applies all six operations with array insertion, pointer escapes and isolated copies',()=>{
+  const source={items:['a','c'],profile:{name:'A'},'a/b':{'~key':1}},snapshot=structuredClone(source);
+  const patch=[{op:'add',path:'/items/1',value:'b'},{op:'add',path:'/items/-',value:'d'},
+    {op:'copy',from:'/profile',path:'/copy'},{op:'replace',path:'/profile/name',value:'B'},
+    {op:'move',from:'/items/0',path:'/items/2'},{op:'remove',path:'/items/1'},
+    {op:'test',path:'/a~1b/~0key',value:1},{op:'add',path:'/profile/id',value:0}];
+  const patchSnapshot=structuredClone(patch),result=tools.json.patch(source,patch);
+  assert.deepEqual(result,{items:['b','a','d'],profile:{name:'B',id:0},copy:{name:'A'},'a/b':{'~key':1}});
+  assert.deepEqual(source,snapshot);assert.deepEqual(patch,patchSnapshot);
+  result.copy.name='C';assert.equal(result.profile.name,'B');assert.equal(source.profile.name,'A');
+  const expected={items:[{id:2},null],active:false};
+  assert.deepEqual(tools.json.patch(source,tools.json.diff(source,expected)),expected);
+});
+
+test('JSON Patch root operations and test equality handle objects, null and signed zero',()=>{
+  assert.deepEqual(tools.json.patch({a:1},[{op:'replace',path:'',value:[1,2]}]),[1,2]);
+  assert.equal(tools.json.patch({a:1},[{op:'remove',path:''}]),null);
+  assert.deepEqual(tools.json.patch(null,[{op:'add',path:'',value:{ready:true}}]),{ready:true});
+  assert.deepEqual(tools.json.patch({a:1},[{op:'copy',from:'',path:'/snapshot'}]),{a:1,snapshot:{a:1}});
+  assert.deepEqual(tools.json.patch({a:{id:1}},[{op:'move',from:'/a',path:''}]),{id:1});
+  const source={a:[{x:0,y:false}],b:null};
+  assert.deepEqual(tools.json.patch(source,[{op:'test',path:'',value:{b:null,a:[{y:false,x:-0}]}},{op:'move',from:'',path:''}]),source);
+  assert.deepEqual(tools.json.diff({zero:-0},{zero:0}),[]);
+  assert.throws(()=>tools.json.patch(source,[{op:'test',path:'/a/0/x',value:'0'}]),{name:'JSONPatchError'});
+});
+
+test('JSON Patch rejects missing parents, invalid indexes, failed tests and descendant moves atomically',()=>{
+  const source={items:[1,2],nested:{value:true}},snapshot=structuredClone(source);
+  const failures=[
+    {op:'add',path:'/missing/value',value:1},{op:'remove',path:'/missing'},{op:'replace',path:'/missing',value:null},
+    {op:'add',path:'/items/4',value:0},{op:'add',path:'/items/01',value:0},{op:'add',path:'/items/-1',value:0},
+    {op:'remove',path:'/items/-'},{op:'test',path:'/items/length',value:2},{op:'copy',from:'/items/-',path:'/next'},
+    {op:'move',from:'/nested',path:'/nested/child'},{op:'move',from:'',path:'/child'},
+    {op:'copy',from:'/missing',path:'/next'},{op:'add',path:'items[0]',value:1},{op:'replace',path:'/bad~2escape',value:1},
+    {op:'test',path:'/nested/value',value:false},{op:'replace',path:'/nested/value'},
+    {op:'unknown',path:''},null
+  ];
+  for(const bad of failures){
+    const changes=[{op:'replace',path:'/items/0',value:9},bad],before=structuredClone(changes);
+    assert.throws(()=>tools.json.patch(source,changes),undefined,JSON.stringify(bad));
+    assert.deepEqual(source,snapshot);assert.deepEqual(changes,before);
+  }
+  assert.throws(()=>tools.json.patch({},{}),TypeError);
+});
+
+test('JSON Patch treats prototype-shaped names as own JSON keys without prototype changes',()=>{
+  const result=tools.json.patch({},[{op:'add',path:'/__proto__',value:{safe:true}},
+    {op:'copy',from:'/__proto__',path:'/constructor'},{op:'replace',path:'/__proto__/safe',value:false}]);
+  assert.equal(own(result,'__proto__'),true);assert.equal(result.__proto__.safe,false);
+  assert.deepEqual(result.constructor,{safe:true});assert.equal({}.safe,undefined);
+  assert.throws(()=>tools.json.patch({},[{op:'add',path:'/constructor/prototype/changed',value:true}]),TypeError);
+  assert.throws(()=>tools.json.patch({},[{op:'copy',from:'/toString',path:'/fn'}]),TypeError);
+});
+
+const jwtPart=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
+test('JWT inspection decodes Unicode claims and Bearer input without verification or time-based filtering',()=>{
+  const header={alg:'HS256',typ:'JWT'},payload={sub:'利用者🙂',exp:1,aud:['one','two'],nested:{active:false}},signature='AA';
+  const signingInput=jwtPart(header)+'.'+jwtPart(payload),token=signingInput+'.'+signature;
+  assert.deepEqual(tools.jwt.decode(token),{header,payload,signature,signingInput});
+  assert.deepEqual(tools.jwt.decode('  bEaReR\t'+token+'  '),{header,payload,signature,signingInput});
+  assert.equal(own(tools.jwt.decode(token),'valid'),false);
+  assert.equal(tools.jwt.decode(jwtPart({alg:'none'})+'.'+jwtPart({})+'.').signature,'');
+  const duplicate=Buffer.from('{"sub":"first","sub":"last","__proto__":{"safe":true}}').toString('base64url');
+  assert.equal(tools.jwt.decode(jwtPart(header)+'.'+duplicate+'.AA').payload.sub,'last');
+  assert.equal({}.safe,undefined);
+});
+
+test('JWT inspection rejects malformed compact encodings, nonobject claims and invalid UTF-8',()=>{
+  const header=jwtPart({alg:'HS256'}),payload=jwtPart({sub:'x'});
+  for(const token of [header+'.'+payload,header+'.'+payload+'.AA.extra.more','.'+payload+'.AA',header+'..AA',
+    header+'.'+payload+'.AB',header+'=.'+payload+'.AA',header+'.'+payload+'.A+',header+'.'+payload+'.A/',
+    header+'.'+payload+'.A A',header+'.'+jwtPart([])+'.AA',jwtPart(null)+'.'+payload+'.AA',
+    header+'.'+Buffer.from([255]).toString('base64url')+'.AA',header+'.'+Buffer.from('{bad}').toString('base64url')+'.AA',
+    header+'.'+Buffer.from('{"n":1e400}').toString('base64url')+'.AA'])assert.throws(()=>tools.jwt.decode(token),undefined,token);
+  assert.throws(()=>tools.jwt.decode({}),TypeError);
+});
+
+test('JSON Patch and JWT inspection remain available in serialized Workers',()=>{
+  const worker=workerTools(undefined);
+  const result=vm.runInNewContext(`const tools=(${createScriptTools.toString()})();tools.json.patch({items:[1]},[{op:'add',path:'/items/0',value:2}]);`);
+  assert.deepEqual(plain(result),{items:[2,1]});
+  assert.equal(worker.jwt.decode(jwtPart({alg:'none'})+'.'+jwtPart({name:'雪'})+'.').payload.name,'雪');
 });
 
 test('JSON schema inference and validation report useful paths and reject unsupported or malformed schemas',()=>{
@@ -227,6 +324,10 @@ test('UUID and long random bytes use getRandomValues without requiring randomUUI
 
 test('assertions distinguish equality, JSON equality, sync throws and async rejection',async()=>{
   assert.equal(tools.assert.ok(1),1);assert.equal(tools.assert.equal(false,false),false);
+  assert.equal(Number.isNaN(tools.assert.equal(NaN,NaN)),true);
+  assert.throws(()=>tools.assert.deepEqual(NaN,NaN),TypeError);
+  assert.equal(tools.assert.deepEqual(-0,0),-0);
+  assert.throws(()=>tools.assert.equal(-0,0),{name:'AssertionError'});
   assert.deepEqual(tools.assert.deepEqual({a:1,b:[2]},{b:[2],a:1}),{a:1,b:[2]});
   assert.throws(()=>tools.assert.equal(0,false),{name:'AssertionError'});
   assert.throws(()=>tools.assert.schema({count:-1},{properties:{count:{minimum:0}}}),{name:'AssertionError'});

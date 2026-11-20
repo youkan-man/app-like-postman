@@ -192,7 +192,7 @@ dialog::backdrop { background: #080c1266; }
 .dialog-footer { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line); flex-shrink: 0; }
 #modalMessage { color: var(--red); flex-basis:100%; max-width: 100%; overflow-wrap: anywhere; }
 #modalMessage:empty { display:none; }
-#modal[data-kind=drawer] .dialog-footer:has(#modalSubmit[hidden]) { display:none; }
+#modal .dialog-footer:has(#modalSubmit[hidden]) { display:none; }
 #modal[data-kind=drawer] { position: fixed; top: var(--topbar-height); right: 0; bottom: 0; left: auto; margin: 0; width: min(620px,48vw); height: calc(100dvh - var(--topbar-height)); max-height: none; border-radius: 0; z-index: 20; }
 #modal[data-kind=drawer] #modalForm { height: 100%; max-height: 100%; }
 #modal[data-kind=drawer] #modalBody { flex: 1; }

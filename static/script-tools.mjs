@@ -16,7 +16,7 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
       return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,jsonClone(item,seen)]));
     }finally{seen.delete(value);}
   };
-  const equal = (a,b) => Object.is(a,b) || Boolean(a&&b&&typeof a==='object'&&typeof b==='object'&&Array.isArray(a)===Array.isArray(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(key=>own(b,key)&&equal(a[key],b[key])));
+  const equal = (a,b) => a===b || Object.is(a,b) || Boolean(a&&b&&typeof a==='object'&&typeof b==='object'&&Array.isArray(a)===Array.isArray(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(key=>own(b,key)&&equal(a[key],b[key])));
   const text = value => value==null?'':typeof value==='object'?JSON.stringify(value):String(value);
   const bytes = value => {
     if(typeof value==='string')return new TextEncoder().encode(value);
@@ -89,10 +89,17 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
     join(base,...segments){active();const parsed=new URL(base);if(segments.length)parsed.pathname=parsed.pathname.replace(/\/$/,'')+'/'+segments.map(value=>encodeURIComponent(String(value))).join('/');return parsed.href;}
   };
   const cookieToken = value => {if(!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(String(value)))throw new TypeError('Cookie名が不正です。');return String(value);};
+  const cookieValue = (value,decodeValue) => {
+    let result=value.trim();if(result.startsWith('"')&&result.endsWith('"')&&result.length>=2)result=result.slice(1,-1);
+    // Cookie values are opaque; percent encoding is optional, including a
+    // literal percent sign or bytes that are not valid UTF-8.
+    if(decodeValue){try{return decodeURIComponent(result);}catch{}}
+    return result;
+  };
   const cookies = {
-    parse(value){active();return Object.fromEntries(String(value).split(';').filter(part=>part.trim()).map(part=>{const at=part.indexOf('=');if(at<1)throw new TypeError('Cookieは 名前=値 の形式で指定してください。');return [cookieToken(part.slice(0,at).trim()),decodeURIComponent(part.slice(at+1).trim())];}));},
+    parse(value,{decode:decodeValue=true}={}){active();return Object.fromEntries(String(value).split(';').filter(part=>part.trim()).map(part=>{const at=part.indexOf('=');if(at<1)throw new TypeError('Cookieは 名前=値 の形式で指定してください。');return [cookieToken(part.slice(0,at).trim()),cookieValue(part.slice(at+1),decodeValue)];}));},
     stringify(value){active();return pairs(value).map(row=>cookieToken(row.key)+'='+encodeURIComponent(row.value)).join('; ');},
-    parseSetCookie(value){active();const parts=String(value).split(';'),first=parts.shift(),at=first.indexOf('=');if(at<1)throw new TypeError('Set-Cookieの形式が不正です。');const attributes=Object.fromEntries(parts.filter(part=>part.trim()).map(part=>{const at=part.indexOf('=');return at<0?[part.trim().toLowerCase(),true]:[part.slice(0,at).trim().toLowerCase(),part.slice(at+1).trim()];}));return {name:cookieToken(first.slice(0,at).trim()),value:decodeURIComponent(first.slice(at+1).trim()),attributes};},
+    parseSetCookie(value,{decode:decodeValue=true}={}){active();const parts=String(value).split(';'),first=parts.shift(),at=first.indexOf('=');if(at<1)throw new TypeError('Set-Cookieの形式が不正です。');const attributes=Object.fromEntries(parts.filter(part=>part.trim()).map(part=>{const at=part.indexOf('=');return at<0?[part.trim().toLowerCase(),true]:[part.slice(0,at).trim().toLowerCase(),part.slice(at+1).trim()];}));return {name:cookieToken(first.slice(0,at).trim()),value:cookieValue(first.slice(at+1),decodeValue),attributes};},
     serialize(name,value,attributes={}){active();const parts=[cookieToken(name)+'='+encodeURIComponent(text(value))];for(const [key,item]of Object.entries(attributes)){if(!/^[A-Za-z][A-Za-z0-9-]*$/.test(key)||/[\r\n;]/.test(String(item)))throw new TypeError('Cookie属性が不正です。');if(item!==false&&item!=null)parts.push(item===true?key:`${key}=${item instanceof Date?item.toUTCString():String(item)}`);}return parts.join('; ');}
   };
   const request = {build(options={}){
@@ -146,6 +153,47 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
       if(last){if(remove){if(!own(cursor,at))return output;if(Array.isArray(cursor))cursor.splice(at,1);else delete cursor[at];}else define(cursor,at,jsonClone(next));}
       else{if(!own(cursor,at)){if(remove)return output;define(cursor,at,/^(?:0|[1-9]\d*|-)$/.test(parts[index+1])?[]:{});}cursor=cursor[at];}
     }return output;
+  }
+  function patchJSON(value,operations){
+    active();if(!Array.isArray(operations))throw new TypeError('JSON Patchは操作の配列で指定してください。');
+    let output=jsonClone(value);const changes=jsonClone(operations);
+    const parts=path=>{if(typeof path!=='string'||path!==''&&!path.startsWith('/'))throw new TypeError('JSON PatchのパスはJSON Pointerで指定してください。');return pathParts(path);};
+    const keyAt=(container,key,append=false)=>{
+      if(container===null||typeof container!=='object')throw new TypeError('JSON Patchの親要素がありません。');
+      if(!Array.isArray(container))return key;
+      if(append&&key==='-')return container.length;
+      if(!/^(?:0|[1-9]\d*)$/.test(key)||!Number.isSafeInteger(Number(key)))throw new TypeError('JSON Patchの配列添字が不正です。');
+      return Number(key);
+    };
+    const read=path=>{let current=output;for(const part of path){const key=keyAt(current,part);if(!own(current,key))throw new TypeError(`JSON Patchの対象がありません: ${pointer(path)}`);current=current[key];}return current;};
+    const write=(path,op,next)=>{
+      if(!path.length){output=op==='remove'?null:jsonClone(next);return;}
+      const parent=read(path.slice(0,-1)),key=keyAt(parent,path.at(-1),op==='add');
+      if(op==='add'){
+        if(Array.isArray(parent)){if(key>parent.length)throw new RangeError('JSON Patchの配列添字が範囲外です。');parent.splice(key,0,jsonClone(next));}
+        else define(parent,key,jsonClone(next));
+      }else{
+        if(!own(parent,key))throw new TypeError(`JSON Patchの対象がありません: ${pointer(path)}`);
+        if(op==='remove'){if(Array.isArray(parent))parent.splice(key,1);else delete parent[key];}
+        else define(parent,key,jsonClone(next));
+      }
+    };
+    for(const operation of changes){
+      active();if(!record(operation)||!['add','remove','replace','move','copy','test'].includes(operation.op))throw new TypeError('JSON Patchの操作が不正です。');
+      const path=parts(operation.path),op=operation.op;
+      if(['add','replace','test'].includes(op)&&!own(operation,'value'))throw new TypeError('JSON Patchのvalueがありません。');
+      if(op==='test'){if(!equal(read(path),operation.value)){const error=new Error(`JSON Patchの値が一致しません: ${operation.path}`);error.name='JSONPatchError';throw error;}}
+      else if(op==='move'||op==='copy'){
+        const from=parts(operation.from),next=jsonClone(read(from));
+        if(op==='move'){
+          if(from.length<path.length&&from.every((part,index)=>part===path[index]))throw new TypeError('JSON Patchでは要素をその子へ移動できません。');
+          if(from.length===path.length&&from.every((part,index)=>part===path[index]))continue;
+          write(from,'remove');
+        }
+        write(path,'add',next);
+      }else write(path,op,operation.value);
+    }
+    return output;
   }
   function validate(value,schema){
     active();const errors=[],supported=new Set(['$schema','title','description','default','examples','type','enum','const','properties','required','additionalProperties','items','minItems','maxItems','uniqueItems','minLength','maxLength','pattern','minimum','maximum','exclusiveMinimum','exclusiveMaximum','multipleOf','anyOf','allOf','oneOf','not']);
@@ -207,8 +255,17 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
     omit(value,keys){active();const omitted=new Set(keys);return Object.fromEntries(Object.entries(value).filter(([key])=>!omitted.has(key)).map(([key,item])=>[key,jsonClone(item)]));},
     merge(...values){active();const merge=(a,b)=>{if(!record(a)||!record(b))return jsonClone(b);const output=jsonClone(a);for(const [key,item]of Object.entries(b))define(output,key,own(output,key)?merge(output[key],item):jsonClone(item));return output;};return values.reduce(merge,{});},
     schema(value){active();function infer(item){if(item===null)return {type:'null'};if(Array.isArray(item)){const samples=item.map(infer),unique=[...new Map(samples.map(schema=>[JSON.stringify(schema),schema])).values()];return {type:'array',...(unique.length?{items:unique.length===1?unique[0]:{anyOf:unique}}:{})};}if(record(item))return {type:'object',properties:Object.fromEntries(Object.entries(item).map(([key,value])=>[key,infer(value)])),required:Object.keys(item)};return {type:typeof item==='number'&&Number.isInteger(item)?'integer':typeof item};}return infer(jsonClone(value));},
-    validate
+    patch:patchJSON,validate
   };
+  const jwt = {decode(token){
+    active();if(typeof token!=='string')throw new TypeError('JWTは文字列で指定してください。');
+    const compact=token.trim().replace(/^Bearer[ \t]+/i,''),segments=compact.split('.');
+    if(segments.length===5)throw new TypeError('暗号化されたJWTはdecodeでは読み取れません。');
+    if(segments.length!==3||!segments[0]||!segments[1]||segments.some(segment=>!/^[A-Za-z0-9_-]*$/.test(segment)))throw new TypeError('JWTは3つのBase64URL文字列をドットで区切って指定してください。');
+    const parse=segment=>{const value=JSON.parse(base64Decode(segment,{urlSafe:true}));if(!record(value))throw new TypeError('JWTのヘッダーとペイロードはJSONオブジェクトが必要です。');return jsonClone(value);};
+    const header=parse(segments[0]),payload=parse(segments[1]);base64Decode(segments[2],{urlSafe:true,asBytes:true});
+    return {header,payload,signature:segments[2],signingInput:segments.slice(0,2).join('.')};
+  }};
   const delimiter = value => {if(typeof value!=='string'||value.length!==1||/["\r\n]/.test(value))throw new TypeError('区切り文字は改行・引用符以外の1文字を指定してください。');return value;};
   const csv = {
     parse(source,{delimiter:separator=',',header=false,skipEmptyLines=false}={}){
@@ -298,5 +355,5 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
     },
     async batch(items,fn,{concurrency=4,settle=false}={}){active();if(!Array.isArray(items)||!Number.isSafeInteger(concurrency)||concurrency<1)throw new RangeError('配列と正の並列数を指定してください。');if(typeof fn!=='function')throw new TypeError('処理関数を指定してください。');const results=new Array(items.length);let cursor=0,failure,failed=false;const workers=Array.from({length:Math.min(concurrency,items.length)},async()=>{while(!failed&&cursor<items.length){active();const index=cursor++;try{const value=await pending(fn(items[index],index));active();results[index]=settle?{status:'fulfilled',value}:value;}catch(error){if(signal?.aborted||error?.name==='AbortError')throw error;if(settle)results[index]={status:'rejected',reason:error};else{failed=true;failure=error;}}}});await Promise.all(workers);active();if(failed)throw failure;return results;}
   };
-  return {url,query,headers,cookies,request,json,csv,encoding:{utf8:{encode:value=>{active();return bytes(value);},decode:(value,{fatal=true}={})=>{active();return decode(bytes(value),fatal);}},base64:{encode:base64Encode,decode:base64Decode},hex:{encode:hexEncode,decode:hexDecode},url:{encode:value=>{active();return encodeURIComponent(String(value));},decode:value=>{active();return decodeURIComponent(String(value));}}},crypto:cryptoAPI,assert,data,flow};
+  return {url,query,headers,cookies,request,json,jwt,csv,encoding:{utf8:{encode:value=>{active();return bytes(value);},decode:(value,{fatal=true}={})=>{active();return decode(bytes(value),fatal);}},base64:{encode:base64Encode,decode:base64Decode},hex:{encode:hexEncode,decode:hexDecode},url:{encode:value=>{active();return encodeURIComponent(String(value));},decode:value=>{active();return decodeURIComponent(String(value));}}},crypto:cryptoAPI,assert,data,flow};
 }

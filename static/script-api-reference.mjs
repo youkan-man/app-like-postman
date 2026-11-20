@@ -60,8 +60,8 @@ export const SCRIPT_API_SECTIONS = [
     ['tools.query.parse(value) / stringify(value)','クエリ文字列・オブジェクト・キー値の行配列を相互変換します。重複するキーを保持します。'],
     ['tools.query.get / getAll / set / append / remove / toObject','クエリの値を取得・変更します。第1引数が元データ、第2引数がキーです。元データを直接変更しません。'],
     ['tools.headers.parse / stringify / get / getAll / set / append / remove / toObject','生ヘッダー・オブジェクト・行配列を扱います。名前の大文字・小文字は区別しません。重複ヘッダーを保持し、改行の混入を拒否します。'],
-    ['tools.cookies.parse(header) / stringify(values)','リクエストのCookie文字列を解析・作成します。値のパーセント符号化を扱います。'],
-    ['tools.cookies.parseSetCookie(value) / serialize(name, value, attributes?)','Set-Cookieを1行ずつ解析・構築します。Expiresのカンマ、HttpOnly・Secureなどの属性を保持します。'],
+    ['tools.cookies.parse(header, {decode?}) / stringify(values)','Cookie文字列を解析・作成します。引用符を除き、復号できる値をパーセント復号します。decode:falseで符号化を保持します。50%などの値も扱えます。'],
+    ['tools.cookies.parseSetCookie(value, {decode?}) / serialize(name, value, attributes?)','Set-Cookieを1行ずつ解析・構築します。Expiresのカンマ、HttpOnly・Secureなどの属性を保持します。decode:falseで値の符号化を保持します。'],
     ['tools.request.build({url, method?, query?, headers?, json?, form?, body?, basic?, bearer?})','そのまま送信・保存できるリクエストを作成します。JSON・フォーム・本文は1種類、Basic・Bearerは1種類を指定します。{{変数}}を含むURLも利用できます。']
   ]},
   {id:'json',title:'JSONの抽出・編集・検証',entries:[
@@ -69,9 +69,13 @@ export const SCRIPT_API_SECTIONS = [
     ['tools.json.set(value, path, next) / update(value, path, fn) / remove(value, path)','元データを変更せず新しいJSON値を返します。配列の末尾追加は/-、rootは空文字列または$です。'],
     ['tools.json.select(value, path)','ワイルドカード*で抽出し、{path, value}の配列を返します。例: /rows/*/id。'],
     ['tools.json.flatten(value) / diff(before, after)','JSON Pointerをキーとする葉の一覧、add・remove・replaceのJSON Patch差分を返します。'],
+    ['tools.json.patch(value, operations)','JSON Patchのadd・remove・replace・move・copy・testを適用したコピーを返します。path/fromはJSON Pointerです。配列のaddは挿入、/-は末尾追加。失敗時も元データを変更しません。'],
     ['tools.json.pick(value, keys) / omit(value, keys) / merge(...values)','最上位のキーを抽出・除去し、オブジェクトを再帰的に結合します。mergeの配列は後の値で置換します。'],
     ['tools.json.schema(value) / validate(value, schema)','値からスキーマを生成し、{valid, errors:[{path, keyword, message}]}で検証します。'],
     ['JSON Schemaの対応項目','type・enum・const・properties・required・additionalProperties・items・min/maxItems・uniqueItems・min/maxLength・pattern・minimum/maximum・exclusiveMinimum/Maximum・multipleOf・anyOf/allOf/oneOf/not。未対応項目や不正なスキーマはエラーです。']
+  ]},
+  {id:'jwt',title:'JWT',entries:[
+    ['tools.jwt.decode(token)','JWTまたはBearer付き文字列からheader・payload・signature・signingInputを取得します。署名・有効期限などの検証は行いません。暗号化されたJWTは対象外です。']
   ]},
   {id:'csv',title:'CSV・バイト・エンコード',entries:[
     ['tools.csv.parse(text, {header?, delimiter?, skipEmptyLines?})','CSVを行配列にします。header:trueで1行目をキーとするオブジェクト配列。引用符・改行・BOMに対応し、不正な引用や列数を検出します。'],

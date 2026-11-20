@@ -19,9 +19,9 @@ self.onmessage = async ({data}) => {
   try {
     const result = await executeScript(data.source, data.context, {
       onLog:log => self.postMessage({type:'log', log}),
-      onCall:(method, args, {variables,workspace,requestRef,ribbonScopeId}) => new Promise((resolve, reject) => {
+      onCall:(method, args, {variables,primaryRows,workspace,requestRef,ribbonScopeId}) => new Promise((resolve, reject) => {
         const id = ++callId; pendingCalls.set(id, {resolve, reject});
-        try { self.postMessage({type:'call', id, method, args, variables,workspace,requestRef,ribbonScopeId}); }
+        try { self.postMessage({type:'call', id, method, args, variables,primaryRows,workspace,requestRef,ribbonScopeId}); }
         catch (error) { pendingCalls.delete(id); reject(error); }
       })
     });
@@ -90,7 +90,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
       try {
         if (typeof onCall !== 'function') throw new Error(`この実行環境では ${data.method} を利用できません。`);
         if (!Array.isArray(data.args)) throw new Error('スクリプトの操作引数が不正です。');
-        const value = await onCall(data.method, data.args, {signal:calls.signal, variables:data.variables,workspace:data.workspace,requestRef:data.requestRef,ribbonScopeId:data.ribbonScopeId});
+        const value = await onCall(data.method, data.args, {signal:calls.signal, variables:data.variables,primaryRows:data.primaryRows,workspace:data.workspace,requestRef:data.requestRef,ribbonScopeId:data.ribbonScopeId});
         reply = {ok:true, value};
       } catch (error) { reply = {ok:false, error:String(error?.message || error), name:error?.name || 'Error'}; }
       if (settled) return;
