@@ -1,0 +1,18 @@
+PASS a failed language Worker fetch exposes retry and recovers without losing source or textarea focus
+PASS live JSON input supplies nested property types and semantic completion preserves native Undo
+PASS completion inside an identifier preserves UTF-16 positions after supplementary Unicode characters
+PASS array callback, destructuring and aliases propagate input types into standard method completion
+PASS shared data contributes typed member and quoted-key completions through an API alias
+PASS variable, request and environment dictionaries use actual workspace names without displaying secret values
+PASS saved script references complete by name and ID, and their inferred return types continue through await and indexing
+PASS rapid edits discard stale language-service answers and accept only the current source completion
+PASS changing JSON fields or switching to text updates the same live Worker dictionary without a reload
+PASS edited shared data adds new keys and types and removes stale keys from completion
+PASS renaming and editing another saved script refreshes reference names and its return type in the existing editor
+PASS completion analyzes source without executing edited code or sending HTTP requests
+PASS real TypeScript syntax errors show exact ranges, navigate with F8/Shift+F8 or the error button at every width, and clear after correction without executing source
+PASS the same source editor still executes JavaScript normally when the user explicitly runs it
+{"ok": true, "popupWithinEditor": true, "caretWithinViewport": true, "caretFollowed": true, "scrollSynchronized": true, "unscrolledCaret": 634.501953125, "caret": 371.501953125, "maxScroll": 263, "requiredScroll": 263, "scrollLeft": 263, "scrollWidth": 635, "clientWidth": 372, "highlightScrollLeft": 263, "highlightScrollWidth": 643, "paddingLeft": 8, "paddingRight": 8, "font": "12px / 19.8px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace", "canvasFont": "12px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace", "selectionStart": 87, "selectionEnd": 87, "sourceLength": 87, "editorRect": {"left": 8, "top": 136, "right": 382, "bottom": 515.796875, "width": 374, "height": 379.796875}, "popupRect": {"left": 13, "top": 164.796875, "right": 377, "bottom": 198.234375, "width": 364, "height": 33.4375}, "textareaRect": {"left": 9, "top": 137, "right": 381, "bottom": 492.796875, "width": 372, "height": 355.796875}, "popupHidden": false, "textareaFocused": true, "activeElement": {"tag": "TEXTAREA", "label": "スクリプトのコード", "className": "code-editor source-input"}, "check": "intelligence-live-resize-390"}
+PASS live viewport resizing keeps the actual caret and source visible, synchronizes highlighting and preserves the open pointer-selectable completion popup
+PASS typed completion remains usable inside the desktop and 390/320 px editor without horizontal overflow
+PASS semantic editing produces no uncaught browser errors, native dialogs or page crashes

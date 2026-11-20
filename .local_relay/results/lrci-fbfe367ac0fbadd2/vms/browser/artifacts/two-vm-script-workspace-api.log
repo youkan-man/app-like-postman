@@ -1,0 +1,29 @@
+PASS real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin
+PASS URL and request builders preserve spaces, literal plus, Unicode and duplicate query values with JSON and authentication over real HTTP
+PASS synchronous model APIs create collections, folders, requests, drafts, environments, scripts, relations and ribbon definitions in one committed transaction
+PASS child scripts read pending creations and scoped variables before commit; workspace settings update the live UI
+PASS send uses staged tree scope and clone/move/update preserve usable request identities across collections
+PASS script edits refresh an already open saved request instead of leaving its cached editor stale
+PASS scripts execute a newly created array relation with isolated child scripts, pending data visibility and restored outer loop variables
+PASS an exception discards the whole workspace transaction including creations, edits and shared data
+PASS stopping asynchronous helper work terminates the Worker and discards pending model edits
+PASS a conflicting manual edit wins and rejects all script writes without silently replacing it
+PASS field-level commits preserve unrelated edits, keyboard focus and caret while the script is running
+Traceback (most recent call last):
+  File "/workspace/tests/ui_script_workspace_api.py", line 409, in <module>
+    main()
+  File "/workspace/tests/ui_script_workspace_api.py", line 318, in main
+    moved_echo = result()
+                 ^^^^^^^^
+  File "/workspace/tests/ui_script_workspace_api.py", line 116, in result
+    return json.loads(page.locator('#standaloneScriptResult').inner_text())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)

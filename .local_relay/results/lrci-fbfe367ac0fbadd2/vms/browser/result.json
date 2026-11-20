@@ -1,0 +1,23 @@
+{
+  "branch": "feat/workspace-script-automation-20261120",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-20T04:45:45.384597Z",
+    "id": "lrce-8f2ca789c1f814c31291bb27",
+    "release_verified": true,
+    "retained": true,
+    "reused": true,
+    "revision": "3f343d8f8fa453dea742bc893621d846cd641b94eb72d7d9e9ff740448bf76f3",
+    "sandbox_id": "sb-0db5e2e2526e",
+    "source_generation": 3
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-fbfe367ac0fbadd2-browser",
+  "source_sha": "635efe6a3b4347898f917f7d0ab2386837f77721",
+  "started_at": "2026-11-20T02:25:47.46981889Z",
+  "status": "failed",
+  "version": 1
+}
