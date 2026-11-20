@@ -68,7 +68,7 @@ export class WorkspaceStorage {
       // Do not create a newer empty fallback which would later replace it.
       if (this.localRead(DATABASE_USED_KEY) && !this.localRead(FALLBACK_KEY)) {
         this.blocked = true;
-        throw new Error('以前のIndexedDB保存領域を開けません。元データは保持しています。再読込するか、バックアップを明示的に取り込んでください。 ' + message(error));
+        throw new Error('以前のIndexedDB保存領域を開けません。元データは保持しています。再読込するか、バックアップを取り込んでください。 ' + message(error));
       }
       this.warning = 'IndexedDBを利用できないため従来のブラウザ保存を使用します: ' + message(error);
     }

@@ -1,14 +1,13 @@
 /** Request execution orchestrates pure compilation, isolated scripts and HTTP I/O. */
-import {clone,contextFor,compileRequest} from './core.mjs';
+import {clone,compileRequest} from './core.mjs';
 import {requestAutomation,responseMetadata,extractionWrites,PrimaryVariables} from './runtime.mjs';
 import {applyScriptWrites} from './scripts.mjs';
 import {applyRequestMutation,applyResponseMutation} from './script-response.mjs';
 import {throwIfAborted} from './relations.mjs';
 import {runScript} from './script-runner.mjs';
-import {scriptRibbonSnapshot} from './script-host.mjs';
+import {makeScriptContext,scriptRibbonSnapshot} from './script-host.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {copyAttachments,remapScriptAttachments} from './request-files.mjs';
-const valueMap=rows=>Object.fromEntries((rows||[]).filter(r=>r.key&&r.disabled!==true&&r.enabled!==false).map(r=>[r.key,r.value]));
 export async function executeRequest({workspace,tab,files={},primary,environmentId=workspace.environmentId,signal,
   send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress,scriptCall,onScriptLog}) {
   throwIfAborted(signal);
@@ -25,9 +24,12 @@ export async function executeRequest({workspace,tab,files={},primary,environment
       if(!source.trim())return;
       onProgress?.({phase:phase==='before'?'script':'processing'});
       const previewRows=preview.map(row=>({key:row.key,value:row.value}));
-      const ctx=contextFor(view,snapshot,[...primary.rows,...previewRows]),metadata=responseMetadata(result);
-      const output=await script(source,{variables:ctx.vars,primary:{...primary.snapshot(),...Object.fromEntries(previewRows.map(row=>[row.key,row.value]))},environment:valueMap(environment?.values),globals:valueMap(workspace.globals),request:snapshot.request,response:metadata,raw:result,
-        ...scriptRibbonSnapshot(workspace,{ribbonScopeId}),
+      const metadata=responseMetadata(result),previewPrimary=new PrimaryVariables();
+      previewPrimary.rows=clone(primary.rows);previewPrimary.apply(previewRows);
+      const scriptContext=makeScriptContext(workspace,previewPrimary,{tab:snapshot,result,ribbonScopeId,environmentId});
+      scriptContext.workspace.scripts=clone(scripts);scriptContext.workspace.scriptBindings=clone(bindings);
+      const output=await script(source,{...scriptContext,
+        primaryCommitBaseline:primary.snapshot(),
         scripts:clone(scripts),bindings:clone(bindings),bindingId:automation.scriptBindingId,data:clone(workspace.scriptData||{}),scriptId,input:phase==='before'?clone(snapshot.request):metadata},
       {signal,timeoutMs,onCall:scriptCall,onLog:entry=>onScriptLog?.({phase,...entry})});
       throwIfAborted(signal);
@@ -43,13 +45,12 @@ export async function executeRequest({workspace,tab,files={},primary,environment
         changes={...output,writes:{...output.writes,primary:[...extracted,...(output.writes?.primary||[])]}};
       }else if(Object.hasOwn(output,'request')){
         // Compile against staged variable writes before changing any live state.
-        const staged={...view,collections:clone(workspace.collections||[]),tabs:clone(workspace.tabs||[]),globals:clone(workspace.globals),scriptData:clone(workspace.scriptData||{}),
-          environments:workspace.environments.map(item=>({...item,values:clone(item.values)}))};
+        const staged=clone(view);
         const stagedPrimary=new PrimaryVariables();stagedPrimary.rows=clone(primary.rows);
         applyScriptWrites(staged,stagedPrimary,staged.environments.find(item=>item.id===environmentId),changes);
         compileRequest(staged,{...snapshot,request:changedRequest},changedAttachments,stagedPrimary.rows);
       }
-      onVariables(applyScriptWrites(workspace,primary,environment,changes));
+      onVariables(applyScriptWrites(workspace,primary,environment,changes),changes);
       if(phase==='before'){snapshot.request=changedRequest;attachments=changedAttachments;}
       onScript({phase,logs:output.logs,result:output.result,error:null});
       return changedResponse;

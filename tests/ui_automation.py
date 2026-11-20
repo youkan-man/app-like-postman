@@ -10,6 +10,7 @@ import tempfile
 from playwright.sync_api import sync_playwright, expect
 from browser_app import BrowserApp
 from test_proxy import proxy, start_server
+from ui_standalone_scripts import READ_WORKSPACE
 
 KEY = 'minipost.workspace.v2'
 
@@ -36,7 +37,7 @@ def main():
                 shots.append(name+'.png')
             def stored():
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
-                return page.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', KEY)
+                return page.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', KEY) if fixture.inline else page.evaluate(READ_WORKSPACE)
             def load(value):
                 page.locator('#import').click()
                 page.get_by_label('インポートJSON').fill(json.dumps(value))
@@ -92,7 +93,7 @@ def main():
             passed('environment tab edits a full page, autosaves and scopes creation')
 
             request_menu('Seed')
-            menu('この位置にリクエストを追加')
+            menu('リクエストを追加')
             page.get_by_label('追加する名前').fill('Inserted sibling')
             page.locator('#modalSubmit').click()
             ws=stored()
@@ -134,7 +135,7 @@ def main():
 
             editor('scripts')
             before_script=page.get_by_label('送信前スクリプト',exact=True)
-            run_script=page.locator('#script-panel-before').get_by_role('button',name='このスクリプトを実行',exact=True)
+            run_script=page.locator('#script-panel-before').get_by_role('button',name='スクリプトを実行',exact=True)
             before_script.fill("vars.set('must_not_commit', 'bad'); throw Error('atomic failure');")
             run_script.click()
             expect(page.locator('#scriptLog')).to_contain_text('atomic failure')
@@ -173,7 +174,7 @@ def main():
             expect(page.locator('.metadata-tree')).to_be_visible()
             page.get_by_label('抽出パス',exact=True).fill('/body/method')
             page.get_by_label('一次変数名',exact=True).fill('copiedMethod')
-            page.get_by_label('次回以降の受信時にも自動で抽出',exact=True).check()
+            page.get_by_label('受信時に抽出',exact=True).check()
             capture('response-extraction')
             page.locator('#modalSubmit').click()
             assert {v['key']:v['value'] for v in primary_values()}['copiedMethod']=='POST'
@@ -198,6 +199,7 @@ def main():
             expect(page.locator('#relationSteps .relation-step')).to_have_count(1)
             for name in ['Next','Finish']:
                 page.locator('#addRelationStep').click()
+                menu('リクエスト')
                 count=page.locator('.relation-step').count()
                 pick=page.get_by_label(f'ステップ {count} のリクエスト',exact=True)
                 options=pick.locator('option').evaluate_all('(nodes)=>nodes.map(n=>({value:n.value,label:n.textContent}))')
@@ -208,7 +210,10 @@ def main():
             step.get_by_label('比較する値 / {{変数}}',exact=True).fill('200')
             target=stored()['relations'][0]['steps'][2]['id']
             step.get_by_label('ステップ 1 の条件成立時',exact=True).select_option(target)
+            page.get_by_label('リレーションの操作',exact=True).click()
+            menu('実行設定')
             page.get_by_label('全体の回数',exact=True).fill('2')
+            page.locator('#modalSubmit').click()
             step.get_by_label('開始前 ms',exact=True).fill('20')
             capture('relation-config-desktop')
             page.locator('#runRelation').click()
@@ -252,9 +257,139 @@ def main():
             assert page.locator('.statusbar').evaluate('e => e.getBoundingClientRect().bottom <= innerHeight+1')
             capture('body-phone')
             passed('phone pages keep editable body lines, response content and footer visible without page overflow')
+
+            # Build a real nested plan through the editor, then start that plan
+            # from its context menu while a different relation is selected.
+            page.set_viewport_size({'width':1440,'height':1000})
+            side('scripts');page.locator('#sidebarAdd').click();menu('スクリプトを作成')
+            page.locator('#modal').get_by_label('スクリプト名',exact=True).fill('Record loop')
+            page.locator('#modalSubmit').click()
+            page.get_by_label('スクリプトのコード',exact=True).fill("if(input?.reset){store.set('loopSeen',[]);vars.set('counter',0);return null;} const value=vars.get('item'); const index=vars.get('index'); const seen=store.get('loopSeen')||[]; seen.push({item:value===undefined?null:JSON.parse(value),index:index===undefined?null:Number(index)}); store.set('loopSeen',seen); vars.set('counter',Number(vars.get('counter')||0)+1); return {ready:true};")
+            script_id=next(script['id'] for script in stored()['scripts'] if script['name']=='Record loop')
+            side('relations');page.locator('#sidebarAdd').click();menu('リレーションを作成')
+            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Nested flow')
+            page.locator('#modalSubmit').click()
+
+            def add_control(kind,parent=None,branch='処理'):
+                if parent is None:
+                    page.locator('#addRelationStep').click()
+                else:
+                    page.get_by_role('button',name=f'ステップ {parent} の{branch}に追加',exact=True).click()
+                menu(kind)
+
+            def configure_condition(label,path,value,operator='eq'):
+                page.get_by_label(f'ステップ {label} の分岐元',exact=True).select_option('primary')
+                page.get_by_label(f'ステップ {label} の比較元',exact=True).fill(path)
+                page.get_by_label(f'ステップ {label} の比較',exact=True).select_option(operator)
+                branch=page.locator('.step-branch').filter(has=page.get_by_label(f'ステップ {label} の比較元',exact=True))
+                branch.get_by_label('比較する値 / {{変数}}',exact=True).fill(value)
+
+            add_control('スクリプト')
+            page.get_by_label('ステップ 1 のスクリプト',exact=True).select_option(script_id)
+            page.get_by_label('ステップ 1 の入力形式',exact=True).select_option('json')
+            page.get_by_label('ステップ 1 の入力',exact=True).fill('{"reset":true}')
+            add_control('繰り返し')
+            add_control('配列ループ','2')
+            page.get_by_label('ステップ 2.1 の配列',exact=True).fill('[1,2,3,4]')
+            add_control('条件分岐','2.1');configure_condition('2.1.1','item','2')
+            add_control('次の周へ','2.1.1','成立')
+            add_control('スクリプト','2.1')
+            page.get_by_label('ステップ 2.1.2 のスクリプト',exact=True).select_option(script_id)
+            add_control('条件分岐','2.1');configure_condition('2.1.3','item','3')
+            add_control('ループ終了','2.1.3','成立')
+            add_control('条件ループ');configure_condition('3','counter','6','lt')
+            add_control('スクリプト','3')
+            page.get_by_label('ステップ 3.1 のスクリプト',exact=True).select_option(script_id)
+            add_control('待機')
+            page.get_by_label('待機 ms',exact=True).fill('0')
+            add_control('リクエスト')
+            pick=page.get_by_label('ステップ 5 のリクエスト',exact=True)
+            options=pick.locator('option').evaluate_all('(nodes)=>nodes.map(n=>({value:n.value,label:n.textContent}))')
+            pick.select_option(next(option['value'] for option in options if option['label'].endswith(' / Finish')))
+            flow=next(relation for relation in stored()['relations'] if relation['name']=='Nested flow')
+            flow_id=flow['id'];wait_id=flow['steps'][3]['id']
+            assert flow['steps'][1]['steps'][0]['steps'][0]['steps'][0]['type']=='continue',flow
+            assert flow['steps'][1]['steps'][0]['steps'][2]['steps'][0]['type']=='break',flow
+            page.locator('.relation-page-heading').scroll_into_view_if_needed()
+            capture('relation-control-desktop')
+
+            page.locator('#sidebarContent .tree-open').filter(has_text='Sequential flow').click()
+            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Sequential flow')
+            page.locator(f'#sidebarContent [data-relation-id="{flow_id}"]').click(button='right')
+            menu('実行')
+            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Nested flow')
+            expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=30000)
+            ws=stored();run=ws['relationRuns'][-1]
+            assert run['relationId']==flow_id and run['status']=='succeeded',run
+            assert [entry['requestName'] for entry in run['entries'] if entry['type']=='request']==['Finish'],run
+            assert [item['item'] for item in ws['scriptData']['loopSeen']]==[1,3,1,3,None,None],ws['scriptData']
+            assert [item['index'] for item in ws['scriptData']['loopSeen']]==[0,2,0,2,None,None],ws['scriptData']
+            primary={row['key']:row['value'] for row in primary_values()}
+            assert primary['counter']=='6' and 'item' not in primary and 'index' not in primary,primary
+            passed('context execution targets the clicked relation and runs nested repeat/forEach/if/continue/break/while with real saved scripts')
+
+            # Duplication must give every nested node a fresh ID, while keeping
+            # saved script and request references unchanged.
+            page.get_by_label('ステップ 2 の操作',exact=True).click();menu('複製')
+            duplicated=next(relation for relation in stored()['relations'] if relation['id']==flow_id)
+            def step_ids(steps):
+                return {step['id'] for step in steps}.union(*(step_ids(step.get('steps',[]))|step_ids(step.get('elseSteps',[])) for step in steps))
+            assert step_ids([duplicated['steps'][1]]).isdisjoint(step_ids([duplicated['steps'][2]]))
+            assert duplicated['steps'][2]['steps'][0]['steps'][1]['scriptId']==script_id
+            page.get_by_label('ステップ 3 の操作',exact=True).click();menu('削除')
+            passed('nested duplication refreshes all control IDs and preserves referenced saved scripts')
+
+            page.get_by_label('待機 ms',exact=True).fill('10000')
+            page.locator('#runRelation').click()
+            expect(page.locator(f'[data-step-id="{wait_id}"].running')).to_be_visible(timeout=30000)
+            page.locator('#sidebarContent .tree-open').filter(has_text='Sequential flow').click()
+            expect(page.locator('#stopRelationLocal')).to_be_disabled()
+            page.locator('#sidebarContent .tree-row').filter(has=page.get_by_role('button',name='Sequential flowの操作',exact=True)).click(button='right')
+            expect(page.get_by_role('menuitem',name='実行',exact=True)).to_be_disabled()
+            expect(page.get_by_role('menuitem',name='停止',exact=True)).to_have_count(0)
+            page.keyboard.press('Escape')
+            page.locator(f'#sidebarContent [data-relation-id="{flow_id}"]').click(button='right')
+            menu('停止')
+            expect(page.locator('#stopRelationGlobal')).not_to_be_visible(timeout=5000)
+            page.locator('#sidebarContent .tree-open').filter(has_text='Nested flow').click()
+            expect(page.locator('#relationRunLog h2')).to_contain_text('停止')
+            run=stored()['relationRuns'][-1]
+            assert run['status']=='cancelled' and not any(entry['type']=='request' for entry in run['entries']),run
+            passed('relation-specific Stop stays disabled on other plans and context Stop cancels a pending wait before HTTP')
+            page.get_by_label('待機 ms',exact=True).fill('0')
+
+            page.locator('#dataActions').click()
+            with page.expect_download() as saved:
+                menu('全体エクスポート')
+            nested_bundle=json.loads(Path(saved.value.path()).read_text())
+            persisted=next(relation for relation in nested_bundle['workspace']['relations'] if relation['id']==flow_id)
+            assert persisted['steps'][1]['steps'][0]['steps'][1]['scriptId']==script_id
+            assert persisted['steps'][2]['type']=='while'
+            fixture.reload(page);expect(page.locator('#connectionStatus')).to_contain_text('connected')
+            side('relations');page.locator('#sidebarContent .tree-open').filter(has_text='Nested flow').click()
+            expect(page.get_by_label('ステップ 2.1 の配列',exact=True)).to_have_value('[1,2,3,4]')
+            expect(page.get_by_label('ステップ 3.1 のスクリプト',exact=True)).to_have_value(script_id)
+            passed('nested control settings and script references survive backup and reload')
+
+            for width,height in [(390,844),(320,720)]:
+                page.set_viewport_size({'width':width,'height':height})
+                page.locator('.relation-page-heading').scroll_into_view_if_needed()
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                assert page.locator('#relationSteps').evaluate('(root)=>[...root.querySelectorAll("input,select,button")].filter(node=>node.offsetParent!==null).every(node=>{const box=node.getBoundingClientRect();return box.left>=-1&&box.right<=innerWidth+1})')
+                expect(page.locator('#addRelationStep')).to_be_in_viewport()
+                capture(f'relation-control-{width}')
+            passed('nested relation controls keep their labels and actions within 320px and 390px screens')
             assert not errors,errors
             passed('no uncaught browser JavaScript errors')
             browser.close()
+    except Exception:
+        try:
+            page.screenshot(path=str(out/'failure.png'),full_page=True)
+            snapshot=page.evaluate('(key)=>JSON.parse(localStorage.getItem(key))',KEY) if fixture.inline else page.evaluate(READ_WORKSPACE)
+            (out/'failure-workspace.json').write_text(json.dumps(snapshot,ensure_ascii=False,indent=2))
+        except Exception:
+            pass
+        raise
     finally:
         report={'passed':len(checks),'checks':checks,'page_errors':errors,'screenshots':shots,'transport':'injected DOM fixture with Python HTTP bridge' if fixture.inline else 'real browser HTTP'}
         (out/'results.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))

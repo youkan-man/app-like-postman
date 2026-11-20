@@ -2,6 +2,7 @@
 import {clone, uid} from './core.mjs';
 import {validScripts, validScriptData, validScriptBindings} from './scripts.mjs';
 import {validRibbonWorkspace, listRibbonControls, resolveRibbon, resolveRibbonControl} from './ribbons.mjs';
+import {RELATION_STEP_TYPES, walkRelationSteps} from './relations.mjs';
 export const BUNDLE_KIND = 'minipost.workspace';
 export const BUNDLE_VERSION = 1;
 const safeClone = value => clone(value ?? null);
@@ -38,11 +39,33 @@ function validRevisions(map) {
   for (const [key, entries] of Object.entries(map)) {
     if (key !== 'globals' && !/^(?:environment|collection|folder|request|draft|relation|script):[^:]+(?::[^:]+)?$/.test(key)) return false;
     if (!Array.isArray(entries) || !entries.every(entry => record(entry) && (record(entry.value) || (Object.hasOwn(entry, 'before') && Object.hasOwn(entry, 'after'))))) return false;
+    if (key.startsWith('relation:') && entries.some(entry => [entry.value,entry.before,entry.after].some(value =>
+      record(value) && value.steps !== undefined && !validRelationSteps(value.steps)))) return false;
   }
   return true;
 }
+function validRelationSteps(steps, ids = new Set(), depth = 0) {
+  if (!Array.isArray(steps) || depth > 32) return false;
+  return steps.every(step => {
+    if (!record(step) || !validId(step.id) || ids.has(step.id)) return false;
+    ids.add(step.id);
+    const type = step.type || 'request';
+    if (!RELATION_STEP_TYPES.some(([value]) => value === type)) return false;
+    if (step.scriptId !== undefined && typeof step.scriptId !== 'string') return false;
+    const block = ['repeat','forEach','while','if'].includes(type);
+    if (block ? !validRelationSteps(step.steps,ids,depth+1) : step.steps !== undefined) return false;
+    if (type === 'if' ? !validRelationSteps(step.elseSteps,ids,depth+1) : step.elseSteps !== undefined) return false;
+    return true;
+  });
+}
 function validRelations(relations) {
-  return relations == null || (Array.isArray(relations) && relations.every(r => record(r) && validId(r.id) && typeof r.name === 'string' && Array.isArray(r.steps) && r.steps.every(s => record(s) && validId(s.id))));
+  if (relations == null) return true;
+  const ids = new Set();
+  return Array.isArray(relations) && relations.every(relation => {
+    if (!record(relation) || !validId(relation.id) || ids.has(relation.id) || typeof relation.name !== 'string') return false;
+    ids.add(relation.id);
+    return validRelationSteps(relation.steps);
+  });
 }
 function validWorkspace(ws) {
   return record(ws) && ws.version === 2 &&
@@ -186,6 +209,7 @@ export function mergeWorkspace(into, source) {
       (workspace.scriptData !== undefined && !validScriptData(workspace.scriptData)) ||
       (workspace.scriptBindings !== undefined && !validScriptBindings(workspace.scriptBindings))) throw new Error('スクリプトまたはスクリプトデータの形式が不正です。');
     if (!validRibbonWorkspace(workspace)) throw new Error('リボンの形式が不正です。');
+    if (!validRelations(workspace.relations)) throw new Error('リレーションの形式が不正です。');
   }
   // Regenerate external IDs to avoid silently overwriting existing entities.
   const ids = new Map(), remap = id => {
@@ -249,14 +273,17 @@ export function mergeWorkspace(into, source) {
       remapScriptReferences(h.tab.request);
     }
   });
-  for (const relation of imported.relations || []) {
-    relation.id = remap(relation.id); relation.environmentId = remap(relation.environmentId);
-    for (const step of relation.steps) {
+  function remapRelationValue(relation) {
+    if (relation.id) relation.id = remap(relation.id);
+    if (relation.environmentId) relation.environmentId = remap(relation.environmentId);
+    walkRelationSteps(relation.steps, step => {
       step.id = remap(step.id); step.collectionId = remap(step.collectionId); step.itemId = remap(step.itemId); step.draftId = remap(step.draftId);
+      if (step.scriptId) step.scriptId = remap(step.scriptId);
       if (step.onTrue && !step.onTrue.startsWith('$')) step.onTrue = remap(step.onTrue);
       if (step.onFalse && !step.onFalse.startsWith('$')) step.onFalse = remap(step.onFalse);
-    }
+    });
   }
+  for (const relation of imported.relations || []) remapRelationValue(relation);
   for (const run of imported.relationRuns || []) {
     run.id = remap(run.id); run.relationId = remap(run.relationId);
     for (const entry of run.entries || []) {entry.stepId = remap(entry.stepId);if (entry.branch?.target && !entry.branch.target.startsWith('$')) entry.branch.target = remap(entry.branch.target);}
@@ -284,7 +311,8 @@ export function mergeWorkspace(into, source) {
     for (const [key, values] of Object.entries(imported[property] || {})) {
       const parts = key.split(':');
       const renamed = [parts[0], ...parts.slice(1).map(remap)].join(':');
-      if (parts[0] === 'relation') for (const entry of values) {const value=entry.value;if(value){value.environmentId=remap(value.environmentId);for(const step of value.steps || []){step.id=remap(step.id);step.collectionId=remap(step.collectionId);step.itemId=remap(step.itemId);step.draftId=remap(step.draftId);for(const field of ['onTrue','onFalse'])if(step[field] && !step[field].startsWith('$'))step[field]=remap(step[field]);}}}
+      if (parts[0] === 'relation') for (const entry of values)
+        for (const value of [entry.value,entry.before,entry.after]) if (record(value)) remapRelationValue(value);
       if (parts[0] === 'request' || parts[0] === 'draft') for (const entry of values)
         for (const value of [entry.value,entry.before,entry.after]) remapScriptReferences(value?.request || value);
       if (renamed === 'globals') {

@@ -21,7 +21,7 @@ function catalog(workspace) {
   const entries=[];
   for(const collection of workspace.collections||[])walkItems(collection.item,(item,parents)=>{
     if(item.request)entries.push({id:`${collection._mpId}:${item._mpId}`,name:item.name,path:[collection.info.name,...parents.map(parent=>parent.name),item.name].join(' / '),
-      collectionId:collection._mpId,itemId:item._mpId,request:requestShape(item.request),settings:requestShape(item.settings||{})});
+      collectionId:collection._mpId,itemId:item._mpId,parentId:parents.length?`${collection._mpId}:${parents.at(-1)._mpId}`:collection._mpId,request:requestShape(item.request),settings:requestShape(item.settings||{})});
   });
   for(const tab of workspace.tabs||[]){
     const entry=tab.collectionId&&tab.itemId&&entries.find(item=>item.collectionId===tab.collectionId&&item.itemId===tab.itemId);
@@ -33,6 +33,12 @@ function catalog(workspace) {
 
 export function scriptEditorContext(workspace,primary,{script,tab,ribbonOwner=tab,result,phase}={}) {
   const current=tab||{request:newRequest()},view=contextFor(workspace,current,primary?.rows||[]),ribbonState=getRequestRibbonState(workspace,ribbonOwner);
+  const requests=catalog(workspace),folders=[];
+  for(const collection of workspace.collections||[])walkItems(collection.item,(item,parents)=>{
+    if(Array.isArray(item.item))folders.push({id:`${collection._mpId}:${item._mpId}`,collectionId:collection._mpId,itemId:item._mpId,
+      parentId:parents.length?`${collection._mpId}:${parents.at(-1)._mpId}`:collection._mpId,name:item.name,
+      path:[collection.info.name,...parents.map(parent=>parent.name),item.name].join(' / ')});
+  });
   const context={
     scriptId:script?.id,
     scripts:(workspace.scripts||[]).map(item=>({id:item.id,name:item.name,source:item.id===script?.id?'':item.source,input:item.input,inputFormat:item.inputFormat,bindingId:item.bindingId})),
@@ -46,7 +52,9 @@ export function scriptEditorContext(workspace,primary,{script,tab,ribbonOwner=ta
     variables:Object.fromEntries(Object.keys(view.vars).map(key=>[key,''])),
     primary:names(primary?.rows),environment:names(view.environment?.values),globals:names(workspace.globals),
     request:tab?requestShape(tab.request):null,
-    requests:catalog(workspace),
+    requests,folders,drafts:requests.filter(item=>item.draftId),
+    collections:(workspace.collections||[]).map(item=>({id:item._mpId,name:item.info.name})),
+    relations:(workspace.relations||[]).map(item=>({id:item.id,name:item.name})),
     environments:(workspace.environments||[]).map(environment=>({id:environment.id,name:environment.name,
       values:(environment.values||[]).map(row=>({...requestShape(row),key:row.key}))}))
   };

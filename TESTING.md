@@ -40,6 +40,12 @@ Docker試験は同梱Composeを使い、試験用のコンテナ名・公開ポ�
 
 `node --test tests/*.test.mjs` は一次変数、JSON Pointer、スクリプト適用順、リレーションの反復・条件・中断・参照検証・バックアップを含みます。`python tests/ui_automation.py` は新規作成、階層挿入、環境のページ編集、本文ハイライト、スクリプト、受信後抽出、リレーションを実ブラウザとEcho HTTPで確認し、デスクトップ／モバイル画像を残します。既存の全ブラウザスイートも実行します。
 
+`tests/relation-control.test.mjs` は入れ子の繰り返し・配列・条件ループ・分岐・待機・break/continue・保存スクリプト・変数復元を確認します。`tests/script-relations.test.mjs` はスクリプトからリレーションを呼んだ場合の保留データ共有、送信前後の処理、失敗・中断・再帰拒否を検証します。バックアップ試験は入れ子のリクエスト・スクリプト・分岐・変更履歴のID変換も対象です。
+
+`tests/script-tools.test.mjs` は重複クエリ・Cookie・CSV・JSON解析・文字コードの境界、SHA256/HMACの既知ベクトル、Web Cryptoなしの実行、非同期処理の期限・並列数・中断を確認します。関数をシリアライズして別のVMコンテキストで実行し、Workerへ渡せない外部依存も検出します。
+
+`python tests/ui_script_workspace_api.py` は実際の分離Workerからワークスペースを作成・編集し、子スクリプトとリレーションの実行、失敗・停止時の取り消し、同時編集の衝突と別項目の保持、実HTTPのリクエスト構築・送信、添付読取、再読込、補完と検索リファレンスを検証します。通常HTTPでのSHA256/HMAC動作と320pxの画面を含み、`script-workspace-api/` に結果と画像を保存します。GitHub ActionsとLocal Relayの2VM試験に同じスイートを組み込みます。
+
 `MINIPOST_INLINE_TEST=1` は明示的なDOM用テストダブルです。HTML・モジュールをabout:blankへ渡し、ストレージとHTTPを注入するため、ブラウザネットワークのE2E保証には使用しません。GitHub Actionsの検証ではこのモードを使用せず、実HTTPで実行します。アプリ本体の動作やブラウザポリシーは変更しません。
 
 ## ブラウザ保存・復元

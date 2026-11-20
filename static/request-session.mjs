@@ -100,15 +100,22 @@ export class RequestSession {
     }
     this.select(tab.id); return tab;
   }
-  syncSaved() {
+  syncSaved({preserveEqual=false}={}) {
+    const changed=new Set(),equal=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
     for (const tab of this.all()) {
       const item = this.savedItem(tab);
       if (item) {
-        tab.name = item.name; tab.request = normalizeRequest(item.request);
-        tab.settings = requestSettings(item.settings); tab.dirty = false;
+        const request=normalizeRequest(item.request),settings=requestSettings(item.settings);
+        const sameRequest=equal(tab.request,request),sameSettings=equal(tab.settings,settings);
+        if(tab.name!==item.name||!sameRequest||!sameSettings||tab.dirty!==false||tab.ribbonState!==item.ribbonState)changed.add(tab.id);
+        tab.name = item.name;
+        if(!preserveEqual||!sameRequest)tab.request=request;
+        if(!preserveEqual||!sameSettings)tab.settings=settings;
+        tab.dirty = false;
         this.syncRibbon(tab);
         this.savedEditors.add(tab.id);
       } else if (this.savedEditors.delete(tab.id)) {
+        changed.add(tab.id);
         // Deleting a collection must not turn its old editor cache into new drafts.
         this.workspace.tabs = this.workspace.tabs.filter(value => value.id !== tab.id);
         if (tab.ribbonState!==undefined) tab.ribbonState=cloneRibbonState(tab.ribbonState);
@@ -117,6 +124,7 @@ export class RequestSession {
     }
     if (!this.workspace.tabs.some(tab => tab.id === this.workspace.activeId)) this.workspace.activeId = this.workspace.tabs[0]?.id || '';
     if (this.workspace.activeRequest && !this.savedItem(this.workspace.activeRequest)) delete this.workspace.activeRequest;
+    return changed;
   }
   remove(ids) {
     const removed = new Set(ids);

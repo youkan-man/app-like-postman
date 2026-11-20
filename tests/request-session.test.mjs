@@ -182,3 +182,32 @@ test('merging an empty workspace restores saved selection with remapped IDs', ()
   assert.equal(new RequestSession(into,blank).active.name,item.name);
   assert.deepEqual(into.tabs,[]);
 });
+
+test('selective saved sync preserves equivalent request/settings objects and editor closures',()=>{
+  const {workspace,session,collection,item}=fixture(),editor=session.openSaved(collection,item);
+  const request=editor.request,settings=editor.settings,header=editor.request.header;
+  workspace.globals.push({key:'unrelated',value:'changed'});
+  assert.deepEqual([...session.syncSaved({preserveEqual:true})],[]);
+  assert.equal(editor.request,request);assert.equal(editor.settings,settings);assert.equal(editor.request.header,header);
+  header.push({key:'X-Still-Bound',value:'yes'});
+  assert.equal(editor.request.header[0].value,'yes');
+});
+
+test('selective saved sync reports only changed owners and replaces only changed fields',()=>{
+  const {session,collection,folder,item}=fixture(),first=session.openSaved(collection,item);
+  const sibling={_mpId:'other',name:'Other',request:newRequest()};folder.item.push(sibling);
+  const second=session.openSaved(collection,sibling),unchangedRequest=second.request,firstSettings=first.settings;
+  item.request.url='https://example.test/changed';
+  assert.deepEqual([...session.syncSaved({preserveEqual:true})],[first.id]);
+  assert.equal(first.request.url.raw,'https://example.test/changed');assert.equal(first.settings,firstSettings);assert.equal(second.request,unchangedRequest);
+  const changedRequest=first.request;item.settings={timeout_ms:1234};item.name='Renamed';
+  assert.deepEqual([...session.syncSaved({preserveEqual:true})],[first.id]);
+  assert.equal(first.request,changedRequest);assert.equal(first.settings.timeout_ms,1234);assert.equal(first.name,'Renamed');
+});
+
+test('saved sync default still replaces normalized objects and reports deleted owner transitions',()=>{
+  const {session,collection,folder,item}=fixture(),editor=session.openSaved(collection,item),request=editor.request;
+  session.syncSaved();assert.notEqual(editor.request,request);
+  folder.item=[];
+  assert.deepEqual([...session.syncSaved({preserveEqual:true})],[editor.id]);assert.equal(session.isTemporary(editor),true);
+});

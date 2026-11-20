@@ -196,8 +196,8 @@ function refreshSettingsDrawer() {
   }
 }
 function emptyEnvironmentDrawer() {studio.environmentChosen(''); chooseSidebar('environments');}
-function copyConfiguration(owner, kind) {settingsClipboard = snapshotSettings(owner, kind); toast('設定をコピーしました。貼り付け先のメニューから貼り付けできます。');}
-function pasteConfiguration(owner, kind) {applySettings(owner, kind, settingsClipboard); settingsChanged(true); refreshSettingsDrawer(); if(kind==='environment')studio?.refresh(); toast('設定を貼り付けました。名前は変更していません。');}
+function copyConfiguration(owner, kind) {settingsClipboard = snapshotSettings(owner, kind); toast('設定をコピーしました。');}
+function pasteConfiguration(owner, kind) {applySettings(owner, kind, settingsClipboard); settingsChanged(true); refreshSettingsDrawer(); if(kind==='environment')studio?.refresh(); toast('設定を貼り付けました。');}
 function configurationActions(owner, kind) {
   return [{label: '設定をコピー', run: () => copyConfiguration(owner, kind)}, {label: '設定を貼り付け', disabled: settingsClipboard?.kind !== kind, run: () => pasteConfiguration(owner, kind)}];
 }
@@ -266,12 +266,12 @@ function kvEditor(list, changed, options = {}) {
       }
       const more = button('⋯', () => {}, 'icon-button row-menu'); more.setAttribute('aria-label', `行 ${index + 1} の操作`);
       bindContext(tr, more, (anchor, event) => openItemMenu(anchor, [
-        {label: 'この上に行を追加', run: () => editRows(index, 0, [{key:'', value:'', disabled:false}])},
-        {label: 'この下に行を追加', run: () => editRows(index + 1, 0, [{key:'', value:'', disabled:false}])},
+        {label: '行を挿入', run: () => editRows(index, 0, [{key:'', value:'', disabled:false}])},
+        {label: '行を追加', run: () => editRows(index + 1, 0, [{key:'', value:'', disabled:false}])},
         {label: '値をコピー', run: () => copyText(row.value)},
         {label: '行をコピー', run: () => {rowClipboard = clone(row); toast('行をコピーしました。');}},
         {label: '行を複製', run: () => editRows(index + 1, 0, [clone(row)])},
-        {label: 'コピーした行を下に貼り付け', disabled: !rowClipboard, run: () => editRows(index + 1, 0, [clone(rowClipboard)])},
+        {label: '行を貼り付け', disabled: !rowClipboard, run: () => editRows(index + 1, 0, [clone(rowClipboard)])},
         {label: enabled(row) ? '無効にする' : '有効にする', run: () => {row.disabled = enabled(row); delete row.enabled; changed(); paint(); tbody.children[index]?.querySelector('.kv-enabled input')?.focus({preventScroll:true});}},
         {label: '削除', danger: true, run: () => editRows(index, 1)}
       ], event));
@@ -281,7 +281,7 @@ function kvEditor(list, changed, options = {}) {
   }
   paint(); wrap.append(table, button('＋ 行を追加', () => {list.push({key: '', value: '', disabled: false, ...(options.files ? {type: 'text'} : {})}); changed(); paint(); tbody.lastElementChild?.querySelector('input[type=text]')?.focus();}, 'table-add'));
   const paste = button('貼り付け', () => {if (!rowClipboard) {toast('先に行のメニューからコピーしてください。'); return;} list.push(clone(rowClipboard)); changed(); paint();}, 'text-button table-paste');
-  paste.setAttribute('aria-label', 'コピーした行を末尾に貼り付け'); wrap.append(paste); return wrap;
+  paste.setAttribute('aria-label', '行を貼り付け'); wrap.append(paste); return wrap;
 }
 function caption(title, parent) {const line = element('div', 'section-caption', title); parent.append(line); return line;}
 function updateCounts() {
@@ -318,7 +318,7 @@ function renderPaneSection(root, pane) {
   root.replaceChildren();
   const tab = active(), r = tab.request, context = contextFor(workspace, tab);
   const scriptWarning = context.events.some(e => e.disabled !== true);
-  $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'インポート済みスクリプトは参照のみです。実行するコードはスクリプト編集欄へ明示的にコピーしてください。';
+  $('requestWarning').hidden = !scriptWarning; $('requestWarning').textContent = 'インポートしたスクリプトは未実行です。実行するコードをスクリプト欄に設定してください。';
   if (pane === 'params') {
     const u = urlParts(r.url);
     if (u.variable.length) caption('Query Params', root);
@@ -689,6 +689,91 @@ function focusTreeItem(collectionId, itemId) {
 function toggleCollapse(id) {workspace.collapsed ||= []; const at = workspace.collapsed.indexOf(id); if (at < 0) workspace.collapsed.push(id); else workspace.collapsed.splice(at, 1); persist();}
 function renderAll() {renderSelection(); renderEnvironments(); renderSidebar(); renderEditor(); renderResponse();}
 
+function canonicalRequestSnapshot(tab) {
+  if(!tab?.itemId||requestSession.savedItem(tab))return tab;
+  const matches=[];
+  for(const collection of workspace.collections)walkItems(collection.item,item=>{if(item._mpId===tab.itemId&&item.request)matches.push(collection._mpId);});
+  return matches.length===1?{...tab,collectionId:matches[0]}:tab;
+}
+function sessionRequestFor(tab) {
+  const target=canonicalRequestSnapshot(tab);
+  return requestSession.all().find(value=>value.id===target.id||(target.itemId&&value.collectionId===target.collectionId&&value.itemId===target.itemId));
+}
+
+function preserveEditingFocus() {
+  const current=document.activeElement;
+  if (!(current instanceof HTMLElement) || current===document.body) return ()=>{};
+  const root=current.closest('#modalBody,#workspacePage,#editorContent,#sidebarContent') || document.body;
+  const label=current.getAttribute('aria-label'),placeholder=current.getAttribute('placeholder');
+  const matches=node=>node.tagName===current.tagName && (label?node.getAttribute('aria-label')===label:placeholder?node.getAttribute('placeholder')===placeholder:false);
+  const ordinal=[...root.querySelectorAll(current.tagName)].filter(matches).indexOf(current);
+  const selection={start:current.selectionStart,end:current.selectionEnd,direction:current.selectionDirection};
+  const scrolls=[];
+  for(let node=current;node;node=node.parentElement)if(node.id)scrolls.push({id:node.id,top:node.scrollTop,left:node.scrollLeft});
+  const ownScroll={top:current.scrollTop,left:current.scrollLeft};
+  return ()=>{
+    if(current.isConnected)return;
+    const target=(current.id&&$(current.id)) || [...root.querySelectorAll(current.tagName)].filter(matches)[ordinal];
+    if(!target||target.disabled||!target.getClientRects().length)return;
+    target.focus({preventScroll:true});
+    if(Number.isInteger(selection.start))try{target.setSelectionRange(selection.start,selection.end,selection.direction);}catch{}
+    target.scrollTop=ownScroll.top;target.scrollLeft=ownScroll.left;
+    for(const entry of scrolls){const node=$(entry.id);if(node){node.scrollTop=entry.top;node.scrollLeft=entry.left;}}
+  };
+}
+
+function workspaceChanged(output) {
+  const flatten=value=>value?.stages?value.stages.flatMap(flatten):value?[value]:[];
+  const stages=flatten(output);
+  const patches=stages.flatMap(stage=>stage.workspaceWrites||[]),roots=new Set(patches.map(change=>change.path[0]));
+  if (!patches.length) {const restore=preserveEditingFocus();studio?.refreshForChanges(output);restore();return;}
+  const restoreFocus=preserveEditingFocus(),priorSelectedId=requestSession.selectedId;
+  const changed=new Map();
+  for (const stage of stages) for (const request of stage.changedRequests||[]) {
+    const prior=changed.get(request.id);
+    changed.set(request.id,{before:prior?prior.before:request.before,after:request.after});
+  }
+  const removedDrafts=[];
+  for (const [reference,change] of changed) if(change.after===null) {
+    if(reference.startsWith('draft:')) {
+      const id=reference.slice(6);removedDrafts.push(id);
+      requests.get(id)?.abort();requests.delete(id);responses.delete(id);selectedFiles.delete(id);
+      revisionStore.remove(reference);studio?.forgetResponse(reference);
+    } else {
+      const itemId=reference.split(':')[1],matches=[];
+      for(const collection of workspace.collections)walkItems(collection.item,item=>{if(item._mpId===itemId&&item.request)matches.push(`${collection._mpId}:${item._mpId}`);});
+      if(matches.length===1)studio?.transferResponse(`request:${reference}`,`request:${matches[0]}`);
+      else studio?.forgetResponse(`request:${reference}`);
+    }
+  }
+  if(removedDrafts.length)requestSession.remove(removedDrafts);
+  const fileShape=request=>({mode:request?.body?.mode,binary:request?.body?.binary,file:request?.body?.file,formdata:request?.body?.formdata});
+  for (const tab of requestSession.all()) {
+    const reference=tab.collectionId&&tab.itemId?`${tab.collectionId}:${tab.itemId}`:`draft:${tab.id}`;
+    if (tab.itemId && !requestSession.savedItem(tab)) {
+      const matches=[];
+      for (const collection of workspace.collections) walkItems(collection.item,item=>{if(item._mpId===tab.itemId&&item.request)matches.push(collection);});
+      if (matches.length===1) tab.collectionId=matches[0]._mpId;
+    }
+    const alteration=changed.get(reference),saved=requestSession.savedItem(tab);
+    const before=alteration?.before || tab.request,after=saved?.request || alteration?.after;
+    if ((alteration||saved) && (!after||JSON.stringify(fileShape(before))!==JSON.stringify(fileShape(after)))) selectedFiles.delete(tab.id);
+  }
+  const requestChanges=roots.has('collections')||roots.has('tabs')?requestSession.syncSaved({preserveEqual:true}):new Set();
+  const current=active(),currentRef=current.collectionId&&current.itemId?`${current.collectionId}:${current.itemId}`:`draft:${current.id}`;
+  const editorChanged=priorSelectedId!==current.id||requestChanges.has(current.id)||changed.has(currentRef);
+  if(roots.has('theme'))setTheme();
+  if(roots.has('environments')||roots.has('environmentId'))renderEnvironments();
+  if([...roots].some(root=>['collections','tabs','environments','globals','scripts','relations','history','environmentId'].includes(root)))renderSidebar();
+  if(editorChanged){renderSelection();renderEditor();renderResponse();}
+  else if(roots.has('collections')||roots.has('globals')||roots.has('environments')||roots.has('environmentId'))updateCounts();
+  const drawer=settingsDrawer;
+  if(drawer&&((drawer.kind==='globals'&&roots.has('globals')) ||
+      (drawer.kind==='environment'&&(roots.has('environmentId')||patches.some(change=>change.path[0]==='environments'&&(!change.path[1]||change.path[1].id===drawer.id)))) ||
+      (['collection','folder'].includes(drawer.kind)&&patches.some(change=>change.path[0]==='collections'&&(!change.path[1]||change.path[1].id===drawer.collectionId)))))refreshSettingsDrawer();
+  studio?.refreshForChanges(output);restoreFocus();
+}
+
 function moveTreeItem(intent) {
   revisionStore.capture();
   const result = moveCollectionItem(workspace, intent, {editors:requestSession.all(), transfer:(from,to)=>{
@@ -875,7 +960,7 @@ async function saveToServer() {
     const newerLocalChanges = localChangeGeneration !== savedGeneration;
     $('serverSaveState').classList.remove('error');
     $('serverSaveState').classList.toggle('saved', !newerLocalChanges);
-    $('serverSaveState').textContent = newerLocalChanges ? 'サーバーには未反映' : 'サーバーへ明示保存済み';
+    $('serverSaveState').textContent = newerLocalChanges ? 'サーバーには未反映' : 'サーバー保存済み';
     toast(newerLocalChanges ? '送信開始時の内容を保存しました。保存中の変更はサーバーに未反映です。' : 'サーバーに保存しました。');
   } catch(error) {
     $('serverSaveState').classList.add('error');
@@ -919,7 +1004,7 @@ function importDialog(initialFiles = []) {
     const inputs = await Promise.all(files.map(async f => ({name:f.name,content:await f.text()})));
     if(paste.value.trim())inputs.push({name:'貼り付けJSON',content:paste.value});
     if(!inputs.length)throw new Error('JSONファイルまたはJSONテキストを指定してください。');
-    if(inputs.some(i=>i.content.length>10*1024*1024))throw new Error('1ファイル10 MiBまで対応します。');
+    if(inputs.some(i=>i.content.length>10*1024*1024))throw new Error('ファイルは10 MiB以下にしてください。');
     // Validate every file before touching the current workspace.
     const parsed=inputs.map(i=>{
       try {
@@ -929,7 +1014,7 @@ function importDialog(initialFiles = []) {
     });
     const full=parsed.filter(x=>x.kind==='full');
     if(full.length) {
-      if(parsed.length!==1)throw new Error('全体バックアップは単独で読み込んでください。個別ファイルは別途追加できます。');
+      if(parsed.length!==1)throw new Error('全体バックアップは1ファイルずつ読み込んでください。');
       showArchiveImport(full[0].data,full[0].name);
     } else applyImports(parsed.map(x=>x.data));
   },'読み込む');
@@ -1031,12 +1116,12 @@ async function sendRequest() {
   try {
     const result = await studio.execute(snapshot,{signal:controller.signal,environmentId,files:selectedFiles.snapshot(tab.id,snapshot.request,controller.signal),onProgress:transfer.update});
     if (requestSession.get(tab.id)) responses.set(tab.id, result);
-    workspace.history.push(historyEntry(snapshot, result, historyContext)); persist();
+    workspace.history.push(historyEntry(canonicalRequestSnapshot(snapshot), result, historyContext)); persist();
     if (active().id === tab.id) $('requestInfo').textContent = `${tab.request.method} · ${new Date().toLocaleTimeString()}${result.redirects?.length ? ` · ${result.redirects.length} redirects` : ''}`;
   } catch (error) {
     const cancelled = error.name === 'AbortError';
     if (requestSession.get(tab.id)) responses.set(tab.id, {error: cancelled ? '受信を中止しました。送信先ですでに開始した処理は取り消せません。' : error.message, cancelled, errorTitle: error.title});
-    if (!cancelled) {workspace.history.push(historyEntry(snapshot, error, historyContext)); persist();}
+    if (!cancelled) {workspace.history.push(historyEntry(canonicalRequestSnapshot(snapshot), error, historyContext)); persist();}
   } finally {transfer.finish(); requests.delete(tab.id); if (active().id === tab.id) {renderRequestFooter(); renderResponse();} renderSidebar();}
 }
 function showRevisions(key) {
@@ -1053,7 +1138,7 @@ function showRevisions(key) {
     const details = element('details', 'revision-entry'), summary = element('summary', '', `${new Date(entry.at).toLocaleString()} · ${entry.reason} · ${entry.changed.join(', ')}`);
     details.append(summary, element('pre', 'revision-value', JSON.stringify(entry.value, null, 2)), button('この版を復元', async () => {
       if (!await confirmAction('この設定を選んだ版に戻しますか？現在の値は履歴に残ります。', {title:'変更履歴を復元', accept:'復元', danger:false})) return;
-      revisionStore.restore(key, entry); requestSession.syncSaved(); for (const draft of requestSession.all()) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); studio?.refresh(); showRevisions(key); toast('復元しました。送信はしていません。');
+      revisionStore.restore(key, entry); requestSession.syncSaved(); for (const draft of requestSession.all()) if (requestKey(workspace, draft) === key) selectedFiles.delete(draft.id); persist(true); renderAll(); studio?.refresh(); showRevisions(key); toast('復元しました。');
     })); box.append(details);
   }
   showModal('変更履歴', box, null, '', 'drawer'); $('cancelModal').textContent = '閉じる';
@@ -1119,13 +1204,13 @@ historyView = createHistoryView($('historyPage'), {edit: openHistoryForEdit, cop
 studio = initStudio({
   $,element,button,input,select,field,kvEditor,openItemMenu,bindContext,showModal,closeModal,persist,toast,
   workspace:()=>workspace,active,side:()=>side,setSide:value=>{side=value;saveNavigation();},
-  renderSidebar,renderAll,renderEditor,renderEnvironments,renderHistoryPage,closeNavigation:()=>workbench.closeNavigation(),
+  renderSidebar,renderAll,renderEditor,renderEnvironments,renderHistoryPage,workspaceChanged,closeNavigation:()=>workbench.closeNavigation(),
   chooseEnvironment,environmentMenu,environmentActions,exportEnvironment,showRevisions,exportFile,copyText,newCollection,openRequest,selectRequest,selectEditorPage,touch,
   addDraft:()=>{side='collections';addTab();$('url').focus();},
   ensureRibbonOwner:()=>{const tab=active();if(!requestSession.savedItem(tab)&&requestSession.isTemporary(tab))requestSession.addDraft(tab);return tab;},
   findDraft:(collectionId,itemId)=>requestSession.all().find(t=>t.collectionId===collectionId&&t.itemId===itemId),
-  filesFor:(tab,signal)=>selectedFiles.snapshot(requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))?.id,tab.request,signal),
-  requestFor:tab=>requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId)),
+  filesFor:(tab,signal)=>selectedFiles.snapshot(sessionRequestFor(tab)?.id,tab.request,signal),
+  requestFor:sessionRequestFor,
   isRequestRunning:tab=>requestSession.all().some(t=>(t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId))&&requests.has(t.id)),
   validateRequestReplacement:(tab,request,attachmentRows)=>selectedFiles.validateRows(tab.id,tab.request,request,attachmentRows),
   replaceRequest:(tab,request,attachmentRows)=>{
@@ -1143,9 +1228,9 @@ studio = initStudio({
     if(active().id===tab.id)renderEditor();
   },
   recordBackground:(tab,response,environmentId)=>{
-    const draft=requestSession.all().find(t=>t.id===tab.id||(tab.itemId&&t.collectionId===tab.collectionId&&t.itemId===tab.itemId));
+    const draft=sessionRequestFor(tab);
     if(draft)responses.set(draft.id,response);
-    workspace.history.push(historyEntry(tab,response,{environmentId,environmentName:workspace.environments.find(env=>env.id===environmentId)?.name || ''}));persist();renderSidebar();renderResponse();
+    workspace.history.push(historyEntry(canonicalRequestSnapshot(tab),response,{environmentId,environmentName:workspace.environments.find(env=>env.id===environmentId)?.name || ''}));persist();renderSidebar();renderResponse();
   }
 });
 // Internal editor/response pages are tabbed; only request selection itself stays tab-free.
@@ -1155,7 +1240,6 @@ bindUrlMenu($('url'),{openMenu:openItemMenu,notify:toast,identity:()=>active().i
 bindVariableHover({workspace:()=>workspace,active,primary:()=>studio.primary.rows});
 renderAll();
 setSaveStatus(recoveryMessage ? '保存データの復元が必要です。' : 'ローカルに保存済み', !!recoveryMessage);
-$('saveState').title = storage.backend === 'indexedDB' ? 'このブラウザのIndexedDBへ保存します。サーバーへの自動送信は行いません。' : '従来のブラウザ保存を使用しています。';
 storage.onPreferenceError = () => toast('表示設定を保存できません。入力内容は維持しています。');
 if (recoveryMessage || storage.warning) toast(recoveryMessage || storage.warning);
 fetch('/api/health').then(r => {if (!r.ok) throw new Error(); $('connectionStatus').replaceChildren(element('span', 'status-dot'), document.createTextNode('Python proxy · connected'));}).catch(() => {$('connectionStatus').textContent = 'Python proxy · 接続できません';});

@@ -6,6 +6,7 @@ import {runScript} from './script-runner.mjs';
 import {makeScriptContext,createScriptHost,formatScriptValue} from './script-host.mjs';
 import {scriptEditorContext} from './script-editor-context.mjs';
 import {confirmAction} from './confirm-dialog.mjs';
+import {SCRIPT_API_SECTIONS,searchScriptAPI} from './script-api-reference.mjs';
 
 export function initScriptWorkspace(api) {
   const {$,element:el,button:btn,input,select,field,openItemMenu,bindContext,showModal,closeModal,persist,toast,primary}=api;
@@ -51,7 +52,7 @@ export function initScriptWorkspace(api) {
     {label:'IDをコピー',run:()=>api.copyText(script.id)},
     {label:'コードを書き出す',run:()=>downloadText(`${script.name}.js`,script.source,'text/javascript;charset=utf-8')},
     {label:'複製',run:()=>duplicate(script)},
-    {label:'この後にスクリプトを追加',run:()=>create(script.id)},
+    {label:'スクリプトを追加',run:()=>create(script.id)},
     {label:'削除',danger:true,run:()=>remove(script)}
   ];}
   function sidebar(){
@@ -65,18 +66,23 @@ export function initScriptWorkspace(api) {
     if(!root.children.length)root.append(el('p','sidebar-empty',query?'一致する項目なし':'スクリプトはありません'));
   }
   function reference(){
-    const box=el('div','script-reference');
-    const sections=[
-      ['入力と結果',[['input','入力欄のJSON値または文字列。'],['return value','値を返します。配列・オブジェクトや非同期処理にも対応します。'],['console.log / warn / error','実行中にログを表示します。']]],
-      ['レスポンスと送信内容',[['response.body = value','受信後の処理やレスポンスの操作から実行すると、変更を表示・コピー・保存へ反映します。'],['response.setBody(value, contentType)','本文と表示形式を置き換えます。'],['response.getHeader / setHeader / removeHeader','レスポンスのヘッダーを取得・変更・削除します。'],['response.show(view)','pretty / raw / headers / cookies / preview の表示へ切り替えます。'],['request.url / request.header / request.body','送信前の変更は実際の送信内容に反映します。手動実行ではリクエストの設定を更新します。']]],
-      ['確認',[['pm.response.json() / pm.response.text()','受信したレスポンスをJSON値または文字列として読み取ります。'],['pm.test(name, fn)','名前付きのテストを実行し、結果をログへ表示します。'],['pm.expect(value).to.equal / eql / include','値の一致・JSON値の一致・文字列の包含を確認します。']]],
-      ['スクリプト',[['scripts.list()','保存済みのID・名前を取得します。'],['await scripts.run(idOrName, input)','別のスクリプトへ入力を渡し、戻り値を受け取ります。同名の場合はIDで指定します。']]],
-      ['共有データ',[['store.get(key) / has(key) / keys()','共有データを読み取ります。'],['store.set(key, value) / delete(key) / clear()','JSON値を型を保って保存します。変更は実行全体の成功時に反映します。']]],
-      ['リボン',[['ribbon.get(reference) / set(reference, value)','項目IDまたは リボンのキー.項目のキー で値を取得・設定します。minipost.ribbonでも利用できます。'],['ribbon.values(reference?) / controls(reference?)','実行対象リクエストのリボンの値・項目を取得します。省略時はそのリクエストで選択中のリボンです。'],['ribbon.list() / active() / activate(reference)','実行対象リクエストのリボン一覧・選択中のリボンを取得し、切り替えます。'],['ribbon.show(reference, visible) / enable(reference, enabled)','項目の表示・有効状態を設定します。条件があれば併せて評価します。'],['input.value / input.previousValue / input.values','リボンの操作から実行した場合、現在値・変更前の値・同じリボンの全項目の値を参照できます。']]],
-      ['MiniPost',[['minipost.workspace.read()','ワークスペースのスナップショットを取得します（await）。'],['minipost.requests.list() / get(idOrName)','リクエストの一覧・設定を取得します（await）。'],['minipost.requests.send(idOrNameOrRequest, options)','1回送信してレスポンスを返します（await）。送信前後の処理は自動で呼びません。'],['minipost.environments.list() / get(idOrName)','環境の一覧・設定を取得します（await）。'],['vars.get / set / unset','一次変数。pm.variables・minipost.variablesでも利用できます。'],['pm.environment / pm.globals','環境・Globalsのget / set / unset / has / toObject。minipostからも利用できます。']]]
-    ];
-    for(const [title,entries] of sections){box.append(el('h3','',title));const list=el('dl');for(const [name,description]of entries)list.append(el('dt','',name),el('dd','',description));box.append(list);}
-    showModal('スクリプトAPI',box,null);
+    const box=el('div','script-reference'),toolbar=el('div','script-reference-toolbar'),results=el('div','script-reference-results');
+    let query='',category='';
+    const search=input('','APIを検索',value=>{query=value;paint();},'search');search.id='scriptApiSearch';search.placeholder='API名や目的で検索';
+    const categories=select([['','すべてのカテゴリ'],...SCRIPT_API_SECTIONS.map(section=>[section.id,section.title])],'',value=>{category=value;paint();});
+    categories.id='scriptApiCategory';categories.setAttribute('aria-label','APIカテゴリ');
+    const count=el('p','script-reference-count');count.id='scriptApiCount';count.setAttribute('role','status');count.setAttribute('aria-live','polite');
+    results.id='scriptApiResults';toolbar.append(field('検索',search),field('カテゴリ',categories));box.append(toolbar,count,results);
+    function paint(){
+      const sections=searchScriptAPI(query,category);results.replaceChildren();
+      count.textContent=`${sections.reduce((total,section)=>total+section.entries.length,0)}件`;
+      for(const section of sections){
+        const group=el('section','script-api-section');group.dataset.category=section.id;group.append(el('h3','',section.title));
+        const list=el('dl');for(const [name,description]of section.entries){const entry=el('div','script-api-entry');entry.append(el('dt','',name),el('dd','',description));list.append(entry);}group.append(list);results.append(group);
+      }
+      if(!sections.length)results.append(el('p','script-reference-empty','一致するAPIはありません'));
+    }
+    paint();showModal('スクリプトAPI',box,null);search.focus();
   }
   function sharedData(){
     let text=JSON.stringify(w().scriptData,null,2);
@@ -146,12 +152,13 @@ export function initScriptWorkspace(api) {
       const payload=parseScriptInput(script),snapshot=clone(script);
       const ribbonOwner=api.active?.();
       const context=makeScriptContext(target,primary,{input:payload,scriptId:script.id,environmentId,ribbonOwner});
-      const host=createScriptHost({workspace:target,primary,environmentId,filesFor:api.filesFor,onResponse:api.recordResponse});
+      const host=createScriptHost({workspace:target,primary,environmentId,filesFor:api.filesFor,getResponses:api.getResponses,runRelation:api.runScriptRelation,onResponse:api.recordResponse});
       const output=await runScript(snapshot.source,context,{signal:control.signal,timeoutMs:snapshot.timeoutMs,onCall:host,onLog:line=>{record.logs.push(line);scheduleLog();}});
       if(control.signal.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
       if(w()!==target)throw new Error('ワークスペースが変更されたため、処理結果を反映できません。');
       const saved=applyScriptWrites(target,primary,environment,output);if(saved)persist();
       record.state='success';record.result=output.result;record.logs=output.logs || record.logs;
+      api.workspaceChanged?.(output);
     }catch(error){record.state=error.name==='AbortError'?'stopped':'error';record.error=error.message;if(error.logs?.length)record.logs=error.logs;}
     finally{controllers.delete(script.id);api.runningChanged();paintResult();}
   }
@@ -161,8 +168,13 @@ export function initScriptWorkspace(api) {
     if(event.key==='Escape'&&controllers.has(selectedId)){event.preventDefault();controllers.get(selectedId).abort();return true;}
     return false;
   }
+  function refreshForChanges(output){
+    const flatten=value=>value?.stages?value.stages.flatMap(flatten):value?[value]:[];
+    const changed=flatten(output).some(stage=>(stage.workspaceWrites||[]).some(change=>change.path[0]==='scripts'&&(change.kind!=='order'||change.path.length>1)&&(!change.path[1]||change.path[1].id===selectedId)));
+    if(changed){paintedId='';render(true);}else paintResult();
+  }
   ensureScripts(w());
-  return {open,create,sidebar,render,run,keydown,reference,sharedData,isRunning:()=>controllers.size>0,
+  return {open,create,sidebar,render,run,keydown,reference,sharedData,refreshForChanges,isRunning:()=>controllers.size>0,
     stop(){for(const control of controllers.values())control.abort();},
     reset(){selectedId='';paintedId='';results.clear();ensureScripts(w());},invalidate(){paintedId='';}};
 }

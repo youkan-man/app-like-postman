@@ -18,7 +18,7 @@ test('virtual wrapper keeps user source and UTF-16 offsets intact without execut
   const project = buildLanguageProject(source);
   assert.equal(project.files[project.fileName].slice(project.offset,project.offset+project.sourceLength),source);
   assert.equal(project.sourceLength,source.length);
-  assert.match(project.files[project.fileName].slice(0,project.offset),/export async function __run\(pm, vars, response, request, console, input, scripts, store, minipost, ribbon\) \{\n\{\n$/);
+  assert.match(project.files[project.fileName].slice(0,project.offset),/export async function __run\(pm, vars, response, request, console, input, scripts, store, minipost, ribbon, tools\) \{\n\{\n$/);
   assert.equal(globalThis.__mustNeverExecute,undefined);
 });
 
@@ -147,7 +147,9 @@ test('script callers share catalog type dictionaries instead of multiplying the 
   const project=buildLanguageProject('return input;', {scriptId:'id-200',input:{active:true},scripts});
   const text=model(project);
   assert.equal((text.match(/export type ResultsGroup_/g)||[]).length,1);
-  assert.ok(text.length<150000,text.length);
+  // The fixed API reference can grow without changing the linear catalog cost.
+  const fixed=model(buildLanguageProject('')).length;
+  assert.ok(text.length-fixed<130000,text.length-fixed);
   assert.match(text,/Input_200 = \{ "active": boolean \}/);
 });
 

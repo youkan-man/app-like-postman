@@ -26,6 +26,7 @@ print('PASS process identity and every served static asset match the pinned sour
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
 python tests/ui_ribbons.py >.local_relay/output/two-vm-ribbons.log 2>&1 || { cat .local_relay/output/two-vm-ribbons.log; exit 1; }
+python tests/ui_script_workspace_api.py >.local_relay/output/two-vm-script-workspace-api.log 2>&1 || { cat .local_relay/output/two-vm-script-workspace-api.log; exit 1; }
 python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
 python tests/ui_script_response.py >.local_relay/output/two-vm-script-response.log 2>&1 || { cat .local_relay/output/two-vm-script-response.log; exit 1; }
 python tests/ui_script_intelligence.py >.local_relay/output/two-vm-script-intelligence.log 2>&1 || { cat .local_relay/output/two-vm-script-intelligence.log; exit 1; }
@@ -51,6 +52,7 @@ focus=json.loads((root/'ui-focus-results.json').read_text())
 extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 standalone=json.loads((root/'standalone-scripts/results.json').read_text())
+workspace_api=json.loads((root/'script-workspace-api/results.json').read_text())
 intelligence=json.loads((root/'script-intelligence/results.json').read_text())
 response_scripts=json.loads((root/'script-response/results.json').read_text())
 ribbons=json.loads((root/'ribbons/results.json').read_text())
@@ -62,6 +64,8 @@ assert intelligence['ok'] and intelligence['mode']=='native Chromium HTTP' and i
 assert not any(intelligence[key] for key in ['page_errors','native_dialogs','crashes','unexpected_requests'])
 assert standalone['ok'] and standalone['mode']=='native Chromium HTTP' and standalone['native_indexeddb']
 assert not any(standalone[key] for key in ['page_errors','native_dialogs','crashes'])
+assert workspace_api['ok'] and workspace_api['mode']=='native Chromium HTTP' and workspace_api['native_indexeddb']
+assert not any(workspace_api[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
 layout=json.loads((root/'layout/results.json').read_text())
@@ -106,6 +110,8 @@ summary['script_response_checks']=len(response_scripts['checks'])
 summary['screenshots']+=len(response_scripts['screenshots'])
 summary['ribbon_checks']=len(ribbons['checks'])
 summary['screenshots']+=len(ribbons['screenshots'])
+summary['script_workspace_api_checks']=len(workspace_api['checks'])
+summary['screenshots']+=len(workspace_api['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY
