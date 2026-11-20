@@ -1,0 +1,23 @@
+{
+  "branch": "verify/minipost-request-editor-20261120-final",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-20T09:31:50.6073Z",
+    "id": "lrce-4f8d7fb1e429ee9f7df3923e",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "7f5df51e088605abcd0504842fc8c121e4aa62396f715785a8b44f4b41580af1",
+    "sandbox_id": "sb-ec8a70e866ca",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-761f4ddda807178b-browser",
+  "source_sha": "3ab6a90312e0e23a41567e7acf27de3e56da0d3b",
+  "started_at": "2026-11-20T06:31:34.52877857Z",
+  "status": "failed",
+  "version": 1
+}
