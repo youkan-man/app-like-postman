@@ -1,0 +1,329 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-20T07:37:47.761Z",
+  "workspace": {
+    "version": 2,
+    "collections": [],
+    "environments": [],
+    "globals": [],
+    "tabs": [],
+    "activeId": "",
+    "environmentId": "",
+    "history": [],
+    "collapsed": [],
+    "theme": "light",
+    "relations": [],
+    "relationRuns": [],
+    "scripts": [
+      {
+        "id": "mp-1795160258444-dw4t6cbm3u",
+        "name": "データ集計",
+        "source": "const values = await scripts.run(\"mp-1795160260591-cxpygvggnuf\", input); return {values, previous: store.get('lastSummary')};",
+        "input": "[4,9]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795160260591-cxpygvggnuf",
+        "name": "倍にする",
+        "source": "return input.map(value => value * 2);",
+        "input": "[1,2]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795160261993-ho9l1irscem",
+        "name": "倍にする",
+        "source": "return \"duplicate\";",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      }
+    ],
+    "scriptData": {
+      "lastSummary": {
+        "values": [
+          2,
+          4,
+          6
+        ],
+        "count": 3,
+        "valid": true
+      }
+    },
+    "scriptBindings": {},
+    "ribbons": [],
+    "activeRibbonId": "",
+    "ribbonBindings": {},
+    "revisions": {
+      "script:mp-1795160258444-dw4t6cbm3u": [
+        {
+          "id": "mp-1795160258665-myxe0n1svbn",
+          "at": "2026-11-20T07:37:38.665Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160259150-di85no1ysa",
+          "at": "2026-11-20T07:37:39.150Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = input.values.map(Number); return {total: values.reduce((a,b) => a+b, 0), values, enabled: false, empty: null};",
+            "input": "{\"values\":[3,\"5\",8]}",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160260216-hld45l7vk8m",
+          "at": "2026-11-20T07:37:40.216Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('invalidInputRan', true); return input;",
+            "input": "{broken",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160261807-q77vkjbh8l8",
+          "at": "2026-11-20T07:37:41.807Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const byName = await scripts.run('倍にする', input); const byId = await scripts.run(\"mp-1795160260591-cxpygvggnuf\", [5]); return {byName, byId, count: scripts.list().length};",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160263842-46s42e1uydd",
+          "at": "2026-11-20T07:37:43.842Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {values: input, count: input.length, valid: true}); return store.get('lastSummary');",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160264336-ufzr36z3fs",
+          "at": "2026-11-20T07:37:44.336Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {wrong: true}); store.set('failedWrite', 1); vars.set('failedWrite', 'x'); console.log('before failure'); throw new Error('intentional rollback');",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160264729-wt2lubigfjk",
+          "at": "2026-11-20T07:37:44.729Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "console.log('running-before-stop'); store.set('cancelledWrite', true); await new Promise(resolve => setTimeout(resolve, 60000)); return 'too late';",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160265093-y5apuoqn5j",
+          "at": "2026-11-20T07:37:45.093Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "console.log('background-main'); store.set('backgroundMain', true); await new Promise(resolve => setTimeout(resolve, 60000));",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160266934-qp20hkwt9gl",
+          "at": "2026-11-20T07:37:46.934Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = await scripts.run(\"mp-1795160260591-cxpygvggnuf\", input); return {values, previous: store.get('lastSummary')};",
+            "input": "[4,9]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795160260591-cxpygvggnuf": [
+        {
+          "id": "mp-1795160260812-9undjj61f7",
+          "at": "2026-11-20T07:37:40.812Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160261268-s6t8y3bl25n",
+          "at": "2026-11-20T07:37:41.267Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return input.map(value => value * 2);",
+            "input": "[1,2]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160265408-02xu49jk2ice",
+          "at": "2026-11-20T07:37:45.407Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "console.log('background-child'); store.set('backgroundChild', true); await new Promise(resolve => setTimeout(resolve, 60000));",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160266165-td93n5x93r",
+          "at": "2026-11-20T07:37:46.165Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return input.map(value => value * 2);",
+            "input": "[1,2]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795160261993-ho9l1irscem": [
+        {
+          "id": "mp-1795160262214-pe74auz6sk",
+          "at": "2026-11-20T07:37:42.214Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795160262659-zmi2pl1t6it",
+          "at": "2026-11-20T07:37:42.659Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return \"duplicate\";",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "all",
+      "sidebar": "scripts",
+      "response": "pretty"
+    }
+  }
+}
