@@ -1,0 +1,298 @@
+{
+  "kind": "minipost.workspace",
+  "version": 1,
+  "exported_at": "2026-11-20T03:00:41.126Z",
+  "workspace": {
+    "version": 2,
+    "collections": [],
+    "environments": [],
+    "globals": [],
+    "tabs": [],
+    "activeId": "",
+    "environmentId": "",
+    "history": [],
+    "collapsed": [],
+    "theme": "light",
+    "relations": [],
+    "relationRuns": [],
+    "scripts": [
+      {
+        "id": "mp-1795143633426-33311j07smp",
+        "name": "データ集計",
+        "source": "const values = await scripts.run(\"mp-1795143635580-cv3kuyo36cn\", input); return {values, previous: store.get('lastSummary')};",
+        "input": "[4,9]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795143635580-cv3kuyo36cn",
+        "name": "倍にする",
+        "source": "return input.map(value => value * 2);",
+        "input": "[1,2]",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      },
+      {
+        "id": "mp-1795143636977-l7bdhgmsrp",
+        "name": "倍にする",
+        "source": "return \"duplicate\";",
+        "input": "null",
+        "inputFormat": "json",
+        "timeoutMs": 0
+      }
+    ],
+    "scriptData": {
+      "lastSummary": {
+        "values": [
+          2,
+          4,
+          6
+        ],
+        "count": 3,
+        "valid": true
+      }
+    },
+    "scriptBindings": {},
+    "ribbons": [],
+    "activeRibbonId": "",
+    "ribbonBindings": {},
+    "revisions": {
+      "script:mp-1795143633426-33311j07smp": [
+        {
+          "id": "mp-1795143633647-du86n14ts4p",
+          "at": "2026-11-20T03:00:33.647Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143634113-l44do1fo8j",
+          "at": "2026-11-20T03:00:34.113Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = input.values.map(Number); return {total: values.reduce((a,b) => a+b, 0), values, enabled: false, empty: null};",
+            "input": "{\"values\":[3,\"5\",8]}",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143634922-1y5cqefa17w",
+          "at": "2026-11-20T03:00:34.922Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "return null;",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143635177-xjzcmsp95us",
+          "at": "2026-11-20T03:00:35.177Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('invalidInputRan', true); return input;",
+            "input": "{broken",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143636807-23w37ioq9uoh",
+          "at": "2026-11-20T03:00:36.807Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const byName = await scripts.run('倍にする', input); const byId = await scripts.run(\"mp-1795143635580-cv3kuyo36cn\", [5]); return {byName, byId, count: scripts.list().length};",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143638748-moh143kici",
+          "at": "2026-11-20T03:00:38.748Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {values: input, count: input.length, valid: true}); return store.get('lastSummary');",
+            "input": "[2,4,6]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143639256-n7s4a91hjcn",
+          "at": "2026-11-20T03:00:39.256Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "store.set('lastSummary', {wrong: true}); store.set('failedWrite', 1); vars.set('failedWrite', 'x'); console.log('before failure'); throw new Error('intentional rollback');",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143639641-wwjage59mys",
+          "at": "2026-11-20T03:00:39.641Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "console.log('running-before-stop'); store.set('cancelledWrite', true); await new Promise(resolve => setTimeout(resolve, 60000)); return 'too late';",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143640312-j12cjdv3ic",
+          "at": "2026-11-20T03:00:40.312Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "データ集計",
+            "source": "const values = await scripts.run(\"mp-1795143635580-cv3kuyo36cn\", input); return {values, previous: store.get('lastSummary')};",
+            "input": "[4,9]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795143635580-cv3kuyo36cn": [
+        {
+          "id": "mp-1795143635801-nm8hzrfa4d",
+          "at": "2026-11-20T03:00:35.801Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143636269-s7rkex2luo",
+          "at": "2026-11-20T03:00:36.269Z",
+          "reason": "変更",
+          "changed": [
+            "source",
+            "input"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return input.map(value => value * 2);",
+            "input": "[1,2]",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "script:mp-1795143636977-l7bdhgmsrp": [
+        {
+          "id": "mp-1795143637197-3fcnewiy6um",
+          "at": "2026-11-20T03:00:37.197Z",
+          "reason": "作成",
+          "changed": [
+            "name",
+            "source",
+            "input",
+            "inputFormat",
+            "timeoutMs"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        },
+        {
+          "id": "mp-1795143637660-zdl1xcrz7hf",
+          "at": "2026-11-20T03:00:37.660Z",
+          "reason": "変更",
+          "changed": [
+            "source"
+          ],
+          "value": {
+            "name": "倍にする",
+            "source": "return \"duplicate\";",
+            "input": "null",
+            "inputFormat": "json",
+            "timeoutMs": 0
+          }
+        }
+      ]
+    }
+  },
+  "layout": {
+    "layout": null,
+    "sections": [
+      "params",
+      "headers",
+      "authorization",
+      "body",
+      "settings",
+      "scripts"
+    ],
+    "navigation": {
+      "editor": "all",
+      "sidebar": "scripts",
+      "response": "pretty"
+    }
+  }
+}
