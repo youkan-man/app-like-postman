@@ -20,12 +20,21 @@
 .standalone-script-status[data-state=error] {color:var(--danger,#ac3434);}
 .standalone-script-result,.standalone-script-log {margin:0;padding:8px;flex:none;min-width:0;min-height:0;max-height:48dvh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);border-radius:3px;background:var(--surface);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;}
 .standalone-script-log {max-height:30dvh;background:var(--raised);}
-.script-reference h3 {margin:14px 0 6px;font-size:14px;}
-.script-reference h3:first-child {margin-top:0;}
+.script-reference {min-width:0;}
+.script-reference-toolbar {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;}
+.script-reference-toolbar .form-field {min-width:0;margin:0;}
+.script-reference-toolbar input,.script-reference-toolbar select {width:100%;min-width:0;max-width:100%;}
+.script-reference-count {margin:8px 0;color:var(--muted);font-size:12px;}
+.script-reference-results {max-height:60dvh;overflow:auto;min-width:0;overscroll-behavior:contain;}
+.script-api-section+.script-api-section {margin-top:18px;}
+.script-reference h3 {margin:0 0 6px;font-size:14px;}
 .script-reference dl {margin:0;}
-.script-reference dt {font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:8px;overflow-wrap:anywhere;}
-.script-reference dd {margin:2px 0 6px;font-size:13px;line-height:1.5;}
+.script-api-entry {padding:7px 0;border-bottom:1px solid var(--line);min-width:0;}
+.script-reference dt {font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;}
+.script-reference dd {margin:3px 0 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
+.script-reference-empty {color:var(--muted);font-size:13px;}
 #modal:has(.script-reference) {width:min(740px,calc(100vw - 20px));}
+@media(max-width:480px) {.script-reference-toolbar {grid-template-columns:minmax(0,1fr);gap:6px;}.script-reference-results {max-height:54dvh;}}
 .script-hook-picker {display:flex;align-items:center;gap:6px;margin:0 0 4px;min-width:0;flex-wrap:nowrap;}
 .script-hook-picker select {min-width:0;flex:1;max-width:100%;}
 .script-hook-picker .button {flex-shrink:0;min-height:30px;padding:4px 8px;}

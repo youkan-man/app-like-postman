@@ -1,0 +1,17 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "a visible request draft owns its named ribbon, group and six typed controls; the editor has no duplicate live ribbon",
+    "request ribbon typing retains focus and conditions react to numeric, selected and checkbox values"
+  ],
+  "screenshots": [
+    "failure.png"
+  ],
+  "density_metrics": [],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": [],
+  "unexpected_requests": []
+}

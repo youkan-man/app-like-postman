@@ -25,25 +25,43 @@ for path in sorted((root/'static').iterdir()):
 print('PASS process identity and every served static asset match the pinned source')
 PY
 python ci/relay_two_vm_probe.py >.local_relay/output/two-vm-network.log 2>&1 || { cat .local_relay/output/two-vm-network.log; exit 1; }
-python tests/ui_ribbons.py >.local_relay/output/two-vm-ribbons.log 2>&1 || { cat .local_relay/output/two-vm-ribbons.log; exit 1; }
-python tests/ui_script_editor.py >.local_relay/output/two-vm-script-editor.log 2>&1 || { cat .local_relay/output/two-vm-script-editor.log; exit 1; }
-python tests/ui_script_response.py >.local_relay/output/two-vm-script-response.log 2>&1 || { cat .local_relay/output/two-vm-script-response.log; exit 1; }
-python tests/ui_script_intelligence.py >.local_relay/output/two-vm-script-intelligence.log 2>&1 || { cat .local_relay/output/two-vm-script-intelligence.log; exit 1; }
-python tests/ui_standalone_scripts.py >.local_relay/output/two-vm-standalone-scripts.log 2>&1 || { cat .local_relay/output/two-vm-standalone-scripts.log; exit 1; }
-python tests/ui_layout.py >.local_relay/output/two-vm-layout.log 2>&1 || { cat .local_relay/output/two-vm-layout.log; exit 1; }
-python tests/ui_asset_update.py >.local_relay/output/two-vm-asset-update.log 2>&1 || { cat .local_relay/output/two-vm-asset-update.log; exit 1; }
-python tests/ui_sent_values.py >.local_relay/output/two-vm-sent-values.log 2>&1 || { cat .local_relay/output/two-vm-sent-values.log; exit 1; }
-python tests/ui_draft_lifecycle.py >.local_relay/output/two-vm-draft-lifecycle.log 2>&1 || { cat .local_relay/output/two-vm-draft-lifecycle.log; exit 1; }
-python tests/ui_transfer_progress.py >.local_relay/output/two-vm-transfer-progress.log 2>&1 || { cat .local_relay/output/two-vm-transfer-progress.log; exit 1; }
-python tests/ui_large_binary.py >.local_relay/output/two-vm-large-binary.log 2>&1 || { cat .local_relay/output/two-vm-large-binary.log; exit 1; }
-python tests/ui_text_url_navigation.py >.local_relay/output/two-vm-text-url-navigation.log 2>&1 || { cat .local_relay/output/two-vm-text-url-navigation.log; exit 1; }
-python tests/ui_binary_workflows.py >.local_relay/output/two-vm-binary-workflows.log 2>&1 || { cat .local_relay/output/two-vm-binary-workflows.log; exit 1; }
-python tests/ui_focus.py >.local_relay/output/two-vm-ui-focus.log 2>&1 || { cat .local_relay/output/two-vm-ui-focus.log; exit 1; }
-python tests/ui_extraction.py >.local_relay/output/two-vm-ui-extraction.log 2>&1 || { cat .local_relay/output/two-vm-ui-extraction.log; exit 1; }
-python tests/ui_automation.py >.local_relay/output/native-ui-automation.log 2>&1 || { cat .local_relay/output/native-ui-automation.log; exit 1; }
+# Each UI suite uses its own browser context. Collect every failure so one
+# regression does not hide the remaining native verification evidence.
+failed_suites=()
+run_ui_suite() {
+  local suite="$1" log="$2"
+  if python "tests/${suite}.py" >".local_relay/output/${log}" 2>&1; then
+    echo "PASS ${suite}"
+  else
+    failed_suites+=("$suite")
+    echo "FAIL ${suite}" >&2
+    tail -80 ".local_relay/output/${log}" >&2
+  fi
+}
+run_ui_suite ui_ribbons two-vm-ribbons.log
+run_ui_suite ui_script_workspace_api two-vm-script-workspace-api.log
+run_ui_suite ui_script_editor two-vm-script-editor.log
+run_ui_suite ui_script_response two-vm-script-response.log
+run_ui_suite ui_script_intelligence two-vm-script-intelligence.log
+run_ui_suite ui_standalone_scripts two-vm-standalone-scripts.log
+run_ui_suite ui_layout two-vm-layout.log
+run_ui_suite ui_asset_update two-vm-asset-update.log
+run_ui_suite ui_sent_values two-vm-sent-values.log
+run_ui_suite ui_draft_lifecycle two-vm-draft-lifecycle.log
+run_ui_suite ui_transfer_progress two-vm-transfer-progress.log
+run_ui_suite ui_large_binary two-vm-large-binary.log
+run_ui_suite ui_text_url_navigation two-vm-text-url-navigation.log
+run_ui_suite ui_binary_workflows two-vm-binary-workflows.log
+run_ui_suite ui_focus two-vm-ui-focus.log
+run_ui_suite ui_extraction two-vm-ui-extraction.log
+run_ui_suite ui_automation native-ui-automation.log
 for suite in browser_smoke ui_workbench ui_edgecases ui_settings ui_selection ui_backup ui_storage ui_paging; do
-  python "tests/${suite}.py" >".local_relay/output/native-${suite}.log" 2>&1 || { cat ".local_relay/output/native-${suite}.log"; exit 1; }
+  run_ui_suite "$suite" "native-${suite}.log"
 done
+if ((${#failed_suites[@]})); then
+  printf 'Failed native suite: %s\n' "${failed_suites[@]}" >&2
+  exit 1
+fi
 python - <<'PY'
 import json,pathlib
 root=pathlib.Path('.local_relay/output')
@@ -51,6 +69,7 @@ focus=json.loads((root/'ui-focus-results.json').read_text())
 extract=json.loads((root/'extraction/results.json').read_text())
 script=json.loads((root/'script-editor/results.json').read_text())
 standalone=json.loads((root/'standalone-scripts/results.json').read_text())
+workspace_api=json.loads((root/'script-workspace-api/results.json').read_text())
 intelligence=json.loads((root/'script-intelligence/results.json').read_text())
 response_scripts=json.loads((root/'script-response/results.json').read_text())
 ribbons=json.loads((root/'ribbons/results.json').read_text())
@@ -62,6 +81,8 @@ assert intelligence['ok'] and intelligence['mode']=='native Chromium HTTP' and i
 assert not any(intelligence[key] for key in ['page_errors','native_dialogs','crashes','unexpected_requests'])
 assert standalone['ok'] and standalone['mode']=='native Chromium HTTP' and standalone['native_indexeddb']
 assert not any(standalone[key] for key in ['page_errors','native_dialogs','crashes'])
+assert workspace_api['ok'] and workspace_api['mode']=='native Chromium HTTP' and workspace_api['native_indexeddb']
+assert not any(workspace_api[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
 network=json.loads((root/'two-vm-network.json').read_text())
 layout=json.loads((root/'layout/results.json').read_text())
@@ -106,6 +127,8 @@ summary['script_response_checks']=len(response_scripts['checks'])
 summary['screenshots']+=len(response_scripts['screenshots'])
 summary['ribbon_checks']=len(ribbons['checks'])
 summary['screenshots']+=len(ribbons['screenshots'])
+summary['script_workspace_api_checks']=len(workspace_api['checks'])
+summary['screenshots']+=len(workspace_api['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

@@ -2,6 +2,7 @@
 import {clone, uid} from './core.mjs';
 import {checkName, upsertVariable, variableText} from './runtime.mjs';
 import {prepareRibbonWrites} from './ribbons.mjs';
+import {createWorkspaceModel,applyWorkspaceChanges,reconcileWorkspace} from './workspace-api.mjs';
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = value => typeof value === 'string' && value.length > 0 && !value.includes(':') && value !== '__proto__';
@@ -91,6 +92,42 @@ function validateRows(rows, writes) {
 
 /** Validate every write first; preserve unrelated edits made while a script was running. */
 export function applyScriptWrites(workspace, primary, environment, output) {
+  if (Array.isArray(output?.stages) || output?.workspaceTransaction) {
+    const stages=Array.isArray(output?.stages)?output.stages:[output],candidate=structuredClone(workspace);
+    const primaryValues=typeof primary?.snapshot==='function'?structuredClone(primary.snapshot()):Object.fromEntries((primary?.rows||[]).filter(row=>row.enabled!==false&&row.disabled!==true).map(row=>[row.key,variableText(row.value)]));
+    const pendingPrimary=[],capturedEnvironment=environment?.id;
+    let changed=false;
+    function stage(value){
+      if(Array.isArray(value?.stages)){for(const child of value.stages)stage(child);return;}
+      if(!record(value?.writes))throw new Error('スクリプトの結果形式が不正です。');
+      const writes=Object.fromEntries(['primary','environment','globals'].map(kind=>[kind,variableWrites(value.writes[kind])]));
+      if(!Array.isArray(value.dataWrites??[])||(value.dataWrites??[]).some(row=>!record(row)||typeof row.key!=='string'||!row.remove&&!validScriptData({value:row.value})))throw new Error('スクリプトデータの変更形式が不正です。');
+      if(writes.primary.length&&typeof primary?.apply!=='function')throw new Error('一次変数を更新できません。');
+      if(value.primaryExpected!==undefined){
+        if(!Array.isArray(value.primaryExpected))throw new Error('一次変数の実行時状態が不正です。');
+        for(const expected of value.primaryExpected){
+          if(!record(expected)||typeof expected.key!=='string'||typeof expected.exists!=='boolean')throw new Error('一次変数の実行時状態が不正です。');
+          if(Object.hasOwn(primaryValues,expected.key)!==expected.exists||expected.exists&&primaryValues[expected.key]!==expected.value)throw new Error('スクリプト実行中に同じ一次変数が変更されました。変更は保存していません。');
+        }
+      }
+      if(value.workspaceTransaction){
+        if(!validScriptData({changes:value.workspaceWrites}))throw new Error('ワークスペースの変更にはJSONで表せる値を指定してください。');
+        changed=applyWorkspaceChanges(candidate,value.workspaceWrites)||changed;
+      }else{
+        const stagedEnvironment=capturedEnvironment?(candidate.environments||[]).find(row=>row.id===capturedEnvironment):null;
+        const noopPrimary={apply:()=>{}};
+        changed=applyScriptWrites(candidate,noopPrimary,stagedEnvironment,value)||changed;
+      }
+      for(const row of writes.primary){if(row.remove)delete primaryValues[row.key];else Object.defineProperty(primaryValues,row.key,{value:row.value,enumerable:true,writable:true,configurable:true});pendingPrimary.push(row);}
+    }
+    for(const value of stages)stage(value);
+    // Validate the resulting model before either the session or persistent data
+    // is changed. Existing entity objects survive this final reconciliation.
+    if(stages.some(value=>value.workspaceTransaction||value.stages))createWorkspaceModel(candidate).validate();
+    if(pendingPrimary.length)primary.apply(pendingPrimary);
+    reconcileWorkspace(workspace,candidate);
+    return changed;
+  }
   if (!record(output?.writes)) throw new Error('スクリプトの結果形式が不正です。');
   const writes = Object.fromEntries(['primary','environment','globals'].map(kind => [kind,variableWrites(output.writes[kind])]));
   if (writes.environment.length && !environment) throw new Error('環境を書き換えるには環境を選択してください。');

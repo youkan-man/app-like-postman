@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {newRequest} from '../static/core.mjs';
 import {RevisionStore, requestKey} from '../static/revisions.mjs';
 import {exportWorkspace, isWorkspaceBundle, readWorkspaceBundle, mergeWorkspace} from '../static/workspace-data.mjs';
+import {newRelation,newStep,newRelationStep,walkRelationSteps,validateRelation} from '../static/relations.mjs';
+import {newScript} from '../static/scripts.mjs';
 
 function sample() {
   const r = newRequest();
@@ -94,4 +96,57 @@ test('older before/after change histories remain importable',()=>{
   ws.settingHistory={globals:[{at:'2026-10-14T00:00:00Z',before:[],after:[{key:'x',value:'a'}],fields:['0']}]};
   const result=readWorkspaceBundle(exportWorkspace(ws));
   assert.deepEqual(result.workspace.settingHistory,ws.settingHistory);
+});
+
+test('nested relation blocks survive backup and remap request, script, branch and revision references together',()=>{
+  const source=sample(), relation=newRelation('Nested flow'), loop=newRelationStep('repeat'), branch=newRelationStep('if');
+  const first=newStep({collectionId:'c1',itemId:'i1'}),second=newStep({draftId:'t1'}),script=newScript('Transform');
+  script.source='return input;';source.scripts=[script];
+  first.condition.enabled=true;first.onTrue=second.id;
+  const call=newRelationStep('script');call.scriptId=script.id;
+  const each=newRelationStep('forEach');each.value='[1,2]';each.steps=[call];
+  branch.steps=[first,second];branch.elseSteps=[each];loop.steps=[branch];relation.steps=[loop];source.relations=[relation];
+  source.relationRuns=[{id:'run',relationId:relation.id,entries:[{stepId:first.id,branch:{target:second.id}}]}];
+  source.revisions[`relation:${relation.id}`]=[{id:'revision-flow',value:structuredClone(relation)}];
+  source.settingHistory={[`relation:${relation.id}`]:[{before:structuredClone(relation),after:structuredClone(relation)}]};
+  const before=structuredClone(source),restored=readWorkspaceBundle(exportWorkspace(source)).workspace;
+  assert.deepEqual(restored.relations,source.relations);
+  const into=sample();mergeWorkspace(into,restored);
+  const imported=into.relations[0], importedBranch=imported.steps[0].steps[0];
+  const [a,b]=importedBranch.steps, importedCall=importedBranch.elseSteps[0].steps[0];
+  const oldIds=new Set(),newIds=new Set();walkRelationSteps(relation.steps,step=>oldIds.add(step.id));walkRelationSteps(imported.steps,step=>newIds.add(step.id));
+  assert.equal(newIds.size,oldIds.size);for(const id of newIds)assert.equal(oldIds.has(id),false);
+  assert.equal(a.collectionId,into.collections[1]._mpId);assert.equal(a.itemId,into.collections[1].item[0].item[0]._mpId);
+  assert.equal(b.draftId,into.tabs[1].id);assert.equal(a.onTrue,b.id);assert.equal(importedCall.scriptId,into.scripts[0].id);
+  assert.equal(into.relationRuns[0].relationId,imported.id);assert.equal(into.relationRuns[0].entries[0].stepId,a.id);
+  assert.equal(into.relationRuns[0].entries[0].branch.target,b.id);
+  const key=`relation:${imported.id}`;
+  for(const revision of [into.revisions[key][0].value,into.settingHistory[key][0].before,into.settingHistory[key][0].after]) {
+    assert.equal(revision.steps[0].steps[0].steps[0].onTrue,b.id);
+    assert.equal(revision.steps[0].steps[0].elseSteps[0].steps[0].scriptId,importedCall.scriptId);
+  }
+  validateRelation(imported,into);assert.deepEqual(source,before);
+});
+
+test('incomplete relation blocks remain editable after reload but malformed nested structure is rejected',()=>{
+  const source=sample(),relation=newRelation('Draft flow'),loop=newRelationStep('repeat');
+  const script=newRelationStep('script');loop.steps=[script];relation.steps=[loop];source.relations=[relation];
+  assert.deepEqual(readWorkspaceBundle(exportWorkspace(source)).workspace.relations,source.relations);
+  for(const corrupt of [
+    step=>{step.steps={};},step=>{step.steps[0].id=step.id;},step=>{step.steps[0].type='invalid';},
+    step=>{step.steps[0].scriptId=3;},step=>{step.steps[0].elseSteps=[];}
+  ]) {
+    const broken=structuredClone(source);corrupt(broken.relations[0].steps[0]);
+    assert.throws(()=>readWorkspaceBundle(exportWorkspace(broken)));
+    const into=sample(),before=structuredClone(into);assert.throws(()=>mergeWorkspace(into,broken));assert.deepEqual(into,before);
+  }
+  const broken=structuredClone(source);let child=broken.relations[0].steps[0];
+  for(let at=0;at<33;at++){child.steps=[newRelationStep('repeat')];child=child.steps[0];}
+  assert.throws(()=>readWorkspaceBundle(exportWorkspace(broken)));
+});
+
+test('malformed relation blocks in revision archives cannot become restorable data',()=>{
+  const source=sample();
+  source.revisions['relation:flow']=[{value:{name:'Flow',steps:[{id:'loop',type:'if',steps:[],elseSteps:{}}]}}];
+  assert.throws(()=>readWorkspaceBundle(exportWorkspace(source)));
 });

@@ -103,7 +103,7 @@ def main():
             page.locator('#editor-tab-headers').click()
             header = page.locator('.editor-section[data-pane=headers]')
             header.get_by_role('button', name='行 1 の操作').click()
-            page.get_by_role('menuitem', name='この上に行を追加').click()
+            page.get_by_role('menuitem', name='行を挿入').click()
             expect(header.get_by_label('Key 1', exact=True)).to_be_focused()
             header.get_by_label('Key 1', exact=True).fill('X-Added')
             header.get_by_label('Value 1', exact=True).fill('test')
@@ -143,6 +143,7 @@ def main():
             passed('idle relation stop control cannot be activated')
             for number in range(1, 4):
                 page.locator('#addRelationStep').click()
+                page.get_by_role('menuitem', name='リクエスト', exact=True).click()
                 expect(page.get_by_label(f'ステップ {number} のリクエスト')).to_be_focused()
             page.get_by_label('ステップ 3 のリクエスト').select_option(index=1)
             chosen = page.get_by_label('ステップ 3 のリクエスト').input_value()
@@ -156,7 +157,8 @@ def main():
             screenshot(page, 'relation-reordered-desktop')
 
             page.get_by_label('ステップ 1 の操作').click()
-            page.get_by_role('menuitem', name='この後にステップを追加').click()
+            page.get_by_role('menuitem', name='ステップを追加', exact=True).click()
+            page.get_by_role('menuitem', name='リクエスト', exact=True).click()
             expect(page.get_by_label('ステップ 2 のリクエスト')).to_be_focused()
             page.get_by_label('ステップ 2 のリクエスト').select_option(index=2)
             inserted = page.get_by_label('ステップ 2 のリクエスト').input_value()

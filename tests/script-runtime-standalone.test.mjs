@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {executeScript} from '../static/script-worker.mjs';
+import {executeScript,scriptExecutorSource} from '../static/script-worker.mjs';
 
 test('standalone scripts return typed data and keep undefined distinct from null', async () => {
   const input = {values:[3, 1, 2], enabled:false, date:new Date('2026-01-02T03:04:05Z'), bytes:new Uint8Array([0, 255]), map:new Map([['key', 7]])};
@@ -317,14 +317,14 @@ test('logs are retained beyond 200 entries and excessive output is explicitly re
 });
 
 test('the serializable Worker executor has no hidden module dependencies', async () => {
-  const isolated = new Function(`return (${executeScript.toString()});`)();
+  const isolated = new Function(`${scriptExecutorSource()}\nreturn executeScript;`)();
   const output = await isolated('store.set("value", input); return await scripts.run("double", input);', {input:4, scripts:[{id:'double', name:'Double', source:'return input * 2;'}]});
   assert.equal(output.result, 8); assert.deepEqual(output.dataWrites, [{key:'value', value:4}]);
 });
 
 test('the actual Worker protocol continues through logs and asynchronous RPC replies', async () => {
   const source = await readFile(new URL('../static/script-runner.mjs', import.meta.url), 'utf8');
-  const module = new Function('executeScript', source.replace(/^import .*;$/m, '').replace('export function runScript', 'function runScript') + '\nreturn {workerSource};')(executeScript);
+  const module = new Function('scriptExecutorSource', source.replace(/^import .*;$/gm, '').replace('export function runScript', 'function runScript') + '\nreturn {workerSource};')(scriptExecutorSource);
   const messages = []; let self;
   self = {postMessage:message => {
     messages.push(structuredClone(message));

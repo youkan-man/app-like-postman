@@ -1,8 +1,8 @@
 /** Explicit JavaScript execution in an opaque-origin, network-denied Worker. */
-import {executeScript} from './script-worker.mjs';
+import {scriptExecutorSource} from './script-worker.mjs';
 
 const workerSource = `
-const executeScript = ${executeScript.toString()};
+${scriptExecutorSource()}
 const pendingCalls = new Map();
 let callId = 0, started = false;
 self.onmessage = async ({data}) => {
@@ -19,9 +19,9 @@ self.onmessage = async ({data}) => {
   try {
     const result = await executeScript(data.source, data.context, {
       onLog:log => self.postMessage({type:'log', log}),
-      onCall:(method, args, {variables}) => new Promise((resolve, reject) => {
+      onCall:(method, args, {variables,workspace,requestRef,ribbonScopeId}) => new Promise((resolve, reject) => {
         const id = ++callId; pendingCalls.set(id, {resolve, reject});
-        try { self.postMessage({type:'call', id, method, args, variables}); }
+        try { self.postMessage({type:'call', id, method, args, variables,workspace,requestRef,ribbonScopeId}); }
         catch (error) { pendingCalls.delete(id); reject(error); }
       })
     });
@@ -65,7 +65,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
     const error = new DOMException('スクリプトを停止しました。', 'AbortError'); error.logs = [];
     return Promise.reject(error);
   }
-  if (!String(source || '').trim()) return Promise.resolve({ok:true, result:undefined, writes:{primary:[], environment:[], globals:[]}, dataWrites:[], ribbonScopeId:context.ribbonScopeId ?? null, ribbonWrites:[], logs:[]});
+  if (!String(source || '').trim()) return Promise.resolve({ok:true, result:undefined, writes:{primary:[], environment:[], globals:[]}, dataWrites:[], ribbonScopeId:context.ribbonScopeId ?? null, ribbonWrites:[], logs:[],...(context.workspace?{workspaceTransaction:true,workspaceWrites:[],primaryExpected:[],changedRequests:[]}: {})});
   return new Promise((resolve, reject) => {
     const frame = document.createElement('iframe');
     const channel = Array.from(crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, '0')).join('');
@@ -90,7 +90,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
       try {
         if (typeof onCall !== 'function') throw new Error(`この実行環境では ${data.method} を利用できません。`);
         if (!Array.isArray(data.args)) throw new Error('スクリプトの操作引数が不正です。');
-        const value = await onCall(data.method, data.args, {signal:calls.signal, variables:data.variables});
+        const value = await onCall(data.method, data.args, {signal:calls.signal, variables:data.variables,workspace:data.workspace,requestRef:data.requestRef,ribbonScopeId:data.ribbonScopeId});
         reply = {ok:true, value};
       } catch (error) { reply = {ok:false, error:String(error?.message || error), name:error?.name || 'Error'}; }
       if (settled) return;
@@ -124,7 +124,7 @@ export function runScript(source, context = {}, {signal, timeoutMs = 5000, onLog
         error.name = result?.name || 'Error'; error.logs = result?.logs || logs;
         if (result?.stack) error.stack = result.stack;
         finish(error);
-      } else if (!result.writes || !['primary', 'environment', 'globals'].every(key => Array.isArray(result.writes[key])) || !Array.isArray(result.dataWrites) || result.ribbonScopeId !== (context.ribbonScopeId ?? null) || (result.ribbonWrites !== undefined && !Array.isArray(result.ribbonWrites)) || !Array.isArray(result.logs)) {
+      } else if (!result.writes || !['primary', 'environment', 'globals'].every(key => Array.isArray(result.writes[key])) || !Array.isArray(result.dataWrites) || result.ribbonScopeId !== (context.ribbonScopeId ?? null) || (result.ribbonWrites !== undefined && !Array.isArray(result.ribbonWrites)) || !Array.isArray(result.logs) || (Boolean(result.workspaceTransaction)!==Boolean(context.workspace)) || (result.workspaceTransaction&&!Array.isArray(result.workspaceWrites))) {
         finish(new Error('スクリプトの結果形式が不正です。'));
       } else finish(null, result);
     };

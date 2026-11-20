@@ -1,0 +1,19 @@
+{
+  "ok": false,
+  "mode": "native Chromium HTTP",
+  "native_indexeddb": true,
+  "checks": [
+    "real isolated Worker supports SHA256, HMAC, UUID, Unicode encoding, CSV, JSON selection and duplicate query parsing on the HTTP origin",
+    "request builder sends duplicate query values, typed JSON, headers and bearer authentication over real HTTP",
+    "synchronous model APIs create collections, folders, requests, drafts, environments, scripts, relations and ribbon definitions in one committed transaction",
+    "child scripts read pending creations and scoped variables before commit; workspace settings update the live UI",
+    "send uses staged tree scope and clone/move/update preserve usable request identities across collections",
+    "script edits refresh an already open saved request instead of leaving its cached editor stale"
+  ],
+  "screenshots": [
+    "failure.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "crashes": []
+}

@@ -312,7 +312,7 @@ def main():
             original_script, original_timeout = script.input_value(), timeout.input_value()
             script.fill('await new Promise(() => {});')
             timeout.fill('0')
-            run_script = page.locator('#script-panel-before').get_by_role('button', name='このスクリプトを実行', exact=True)
+            run_script = page.locator('#script-panel-before').get_by_role('button', name='スクリプトを実行', exact=True)
             run_script.click()
             expect(page.locator('#stopRelationGlobal')).to_be_visible()
             expect(run_script).to_be_disabled()

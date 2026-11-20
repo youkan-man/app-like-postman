@@ -101,13 +101,13 @@ def main():
 
             # Verify the actual isolated Worker, not an evaluator in the test process.
             area.fill("pm.test('script assertion', () => pm.expect(2 + 2).to.equal(4)); vars.set('editorVerified', 'yes');")
-            page.locator('#script-panel-before').get_by_role('button',name='このスクリプトを実行',exact=True).click()
+            page.locator('#script-panel-before').get_by_role('button',name='スクリプトを実行',exact=True).click()
             expect(page.locator('#scriptLog')).to_contain_text('PASS script assertion')
             assert page.evaluate("JSON.parse(sessionStorage.getItem('minipost.primary.v1')).some(x=>x.key==='editorVerified'&&x.value==='yes')")
             passed('edited pre-script executes in the isolated Worker and commits its successful variable write')
 
             area.fill("vars.set('rejectedWrite', 'no'); pm.test('reject', () => pm.expect(1).to.equal(2));")
-            page.locator('#script-panel-before').get_by_role('button',name='このスクリプトを実行',exact=True).click()
+            page.locator('#script-panel-before').get_by_role('button',name='スクリプトを実行',exact=True).click()
             expect(page.locator('#scriptLog')).to_contain_text('Expected')
             assert not page.evaluate("JSON.parse(sessionStorage.getItem('minipost.primary.v1')).some(x=>x.key==='rejectedWrite')")
             passed('a failing assertion keeps partial variable writes out of session state')

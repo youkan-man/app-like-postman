@@ -640,7 +640,7 @@ def main():
             if new_request.is_visible():
                 new_request.click()
             else:
-                page.get_by_role('menuitem', name='この階層にリクエストを追加', exact=True).click()
+                page.get_by_role('menuitem', name='リクエストを追加', exact=True).click()
                 page.locator('#modal').get_by_label('追加する名前', exact=True).fill(single_request)
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modal')).not_to_be_visible()

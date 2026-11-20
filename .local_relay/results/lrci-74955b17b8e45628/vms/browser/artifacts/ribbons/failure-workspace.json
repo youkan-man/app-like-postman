@@ -1,0 +1,1433 @@
+{
+  "version": 2,
+  "collections": [],
+  "environments": [],
+  "globals": [],
+  "tabs": [
+    {
+      "id": "mp-1795139443156-grutcfn55jn",
+      "name": "リクエストA",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://example.invalid/request-a",
+          "query": [],
+          "variable": [],
+          "base": "https://example.invalid/request-a",
+          "hash": "",
+          "_mpTextParts": true,
+          "_mpTypedUrl": true
+        },
+        "body": {
+          "mode": "none",
+          "raw": ""
+        },
+        "auth": null
+      },
+      "settings": {
+        "verify_tls": false,
+        "follow_redirects": true,
+        "timeout_ms": 30000
+      },
+      "dirty": true,
+      "ribbonState": {
+        "id": "mp-1795139444074-8vjq283hgzl",
+        "ribbons": [
+          {
+            "id": "mp-1795139444074-ny7ig5yz4do",
+            "key": "main",
+            "name": "操作パネル",
+            "groups": [
+              {
+                "id": "mp-1795139444806-50ha8262qcc",
+                "name": "操作",
+                "controls": [
+                  {
+                    "id": "mp-1795139444911-r6rqxpoofjg",
+                    "key": "ready",
+                    "label": "結果を表示",
+                    "type": "toggle",
+                    "value": true,
+                    "options": [],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": []
+                  },
+                  {
+                    "id": "mp-1795139445457-xk16wjta8q",
+                    "key": "count",
+                    "label": "件数",
+                    "type": "number",
+                    "value": 3,
+                    "options": [],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": []
+                  },
+                  {
+                    "id": "mp-1795139446072-3zxe1nm8txy",
+                    "key": "query",
+                    "label": "検索語",
+                    "type": "text",
+                    "value": "alpha",
+                    "options": [],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": []
+                  },
+                  {
+                    "id": "mp-1795139446593-dwtfyn5vd8i",
+                    "key": "mode",
+                    "label": "モード",
+                    "type": "select",
+                    "value": "detail",
+                    "options": [
+                      {
+                        "value": "normal",
+                        "label": "標準"
+                      },
+                      {
+                        "value": "detail",
+                        "label": "詳細"
+                      }
+                    ],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": []
+                  },
+                  {
+                    "id": "mp-1795139447373-6qr49gxyhbe",
+                    "key": "result",
+                    "label": "計算結果",
+                    "type": "display",
+                    "value": {
+                      "value": 0
+                    },
+                    "options": [],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": [],
+                    "visibleWhen": {
+                      "mode": "all",
+                      "rules": [
+                        {
+                          "source": "ribbon",
+                          "key": "mp-1795139444911-r6rqxpoofjg",
+                          "operator": "truthy",
+                          "value": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "mp-1795139448028-p8qa28hotzq",
+                    "key": "run",
+                    "label": "集計を実行",
+                    "type": "button",
+                    "value": null,
+                    "options": [],
+                    "visible": true,
+                    "enabled": true,
+                    "actions": [
+                      {
+                        "id": "mp-1795139452755-9wfyv508f65",
+                        "type": "script",
+                        "target": "",
+                        "value": "",
+                        "scriptId": "mp-1795139450743-pro9cbx2xc"
+                      }
+                    ],
+                    "enabledWhen": {
+                      "mode": "all",
+                      "rules": [
+                        {
+                          "source": "ribbon",
+                          "key": "mp-1795139445457-xk16wjta8q",
+                          "operator": "gt",
+                          "value": 0
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+        "ribbonBindings": {}
+      }
+    }
+  ],
+  "activeId": "mp-1795139443156-grutcfn55jn",
+  "environmentId": "",
+  "history": [],
+  "collapsed": [],
+  "theme": "light",
+  "relations": [],
+  "relationRuns": [],
+  "scripts": [
+    {
+      "id": "mp-1795139450023-d1g2dbwuyxk",
+      "name": "子集計",
+      "source": "const value=ribbon.get('main.count')*2; ribbon.set('main.result',{value}); return value;",
+      "input": "null",
+      "inputFormat": "json",
+      "timeoutMs": 0
+    },
+    {
+      "id": "mp-1795139450743-pro9cbx2xc",
+      "name": "リボン集計",
+      "source": "const value=await scripts.run(\"mp-1795139450023-d1g2dbwuyxk\",input); store.set(\"event\",input); store.set(\"runs\",(store.get(\"runs\")||0)+1); return value;",
+      "input": "null",
+      "inputFormat": "json",
+      "timeoutMs": 0
+    },
+    {
+      "id": "mp-1795139451389-t3mrl975ws",
+      "name": "変更を一度だけ処理",
+      "source": "store.set('changes',(store.get('changes')||0)+1); store.set('previousCount',input.previousValue); ribbon.set('main.count',input.value+1);",
+      "input": "null",
+      "inputFormat": "json",
+      "timeoutMs": 0
+    },
+    {
+      "id": "mp-1795139451990-kfj0mbngnwr",
+      "name": "失敗する処理",
+      "source": "ribbon.set('main.count',999); store.set('failedWrite',true); throw Error('ribbon failure');",
+      "input": "null",
+      "inputFormat": "json",
+      "timeoutMs": 0
+    }
+  ],
+  "scriptData": {},
+  "scriptBindings": {},
+  "ribbons": [],
+  "activeRibbonId": "",
+  "ribbonBindings": {},
+  "revisions": {
+    "draft:mp-1795139443156-grutcfn55jn": [
+      {
+        "id": "mp-1795139443615-uib6fbf0mb",
+        "at": "2026-11-20T01:50:43.615Z",
+        "reason": "作成",
+        "changed": [
+          "name",
+          "request",
+          "settings"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          }
+        }
+      },
+      {
+        "id": "mp-1795139444461-83zkfz67zao",
+        "at": "2026-11-20T01:50:44.461Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": []
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139445219-c7b6cidcppl",
+        "at": "2026-11-20T01:50:45.219Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139445779-narjpx4zs5",
+        "at": "2026-11-20T01:50:45.779Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 0,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139446356-cdyhk2efps",
+        "at": "2026-11-20T01:50:46.356Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 2,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139446888-2tv0jicirjk",
+        "at": "2026-11-20T01:50:46.888Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 2,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139447651-xv9q61aevpm",
+        "at": "2026-11-20T01:50:47.651Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 2,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "normal",
+                        "options": [
+                          {
+                            "value": "normal",
+                            "label": "標準"
+                          },
+                          {
+                            "value": "detail",
+                            "label": "詳細"
+                          }
+                        ],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139447373-6qr49gxyhbe",
+                        "key": "result",
+                        "label": "計算結果",
+                        "type": "display",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139448312-2xcntlrbvnj",
+        "at": "2026-11-20T01:50:48.312Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 2,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "normal",
+                        "options": [
+                          {
+                            "value": "normal",
+                            "label": "標準"
+                          },
+                          {
+                            "value": "detail",
+                            "label": "詳細"
+                          }
+                        ],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139447373-6qr49gxyhbe",
+                        "key": "result",
+                        "label": "計算結果",
+                        "type": "display",
+                        "value": {
+                          "value": 0
+                        },
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "visibleWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139444911-r6rqxpoofjg",
+                              "operator": "truthy",
+                              "value": true
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mp-1795139448028-p8qa28hotzq",
+                        "key": "run",
+                        "label": "集計を実行",
+                        "type": "button",
+                        "value": null,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139448831-tcq8diinun",
+        "at": "2026-11-20T01:50:48.831Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": false,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 2,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "normal",
+                        "options": [
+                          {
+                            "value": "normal",
+                            "label": "標準"
+                          },
+                          {
+                            "value": "detail",
+                            "label": "詳細"
+                          }
+                        ],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139447373-6qr49gxyhbe",
+                        "key": "result",
+                        "label": "計算結果",
+                        "type": "display",
+                        "value": {
+                          "value": 0
+                        },
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "visibleWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139444911-r6rqxpoofjg",
+                              "operator": "truthy",
+                              "value": true
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mp-1795139448028-p8qa28hotzq",
+                        "key": "run",
+                        "label": "集計を実行",
+                        "type": "button",
+                        "value": null,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "enabledWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139445457-xk16wjta8q",
+                              "operator": "gt",
+                              "value": 0
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139449525-q7lyr3myzap",
+        "at": "2026-11-20T01:50:49.525Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": true,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 3,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "alpha",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "detail",
+                        "options": [
+                          {
+                            "value": "normal",
+                            "label": "標準"
+                          },
+                          {
+                            "value": "detail",
+                            "label": "詳細"
+                          }
+                        ],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139447373-6qr49gxyhbe",
+                        "key": "result",
+                        "label": "計算結果",
+                        "type": "display",
+                        "value": {
+                          "value": 0
+                        },
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "visibleWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139444911-r6rqxpoofjg",
+                              "operator": "truthy",
+                              "value": true
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mp-1795139448028-p8qa28hotzq",
+                        "key": "run",
+                        "label": "集計を実行",
+                        "type": "button",
+                        "value": null,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "enabledWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139445457-xk16wjta8q",
+                              "operator": "gt",
+                              "value": 0
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      },
+      {
+        "id": "mp-1795139453031-ij4xdgwn2r",
+        "at": "2026-11-20T01:50:53.031Z",
+        "reason": "変更",
+        "changed": [
+          "ribbonState"
+        ],
+        "value": {
+          "name": "リクエストA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://example.invalid/request-a",
+              "query": [],
+              "variable": [],
+              "base": "https://example.invalid/request-a",
+              "hash": "",
+              "_mpTextParts": true,
+              "_mpTypedUrl": true
+            },
+            "body": {
+              "mode": "none",
+              "raw": ""
+            },
+            "auth": null
+          },
+          "settings": {
+            "verify_tls": false,
+            "follow_redirects": true,
+            "timeout_ms": 30000
+          },
+          "ribbonState": {
+            "id": "mp-1795139444074-8vjq283hgzl",
+            "ribbons": [
+              {
+                "id": "mp-1795139444074-ny7ig5yz4do",
+                "key": "main",
+                "name": "操作パネル",
+                "groups": [
+                  {
+                    "id": "mp-1795139444806-50ha8262qcc",
+                    "name": "操作",
+                    "controls": [
+                      {
+                        "id": "mp-1795139444911-r6rqxpoofjg",
+                        "key": "ready",
+                        "label": "結果を表示",
+                        "type": "toggle",
+                        "value": true,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139445457-xk16wjta8q",
+                        "key": "count",
+                        "label": "件数",
+                        "type": "number",
+                        "value": 3,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446072-3zxe1nm8txy",
+                        "key": "query",
+                        "label": "検索語",
+                        "type": "text",
+                        "value": "alpha",
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139446593-dwtfyn5vd8i",
+                        "key": "mode",
+                        "label": "モード",
+                        "type": "select",
+                        "value": "detail",
+                        "options": [
+                          {
+                            "value": "normal",
+                            "label": "標準"
+                          },
+                          {
+                            "value": "detail",
+                            "label": "詳細"
+                          }
+                        ],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": []
+                      },
+                      {
+                        "id": "mp-1795139447373-6qr49gxyhbe",
+                        "key": "result",
+                        "label": "計算結果",
+                        "type": "display",
+                        "value": {
+                          "value": 0
+                        },
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [],
+                        "visibleWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139444911-r6rqxpoofjg",
+                              "operator": "truthy",
+                              "value": true
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mp-1795139448028-p8qa28hotzq",
+                        "key": "run",
+                        "label": "集計を実行",
+                        "type": "button",
+                        "value": null,
+                        "options": [],
+                        "visible": true,
+                        "enabled": true,
+                        "actions": [
+                          {
+                            "id": "mp-1795139452755-9wfyv508f65",
+                            "type": "script",
+                            "target": "",
+                            "value": "",
+                            "scriptId": "mp-1795139450743-pro9cbx2xc"
+                          }
+                        ],
+                        "enabledWhen": {
+                          "mode": "all",
+                          "rules": [
+                            {
+                              "source": "ribbon",
+                              "key": "mp-1795139445457-xk16wjta8q",
+                              "operator": "gt",
+                              "value": 0
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "activeRibbonId": "mp-1795139444074-ny7ig5yz4do",
+            "ribbonBindings": {}
+          }
+        }
+      }
+    ],
+    "script:mp-1795139450023-d1g2dbwuyxk": [
+      {
+        "id": "mp-1795139450298-st0nriv436s",
+        "at": "2026-11-20T01:50:50.298Z",
+        "reason": "作成",
+        "changed": [
+          "name",
+          "source",
+          "input",
+          "inputFormat",
+          "timeoutMs"
+        ],
+        "value": {
+          "name": "子集計",
+          "source": "const value=ribbon.get('main.count')*2; ribbon.set('main.result',{value}); return value;",
+          "input": "null",
+          "inputFormat": "json",
+          "timeoutMs": 0
+        }
+      }
+    ],
+    "script:mp-1795139450743-pro9cbx2xc": [
+      {
+        "id": "mp-1795139451021-txbahc0qvn",
+        "at": "2026-11-20T01:50:51.021Z",
+        "reason": "作成",
+        "changed": [
+          "name",
+          "source",
+          "input",
+          "inputFormat",
+          "timeoutMs"
+        ],
+        "value": {
+          "name": "リボン集計",
+          "source": "const value=await scripts.run(\"mp-1795139450023-d1g2dbwuyxk\",input); store.set(\"event\",input); store.set(\"runs\",(store.get(\"runs\")||0)+1); return value;",
+          "input": "null",
+          "inputFormat": "json",
+          "timeoutMs": 0
+        }
+      }
+    ],
+    "script:mp-1795139451389-t3mrl975ws": [
+      {
+        "id": "mp-1795139451659-2hgyrm3expr",
+        "at": "2026-11-20T01:50:51.659Z",
+        "reason": "作成",
+        "changed": [
+          "name",
+          "source",
+          "input",
+          "inputFormat",
+          "timeoutMs"
+        ],
+        "value": {
+          "name": "変更を一度だけ処理",
+          "source": "store.set('changes',(store.get('changes')||0)+1); store.set('previousCount',input.previousValue); ribbon.set('main.count',input.value+1);",
+          "input": "null",
+          "inputFormat": "json",
+          "timeoutMs": 0
+        }
+      }
+    ],
+    "script:mp-1795139451990-kfj0mbngnwr": [
+      {
+        "id": "mp-1795139452256-a62mjmeicqo",
+        "at": "2026-11-20T01:50:52.256Z",
+        "reason": "作成",
+        "changed": [
+          "name",
+          "source",
+          "input",
+          "inputFormat",
+          "timeoutMs"
+        ],
+        "value": {
+          "name": "失敗する処理",
+          "source": "ribbon.set('main.count',999); store.set('failedWrite',true); throw Error('ribbon failure');",
+          "input": "null",
+          "inputFormat": "json",
+          "timeoutMs": 0
+        }
+      }
+    ]
+  }
+}

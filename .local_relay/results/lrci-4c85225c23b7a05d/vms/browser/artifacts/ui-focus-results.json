@@ -1,0 +1,76 @@
+{
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "folder and collection disclosure preserve keyboard focus after subtree repaint",
+    "body format keyboard change retains focus and unmodified raw payload",
+    "auth type rebuild restores selector focus and exposes the new inputs",
+    "row add/delete/toggle return keyboard focus to the affected row",
+    "form-data type selection retains focus, key and text/file mode",
+    "idle relation stop control cannot be activated",
+    "relation steps add and reorder with repeatable keyboard focus and preserved request binding",
+    "relation context insert/duplicate/delete maintain focus on the resulting step",
+    "invalid relation run restores Run/Stop controls and keeps the error visible",
+    "relation stop is available only during execution and cancels the pending wait",
+    "relation editing remains visible and free of page overflow at 320 and 390px",
+    "no uncaught browser JavaScript errors"
+  ],
+  "screenshots": [
+    {
+      "file": "tree-disclosure-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "body-format-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "auth-switch-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "header-row-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "form-data-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "relation-reordered-desktop.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "file": "relation-phone-390.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "file": "relation-phone-320.png",
+      "viewport": {
+        "width": 320,
+        "height": 720
+      }
+    }
+  ],
+  "page_errors": []
+}

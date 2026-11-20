@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {executeScript} from '../static/script-worker.mjs';
+import {executeScript,scriptExecutorSource} from '../static/script-worker.mjs';
 import {executeRequest} from '../static/execution.mjs';
 import {responseMetadata,PrimaryVariables} from '../static/runtime.mjs';
 import {applyResponseMutation,restoreOriginalResponse,applyRequestMutation} from '../static/script-response.mjs';
@@ -55,7 +55,7 @@ test('nested scripts share one staged response and request while pm reads curren
 });
 
 test('the serialized Worker executor includes mutation helpers without module closures',async()=>{
-  const isolated=Function(`return (${executeScript.toString()})`)();
+  const isolated=Function(`${scriptExecutorSource()}\nreturn executeScript;`)();
   const output=await isolated('response.setBody({message:"日本語"}); response.show("pretty"); return pm.response.responseSize;',context(wire()));
   assert.equal(output.result,new TextEncoder().encode('{"message":"日本語"}').byteLength);
   assert.equal(output.response.view,'pretty');

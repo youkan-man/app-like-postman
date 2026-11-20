@@ -176,7 +176,7 @@ def main():
             body=page.locator('#request-fields-body');body.get_by_role('button',name='＋ 行を追加').click()
             body.get_by_label('Key 1',exact=True).fill('upload');body.locator('tbody select').first.select_option('file')
             pick('hold-row.bin',first,index=0)
-            body.get_by_role('button',name='行 1 の操作',exact=True).click();page.get_by_role('menuitem',name='この上に行を追加',exact=True).click()
+            body.get_by_role('button',name='行 1 の操作',exact=True).click();page.get_by_role('menuitem',name='行を挿入',exact=True).click()
             body.get_by_label('Key 1',exact=True).fill('note');body.get_by_label('Value 1',exact=True).fill('metadata')
             page.evaluate("window.__releases['hold-row.bin']()")
             ready('hold-row.bin');result=send()

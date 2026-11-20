@@ -490,7 +490,7 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
 
             page.locator('#editor-tab-scripts').click()
             page.locator('#script-tab-before').click()
-            page.locator('#script-panel-before').get_by_role('button', name='このスクリプトを実行', exact=True).click()
+            page.locator('#script-panel-before').get_by_role('button', name='スクリプトを実行', exact=True).click()
             page.locator('#editor-tab-body').click()
             expect(page.locator('[data-file-slot="form-0"] .file-pick')).to_have_text('second.txt')
             expect(page.locator('[data-file-slot="form-1"] .file-pick')).to_have_text('first.txt')

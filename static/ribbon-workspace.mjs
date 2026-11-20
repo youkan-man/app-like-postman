@@ -115,7 +115,7 @@ export function initRibbonWorkspace(api){
     {label:state().activeRibbonId===ribbon.id?'リボンを非表示':'このリボンを表示',run:()=>activate(state().activeRibbonId===ribbon.id?'':ribbon.id)},
     {label:'参照キーをコピー',run:()=>api.copyText(ribbon.key)},
     {label:'複製',run:()=>duplicate(ribbon)},
-    {label:'この後にリボンを追加',run:()=>create(ribbon.id)},
+    {label:'リボンを追加',run:()=>create(ribbon.id)},
     {label:'削除',danger:true,run:()=>removeRibbon(ribbon)}
   ];}
   function sidebar(){
@@ -332,7 +332,7 @@ export function initRibbonWorkspace(api){
   }
   function paintProperties(){
     const root=$('ribbonProperties'),ribbon=current();if(!root||!ribbon)return;root.replaceChildren();
-    const group=selectedGroup(),control=selectedControl();propertySignature=JSON.stringify(control?[control.id,control.value,control.visible,control.enabled]:null);
+    const group=selectedGroup(),control=selectedControl();propertySignature=JSON.stringify([group?.id,group?.name,control]);root.onfocusout=refresh;
     paintMobileContext();
     if(!group){root.append(el('p','ribbon-property-empty','項目を選択'));return;}
     if(!control){root.append(el('h2','','グループ'),field('グループ名',input(group.name,'グループ名',value=>{group.name=value;changed();})));return;}
@@ -447,7 +447,7 @@ export function initRibbonWorkspace(api){
   }
   function refresh(){if(frame)return;frame=requestAnimationFrame(()=>{
     frame=0;selected();if(api.side()==='ribbons'&&!paintedId)render(true);paintBar();paintCanvas();paintHeading();paintMobileContext();paintResult();
-    const properties=$('ribbonProperties'),control=selectedControl(),signature=JSON.stringify(control?[control.id,control.value,control.visible,control.enabled]:null);
+    const properties=$('ribbonProperties'),group=selectedGroup(),control=selectedControl(),signature=JSON.stringify([group?.id,group?.name,control]);
     if(properties&&api.side()==='ribbons'&&signature!==propertySignature&&!properties.contains(document.activeElement)&&$('itemMenu').hidden&&!$('modal').open)paintProperties();
   });}
   async function interact(id,type,newValue,scopeId=state().id,inputNode=null){
@@ -465,11 +465,8 @@ export function initRibbonWorkspace(api){
     const abort=new AbortController(),record={state:'running',logs:[],key,label:control.label};controllers.set(key,abort);results.set(key,record);lastResults.set(scopeId,key);api.runningChanged();refresh();
     const workspace=w(),staged=clone(workspace),temporary=new PrimaryVariables();temporary.rows=clone(primary.rows);
     const environmentId=workspace.environmentId,environment=workspace.environments.find(item=>item.id===environmentId),targetEnvironment=staged.environments.find(item=>item.id===environmentId);
-    const combined={writes:{primary:[],environment:[],globals:[]},dataWrites:[],ribbonWrites:[],ribbonScopeId:scopeId};
-    const collect=output=>{
-      for(const kind of ['primary','environment','globals'])combined.writes[kind].push(...(output.writes?.[kind]||[]));combined.dataWrites.push(...(output.dataWrites||[]));
-      for(const write of output.ribbonWrites||[]){const prior=combined.ribbonWrites.find(item=>item.type===write.type&&(write.type==='activate'||item.id===write.id));if(prior){prior.value=clone(write.value);if(write.type==='activate')prior.id=write.id;}else combined.ribbonWrites.push(clone(write));}
-    };
+    const combined={stages:[]};
+    const collect=output=>combined.stages.push(output);
     try{
       for(const action of clone(control.actions)){
         if(abort.signal.aborted)throw new DOMException('処理を停止しました。','AbortError');
@@ -479,18 +476,18 @@ export function initRibbonWorkspace(api){
           const current=resolveRibbonControl(scoped(staged,scopeId),id).control;
           const payload={type,ribbonId:ribbon.id,controlId:id,key:current.key,value:clone(current.value),previousValue:clone(previous),values:Object.fromEntries(listRibbonControls(scoped(staged,scopeId)).filter(row=>row.ribbon.id===ribbon.id).map(({control})=>[control.key,clone(control.value)]))};
           const scriptContext=makeScriptContext(staged,temporary,{input:payload,scriptId:script.id,environmentId,ribbonScopeId:scopeId});
-          const host=createScriptHost({workspace:staged,primary:temporary,environmentId,filesFor:api.filesFor,onResponse:api.recordResponse});
+          const host=createScriptHost({workspace:staged,primary:temporary,environmentId,filesFor:api.filesFor,getResponses:api.getResponses,runRelation:api.runScriptRelation,onResponse:api.recordResponse});
           const output=await runScript(script.source,scriptContext,{signal:abort.signal,timeoutMs:script.timeoutMs,onCall:host,onLog:line=>{record.logs.push(line);refresh();}});
           applyScriptWrites(staged,temporary,targetEnvironment,output);collect(output);record.result=output.result;
         }else{
           let write;if(action.type==='activate'){const next=resolveRibbon(scoped(staged,scopeId),action.target);write={type:'activate',id:next.id,value:next.id,expected:scoped(staged,scopeId).activeRibbonId};}
           else{const target=resolveRibbonControl(scoped(staged,scopeId),action.target,{ribbonId:ribbon.id}).control;if(action.type==='toggle'&&target.type!=='toggle')throw new Error('チェック項目を指定してください。');write={type:'value',id:target.id,value:action.type==='toggle'?!target.value:clone(action.value),expected:clone(target.value),expectedShape:{type:target.type,options:clone(target.options||[])}};}
-          prepareRibbonWrites(staged,[write],{scopeId})();collect({ribbonWrites:[write]});
+          prepareRibbonWrites(staged,[write],{scopeId})();collect({writes:{primary:[],environment:[],globals:[]},dataWrites:[],ribbonWrites:[write],ribbonScopeId:scopeId});
         }
       }
       if(abort.signal.aborted)throw new DOMException('処理を停止しました。','AbortError');
       if(w()!==workspace||!listRibbonControls(scoped(workspace,scopeId)).some(row=>row.control.id===id))throw new Error('リボンが変更されたため、処理結果を反映できません。');
-      if(applyScriptWrites(workspace,primary,environment,combined))persist();record.state='success';
+      if(applyScriptWrites(workspace,primary,environment,combined))persist();record.state='success';api.workspaceChanged?.(combined);
     }catch(error){record.state=error.name==='AbortError'?'stopped':'error';record.error=error.message;toast(error.message);}
     finally{controllers.delete(key);api.runningChanged();refresh();}
   }

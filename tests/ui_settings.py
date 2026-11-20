@@ -175,7 +175,7 @@ def main():
             expect(modal.get_by_label('Value 3', exact=True)).to_have_value('copy-region')
             modal.get_by_label('Value 3', exact=True).fill('cloned-row')
             expect(modal.get_by_label('Value 2', exact=True)).to_have_value('copy-region')
-            row_menu(3, 'コピーした行を下に貼り付け')
+            row_menu(3, '行を貼り付け')
             expect(modal.get_by_label('Value 4', exact=True)).to_have_value('copy-region')
             row_menu(4, '無効にする')
             saved()

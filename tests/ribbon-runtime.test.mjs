@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {executeScript} from '../static/script-worker.mjs';
+import {executeScript,scriptExecutorSource} from '../static/script-worker.mjs';
 import {makeScriptContext,createScriptHost,scriptRibbonSnapshot} from '../static/script-host.mjs';
 import {applyScriptWrites} from '../static/scripts.mjs';
 import {normalizeRibbonValue} from '../static/ribbons.mjs';
@@ -68,7 +68,7 @@ test('standalone ribbon APIs retain the selected owner without providing an HTTP
 
 test('nested scripts see and update one ribbon transaction with their own literal bindings', async()=>{
   const ws=workspace();scope(ws).ribbonBindings={parent:{controls:{count:'count-id'},ribbons:{chosen:'main-ribbon'}},child:{controls:{count:'other-count'},ribbons:{chosen:'other-ribbon'}}};
-  ws.scripts=[{id:'parent',bindingId:'parent',name:'Parent'},
+  ws.scripts=[{id:'parent',bindingId:'parent',name:'Parent',source:''},
     {id:'child',bindingId:'child',name:'Child',source:`ribbon.set('count', ribbon.get('count')+1); ribbon.set('main.count', ribbon.get('main.count')+3); return ribbon.get('count');`}];
   const out=await executeScript(`ribbon.set('count',10); const child=await scripts.run('child'); return {child,parent:ribbon.get('count'),childValue:ribbon.get('other.count')};`,context(ws,primary(),{scriptId:'parent'}));
   assert.deepEqual(out.result,{child:41,parent:13,childValue:41});
@@ -165,7 +165,7 @@ test('script errors and cancellation never expose a partial ribbon transaction',
     assert.equal(error.message,'failed');assert.equal(Object.hasOwn(error,'ribbonWrites'),false);return true;
   });assert.deepEqual(ws,before);
   const controller=new AbortController();
-  await assert.rejects(run(`ribbon.set('count',9);await minipost.workspace.read();`,ws,primary(),{signal:controller.signal,onCall:async()=>{controller.abort();return {};}}),{name:'AbortError'});
+  await assert.rejects(run(`ribbon.set('count',9);await minipost.responses.list();`,ws,primary(),{signal:controller.signal,onCall:async()=>{controller.abort();return [];}}),{name:'AbortError'});
   assert.deepEqual(ws,before);
 });
 
@@ -193,7 +193,7 @@ test('invalid request mutation cannot leak staged ribbon writes through compile 
 });
 
 test('serialized isolated worker retains the complete ribbon API without module dependencies', async()=>{
-  const isolated=Function(`return (${executeScript.toString()})`)(),ws=workspace();
+  const isolated=Function(`${scriptExecutorSource()}\nreturn executeScript;`)(),ws=workspace();
   const out=await isolated(`const ribbon = minipost.ribbon; ribbon.set('count',5);return ribbon.get('count');`,context(ws));
   assert.equal(out.result,5);assert.equal(out.ribbonWrites[0].value,5);
 });
@@ -216,7 +216,7 @@ test('identical ribbon IDs and keys in two requests stay isolated after the sele
 
 test('nested saved scripts retain their caller request scope across an asynchronous selection change', async()=>{
   const ws=workspace(),p=primary(),a=ws.tabs[0],b=addRequest(ws);
-  ws.scripts=[{id:'child',name:'Child',source:`await minipost.workspace.read();return ribbon.set('count',ribbon.get('count')+1);`}];
+  ws.scripts=[{id:'child',name:'Child',source:`await minipost.responses.list();return ribbon.set('count',ribbon.get('count')+1);`}];
   const host=createScriptHost({workspace:ws,primary:p});
   const out=await executeScript(`ribbon.set('count',10);const child=await scripts.run('Child');return {child,value:ribbon.get('count')};`,context(ws,p),{
     onCall:async(...args)=>{ws.activeId=b.id;at(ws,'count-id',b).value=300;return host(...args);}
@@ -272,11 +272,11 @@ test('deleting or replacing the owning request rejects all pending script writes
     (_ws,a,b)=>{b.ribbonState.id=a.ribbonState.id;}
   ]) {
     const ws=workspace(),p=primary(),a=ws.tabs[0],b=addRequest(ws);
-    const out=await executeScript(`ribbon.set('count',9);vars.set('count',9);pm.environment.set('token','pending');store.set('pending',true);await minipost.workspace.read();`,context(ws,p),{
+    const out=await executeScript(`ribbon.set('count',9);vars.set('count',9);pm.environment.set('token','pending');store.set('pending',true);await minipost.responses.list();`,context(ws,p),{
       onCall:async()=>{mutate(ws,a,b);ws.activeId=b.id;return {};}
     });
     const before=structuredClone(ws);
-    assert.throws(()=>commit(ws,p,out),/見つかりません|重複/);
+    assert.throws(()=>commit(ws,p,out),/見つかりません|重複|変更・削除/);
     assert.deepEqual(ws,before);assert.deepEqual(p.snapshot(),{});
   }
 });

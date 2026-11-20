@@ -1,4 +1,11 @@
 /** A script transaction. The browser host runs this function in an isolated Worker. */
+import {createWorkspaceModel,workspaceChanges,applyWorkspaceChanges} from './workspace-api.mjs';
+import {createScriptTools} from './script-tools.mjs';
+
+/** The exact dependency bundle used by the opaque-origin browser Worker. */
+export function scriptExecutorSource() {
+  return `const applyWorkspaceChanges = ${applyWorkspaceChanges.toString()};\nconst workspaceChanges = ${workspaceChanges.toString()};\nconst createWorkspaceModel = ${createWorkspaceModel.toString()};\nconst createScriptTools = ${createScriptTools.toString()};\nconst executeScript = ${executeScript.toString()};`;
+}
 export async function executeScript(source, context = {}, options = {}) {
   const logs = [], writes = {primary:[], environment:[], globals:[]}, dataWrites = [], ribbonWrites = [];
   const {signal, onLog, onCall} = options;
@@ -58,6 +65,11 @@ export async function executeScript(source, context = {}, options = {}) {
   try {
     checkActive();
     const ctx = copy(context);
+    const model = ctx.workspace ? createWorkspaceModel(ctx.workspace,{checkActive,
+      requestRef:Object.hasOwn(ctx,'ribbonOwnerRef')?ctx.ribbonOwnerRef:ctx.requestRef || null,
+      ribbonScopeId:ctx.ribbonScopeId || null,environmentId:ctx.environmentId || ''}) : null;
+    const workspaceBefore = model ? copy(model.state) : null;
+    const tools = createScriptTools({signal,checkActive});
     const same = (left, right, seen = new WeakMap()) => {
       if (Object.is(left, right)) return true;
       if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false;
@@ -69,7 +81,11 @@ export async function executeScript(source, context = {}, options = {}) {
     // Ribbon state is another part of this transaction: child scripts see pending
     // changes immediately, while the host commits only the explicitly changed fields.
     const ribbonScopeId = typeof ctx.ribbonScopeId === 'string' && ctx.ribbonScopeId ? ctx.ribbonScopeId : null;
-    const ribbonWorkspace = {ribbons:ribbonScopeId && Array.isArray(ctx.ribbons) ? ctx.ribbons : [], activeRibbonId:ribbonScopeId ? ctx.activeRibbonId || '' : ''};
+    const ribbonWorkspace = model ? {
+      get ribbons(){return model.getRibbonState()?.ribbons || [];},
+      get activeRibbonId(){return model.getRibbonState()?.activeRibbonId || '';},
+      set activeRibbonId(value){const state=model.getRibbonState();if(!state)throw new Error('リボンの実行先がありません。');state.activeRibbonId=value;}
+    } : {ribbons:ribbonScopeId && Array.isArray(ctx.ribbons) ? ctx.ribbons : [], activeRibbonId:ribbonScopeId ? ctx.activeRibbonId || '' : ''};
     const ribbonRows = () => ribbonWorkspace.ribbons.flatMap(ribbon => (ribbon.groups || []).flatMap(group =>
       (group.controls || []).map(control => ({ribbon, group, control, reference:`${ribbon.key}.${control.key}`}))));
     const ribbonName = item => ({id:item.id, key:item.key, name:item.name});
@@ -114,8 +130,9 @@ export async function executeScript(source, context = {}, options = {}) {
       else ribbonWrites.push({type, id, value:copy(value), expected:copy(expected), ...(expectedShape ? {expectedShape:copy(expectedShape)} : {})});
     };
     function ribbonAPI(bindingId) {
-      const binding = bindingId && ctx.ribbonBindings && Object.hasOwn(ctx.ribbonBindings, bindingId) ? ctx.ribbonBindings[bindingId] : null;
       const bind = (kind, reference) => {
+        const bindings=model ? model.getRibbonState()?.ribbonBindings : ctx.ribbonBindings;
+        const binding = bindingId && bindings && Object.hasOwn(bindings,bindingId) ? bindings[bindingId] : null;
         if (typeof reference !== 'string' || !reference) throw new TypeError('リボンのIDまたはキーを指定してください。');
         const entries = binding?.[kind];
         return entries && Object.hasOwn(entries, reference) ? {key:entries[reference], bound:true} : {key:reference, bound:false};
@@ -273,40 +290,46 @@ export async function executeScript(source, context = {}, options = {}) {
     };
     const merged = new Map(Object.entries(ctx.variables || {}));
     const variableAPI = kind => ({
-      get(key) { checkActive(); key = String(key); return maps[kind].has(key) ? maps[kind].get(key) : kind === 'primary' ? merged.get(key) : undefined; },
-      has(key) { checkActive(); key = String(key); return maps[kind].has(key) || (kind === 'primary' && merged.has(key)); },
+      get(key) { checkActive(); key = String(key); if(model&&kind!=='primary')return model.api[kind].get(key);if(maps[kind].has(key))return maps[kind].get(key);if(kind!=='primary')return undefined;if(!model)return merged.get(key);const values=model.contextVariables(ctx.requestRef,Object.fromEntries(maps.primary),ctx.variableContext);return Object.hasOwn(values,key)?values[key]:undefined; },
+      has(key) { checkActive();return this.get(key)!==undefined; },
       set(key, value) {
         checkActive(); key = String(key); value = text(value); maps[kind].set(key, value);
+        if(model&&kind!=='primary')model.api[kind].set(key,value);
         if (kind === 'primary') merged.set(key, value);
         writes[kind].push({key, value});
       },
       unset(key) {
         checkActive(); key = String(key); maps[kind].delete(key);
+        if(model&&kind!=='primary')model.api[kind].unset(key);
         if (kind === 'primary') merged.delete(key);
         writes[kind].push({key, remove:true});
       },
-      toObject() { checkActive(); return copy(Object.fromEntries(kind === 'primary' ? new Map([...merged, ...maps[kind]]) : maps[kind])); }
+      list(){checkActive();return model&&kind!=='primary'?model.api[kind].list():Object.entries(this.toObject()).map(([key,value])=>({key,value,enabled:true}));},
+      clear(){checkActive();const keys=kind==='primary'?[...maps.primary.keys()]:Object.keys(this.toObject());for(const key of keys)this.unset(key);return keys.length;},
+      toObject() { checkActive();if(model)return kind==='primary'?model.contextVariables(ctx.requestRef,Object.fromEntries(maps.primary),ctx.variableContext):model.api[kind].toObject();return copy(Object.fromEntries(kind === 'primary' ? new Map([...merged, ...maps[kind]]) : maps[kind])); }
     });
     const vars = variableAPI('primary'), environment = variableAPI('environment'), globals = variableAPI('globals');
     const initialData = ctx.data === undefined ? {} : ctx.data;
     if (!initialData || typeof initialData !== 'object' || Array.isArray(initialData)) throw new TypeError('共有データはオブジェクトで指定してください。');
     const data = new Map(Object.entries(jsonValue(initialData)));
+    const currentData = () => model ? model.state.scriptData || {} : Object.fromEntries(data);
     const store = {
-      get(key) { checkActive(); return copy(data.get(String(key))); },
-      has(key) { checkActive(); return data.has(String(key)); },
+      get(key) { checkActive(); key=String(key);const current=currentData();return Object.hasOwn(current,key)?copy(current[key]):undefined; },
+      has(key) { checkActive(); return Object.hasOwn(currentData(),String(key)); },
       set(key, value) {
         checkActive(); key = String(key); value = jsonValue(value);
+        if(model){model.state.scriptData??={};Object.defineProperty(model.state.scriptData,key,{value:copy(value),enumerable:true,configurable:true,writable:true});}
         data.set(key, value); dataWrites.push({key, value:copy(value)}); return copy(value);
       },
-      delete(key) { checkActive(); key = String(key); const existed = data.delete(key); dataWrites.push({key, remove:true}); return existed; },
-      keys() { checkActive(); return [...data.keys()]; },
-      clear() { checkActive(); for (const key of data.keys()) dataWrites.push({key, remove:true}); data.clear(); }
+      delete(key) { checkActive(); key = String(key); const existed = this.has(key);if(model?.state.scriptData)delete model.state.scriptData[key];data.delete(key); dataWrites.push({key, remove:true}); return existed; },
+      keys() { checkActive(); return Object.keys(currentData()); },
+      clear() { checkActive(); for (const key of Object.keys(currentData())) dataWrites.push({key, remove:true}); data.clear();if(model)model.state.scriptData={}; }
     };
-    const catalog = Array.isArray(ctx.scripts) ? ctx.scripts : [];
+    const catalog = () => model ? model.state.scripts || [] : Array.isArray(ctx.scripts) ? ctx.scripts : [];
     const findScript = (reference, binding) => {
       const key = String(reference), bound = binding && Object.hasOwn(binding, key);
-      const byId = catalog.filter(script => script.id === (bound ? binding[key] : key));
-      const matches = bound || byId.length ? byId : catalog.filter(script => script.name === key);
+      const byId = catalog().filter(script => script.id === (bound ? binding[key] : key));
+      const matches = bound || byId.length ? byId : catalog().filter(script => script.name === key);
       if (!matches.length) throw new Error(`スクリプトが見つかりません: ${key}`);
       if (matches.length > 1) throw new Error(`スクリプト名またはIDが重複しています: ${key}。一意なIDで指定してください。`);
       return matches[0];
@@ -314,9 +337,19 @@ export async function executeScript(source, context = {}, options = {}) {
     const call = async (method, args) => {
       checkActive();
       if (typeof onCall !== 'function') throw new Error(`この実行環境では ${method} を利用できません。`);
-      const variables = Object.fromEntries(Object.entries(maps).map(([kind, values]) => [kind, copy(Object.fromEntries(values))]));
-      const result = await wait(onCall(method, copy(args), {signal, variables}));
-      checkActive(); return copy(result);
+      const variables = Object.fromEntries(Object.entries(maps).map(([kind, values]) => [kind, model&&kind!=='primary'?model.api[kind].toObject():copy(Object.fromEntries(values))]));
+      const result = await wait(onCall(method, copy(args), {signal,variables,...(model?{workspace:copy(model.state),requestRef:ctx.requestRef || ctx.ribbonOwnerRef || null,ribbonScopeId}:{} )}));
+      checkActive();
+      if(method==='relations.run'&&result?.__minipostTransaction===true){
+        if(!model)throw new Error('リレーション実行にはワークスペースが必要です。');
+        for(const expected of result.primaryExpected||[])if(maps.primary.has(expected.key)!==expected.exists||expected.exists&&maps.primary.get(expected.key)!==expected.value)throw new Error('リレーション実行中に同じ一次変数が変更されました。リレーションの変更は保存していません。');
+        for(const row of result.primaryWrites||[])if(typeof row.key!=='string'||!row.key.trim()||/[{}\r\n]/.test(row.key)||!row.remove&&typeof row.value!=='string')throw new TypeError('リレーションの一次変数変更形式が不正です。');
+        model.apply(result.workspaceWrites||[]);
+        for(const row of result.primaryWrites||[])row.remove?vars.unset(row.key):vars.set(row.key,row.value);
+        for(const entry of result.logs||[])log(entry.level||'log',entry.message);
+        return copy(result.value);
+      }
+      return copy(result);
     };
     const applicationAPI = {
       requests:{list:() => call('requests.list', []), get:reference => call('requests.get', [reference]), send:(reference, options) => call('requests.send', [reference, options])},
@@ -324,16 +357,24 @@ export async function executeScript(source, context = {}, options = {}) {
       workspace:{read:() => call('workspace.read', [])},
       variables:vars, environment, globals, store, request, response
     };
+    if(model){Object.assign(applicationAPI,model.api);Object.assign(applicationAPI,{variables:vars,environment,globals,store,request,response});}
+    applicationAPI.requests.send=(reference,options)=>call('requests.send',[reference,options]);
+    applicationAPI.relations={...(applicationAPI.relations||{}),run:(reference,options)=>call('relations.run',[reference,options])};
+    applicationAPI.responses={list:()=>call('responses.list',[]),get:reference=>call('responses.get',[reference])};
+    applicationAPI.attachments={list:reference=>call('attachments.list',[reference]),read:(reference,slot,index=0,options={})=>call('attachments.read',[reference,slot,index,options])};
+    applicationAPI.tools=tools;
     const scriptConsole = Object.fromEntries(['log', 'info', 'debug', 'warn', 'error'].map(level => [level, (...values) => log(level, ...values)]));
     const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
     async function invoke(code, value, id) {
       checkActive();
       const input = copy(value), pendingTests = [];
-      const caller = catalog.find(script => script.id === id);
+      const caller = catalog().find(script => script.id === id);
       const bindingId = caller ? caller.bindingId : id == null || id === '' ? ctx.bindingId : undefined;
-      const binding = bindingId && ctx.bindings && Object.hasOwn(ctx.bindings, bindingId) ? ctx.bindings[bindingId] : null;
+      const bindings=model?model.state.scriptBindings:ctx.bindings;
+      const binding = bindingId && bindings && Object.hasOwn(bindings, bindingId) ? bindings[bindingId] : null;
       const scripts = {
-        list() { checkActive(); return catalog.map(({id, name}) => ({id, name})); },
+        ...(model?model.api.scripts:{}),
+        list() { checkActive(); return catalog().map(({id, name}) => ({id, name})); },
         async run(reference, input) { checkActive(); const script = findScript(reference, binding); return copy(await invoke(script.source, input, script.id)); }
       };
       const ribbon = ribbonAPI(bindingId);
@@ -367,8 +408,8 @@ export async function executeScript(source, context = {}, options = {}) {
       };
       // Keep host bindings outside the user's lexical scope so ordinary local
       // declarations such as `const request` can shadow them without collisions.
-      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', 'ribbon', '"use strict";\n{\n' + String(code || '') + '\n}\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
-      const result = await fn(pm, vars, response, request, scriptConsole, input, scripts, store, minipost, ribbon);
+      const fn = new AsyncFunction('pm', 'vars', 'response', 'request', 'console', 'input', 'scripts', 'store', 'minipost', 'ribbon', 'tools', '"use strict";\n{\n' + String(code || '') + '\n}\n//# sourceURL=minipost-script-' + encodeURIComponent(id || 'manual') + '.js');
+      const result = await fn(pm, vars, response, request, scriptConsole, input, scripts, store, minipost, ribbon, tools);
       for (let at = 0; at < pendingTests.length;) {
         const batch = pendingTests.slice(at); at = pendingTests.length; await Promise.all(batch);
       }
@@ -377,6 +418,13 @@ export async function executeScript(source, context = {}, options = {}) {
     const result = await wait(invoke(source, ctx.input, ctx.scriptId));
     checkActive();
     const output = {ok:true, result, writes:copy(writes), dataWrites:copy(dataWrites), ribbonScopeId, ribbonWrites:copy(ribbonWrites), logs:copy(logs)};
+    if(model){
+      model.validate();output.workspaceTransaction=true;output.workspaceWrites=workspaceChanges(workspaceBefore,model.state);
+      const primaryBaseline=ctx.primaryCommitBaseline??ctx.primary??{};
+      output.primaryExpected=[...new Set(writes.primary.map(row=>row.key))].map(key=>({key,exists:Object.hasOwn(primaryBaseline,key),...(Object.hasOwn(primaryBaseline,key)?{value:primaryBaseline[key]}:{})}));
+      const before=createWorkspaceModel(workspaceBefore).api.requests.list(),after=model.api.requests.list(),ids=new Set([...before,...after].map(row=>row.id));
+      output.changedRequests=[...ids].flatMap(id=>{const old=before.find(row=>row.id===id),next=after.find(row=>row.id===id);return same(old?.request,next?.request)?[]:[{id,before:old?.request??null,after:next?.request??null}];});
+    }
     const attachmentRows = fileRows();
     if (!same(request, initialRequest) || !same(attachmentRows, initialFileRows)) {
       output.request = copy(request);
