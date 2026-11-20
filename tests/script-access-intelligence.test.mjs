@@ -4,6 +4,8 @@ import {createScriptIntelligence} from '../static/script-intelligence.mjs';
 import {buildLanguageProject} from '../static/script-language-model.mjs';
 import {scriptEditorContext} from '../static/script-editor-context.mjs';
 import {searchScriptAPI} from '../static/script-api-reference.mjs';
+import {createRequestEditor} from '../static/script-request.mjs';
+import {createWorkspaceModel} from '../static/workspace-api.mjs';
 import ts from '../static/vendor-typescript.mjs';
 import libraries from '../static/vendor-typescript-libs.mjs';
 
@@ -137,6 +139,44 @@ response.body={converted:true};`;
 ribbon.set('count','visible','yes');
 minipost.requests.edit('Create').method='PUT';`,context);
   assert.equal(errors.length,3,errors.join('\n'));
+});
+
+test('request setter return types reflect normalized URL snapshots and entity path readback',()=>{
+  const {workspace,context}=fixture(),current={method:'GET',url:'https://old.test',header:[]};
+  const editor=createRequestEditor({read:()=>current,change:callback=>callback(current)});
+  const model=createWorkspaceModel({...workspace,relations:[],scripts:[]}),saved=model.api.requests.edit('Create');
+  for(const [index,target] of [editor,saved].entries()){
+    for(const [at,path] of [undefined,'','$',[]].entries()){
+      const url=`https://new.test/${index}/${at}`,snapshot={method:'POST',url,header:[],body:{mode:'raw',raw:'{}'}};
+      const returned=path===undefined?target.set(snapshot):target.set(path,snapshot);
+      assert.equal(typeof returned.url,'object');
+      assert.deepEqual(returned.url,target.get().url);
+      assert.equal(target.get('url'),url);
+      assert.equal(returned.body.raw,'{}');
+    }
+    assert.equal(target.set('url',`https://new.test/field/${index}`),`https://new.test/field/${index}`);
+  }
+  for(const [at,path] of ['request.url','/request/url',['request','url']].entries()){
+    const returned=model.api.requests.set('Create',path,`https://new.test/entity/${at}`);
+    assert.equal(typeof returned,'object');
+    assert.deepEqual(returned,model.api.requests.get('Create',path));
+  }
+  const snapshot="{method:'POST',url:'https://new.test',header:[],body:{mode:'raw',raw:'{}'}}";
+  const calls=[`request.set(${snapshot})`,...['""','"$"','[]'].map(path=>`request.set(${path},${snapshot})`),
+    `minipost.requests.edit('Create').set(${snapshot})`];
+  const bad=calls.map((call,index)=>`const root${index}=${call};root${index}.url.toUpperCase();`);
+  for(const [index,path] of ['"request.url"','"/request/url"','["request","url"]'].entries())
+    bad.push(`const field${index}=minipost.requests.set('Create',${path},'https://new.test');field${index}.toUpperCase();`);
+  const errors=diagnostics(bad.join('\n'),context);
+  assert.equal(errors.length,bad.length,errors.join('\n'));
+  assert.ok(errors.every(message=>message.includes("Property 'toUpperCase' does not exist")),errors.join('\n'));
+  assert.deepEqual(diagnostics(`
+const returned=request.set(${snapshot});returned.body.raw.trim();
+if(typeof returned.url==='string')returned.url.trim();else returned.url.raw.trim();
+request.set('url','https://new.test').toUpperCase();
+minipost.requests.edit('Create').set('url','https://new.test').toUpperCase();
+const field=minipost.requests.set('Create','request.url','https://new.test');
+if(typeof field==='string')field.trim();else field.raw.trim();`,context),[]);
 });
 
 test('request JSON snapshots stay sanitized, bounded and refresh for current and saved edits',()=>{

@@ -184,7 +184,7 @@ export type PathValue<T, P> = P extends readonly unknown[] ? PathTuple<T,P> : P 
 export type PointerParts<P extends string> = P extends \`\${infer H}/\${infer R}\` ? [PointerKey<H>,...PointerParts<R>] : [PointerKey<P>];
 export type DotParts<P extends string> = P extends '' ? [] : P extends \`.\${infer R}\` ? DotParts<R> : P extends \`\${infer H}[\${infer I}]\${infer R}\` ? [...DotParts<H>,BracketKey<I>,...DotParts<R>] : P extends \`\${infer H}.\${infer R}\` ? [H,...DotParts<R>] : [P];
 export type PathParts<P> = P extends readonly unknown[] ? P : P extends string ? string extends P ? string[] : P extends '' | '$' ? [] : P extends \`/\${infer R}\` ? PointerParts<R> : P extends \`$.\${infer R}\` ? DotParts<R> : P extends \`$[\${infer R}\` ? DotParts<\`[\${R}\`> : DotParts<P> : string[];
-export type WrittenValue<T, P, V> = unknown extends PathValue<T,P> ? V : PathValue<T,P>;
+export type WrittenValue<T, P> = PathValue<T,P>;
 export type SetMember<T,K,V> = T extends readonly (infer E)[] ? Array<E | V> : Omit<NonNullable<T>,K & PropertyKey> & Record<K & PropertyKey,V>;
 export type SetParts<T,P,V> = P extends readonly [] ? V : P extends readonly [infer H,...infer R] ? SetMember<T,H,SetParts<PathMember<T,H>,R,V>> : JsonValue;
 export type RemoveParts<T,P> = P extends readonly [] ? null : P extends readonly [infer H] ? T extends readonly unknown[] ? T : Omit<T,H & PropertyKey> : P extends readonly [infer H,...infer R] ? SetMember<T,H,RemoveParts<PathMember<T,H>,R>> : JsonValue;
@@ -413,13 +413,14 @@ export interface RequestJSON<J = unknown> {
   delete(path: JSONPathFor<J>): boolean;
 }
 export type RequestPathValue<S, P> = PathParts<P> extends readonly ['url'] ? string : PathValue<S,P>;
+export type RequestSnapshotResult<T> = T extends { url: unknown } ? Omit<T, 'url'> & { url: Request['url'] } : T;
 export interface RequestAccess<S extends Request, J = unknown> {
   /** リクエストのコピーを取得します。 */
   get(): S;
   /** 同じパスで取得・設定できます。urlは送信URLを文字列で返します。 */
   get<const P extends JSONPathFor<S>>(path: P): RequestPathValue<S,P>;
-  set<S extends Request>(snapshot: S): S;
-  set<const P extends JSONPathFor<Request>, V>(path: P, value: V): PathParts<P> extends readonly ['url'] ? string : V;
+  set<T extends Request>(snapshot: T): RequestSnapshotResult<T>;
+  set<const P extends JSONPathFor<Request>, V>(path: P, value: V): PathParts<P> extends readonly [] ? RequestSnapshotResult<V> : PathParts<P> extends readonly ['url'] ? string : V;
   /** ヘッダー名は大文字・小文字を区別しません。 */
   headers: RequestPairs;
   /** クエリ名をそのままのキーとして扱います。 */
@@ -533,7 +534,7 @@ export interface EntityValues<L extends object, T, S> {
   /** 取得したコピーを編集して保存します。 */
   set(reference: KnownString<keyof L & string> | EntityRef, snapshot: T | S): T;
   /** getと同じパスへ値を設定し、設定後の値を返します。 */
-  set<const P extends JSONPathFor<T>, V>(reference: KnownString<keyof L & string> | EntityRef, path: P, value: V): WrittenValue<T,P,V>;
+  set<const P extends JSONPathFor<T>, V>(reference: KnownString<keyof L & string> | EntityRef, path: P, value: V): WrittenValue<T,P>;
 }
 export interface EntityAPI<L extends object, T, S> extends EntityValues<L,T,S> {
   list(): T[];
@@ -593,7 +594,7 @@ export interface SettingsAPI {
   get(): WorkspaceSettings;
   get<const P extends JSONPathFor<WorkspaceSettings>>(path: P): PathValue<WorkspaceSettings,P>;
   set(snapshot: WorkspaceSettings): WorkspaceSettings;
-  set<const P extends JSONPathFor<WorkspaceSettings>, V>(path: P, value: V): WrittenValue<WorkspaceSettings,P,V>;
+  set<const P extends JSONPathFor<WorkspaceSettings>, V>(path: P, value: V): WrittenValue<WorkspaceSettings,P>;
   update(patch: DeepPatch<WorkspaceSettings>): WorkspaceSettings;
 }
 export interface HistoryEntry { id: string; name: string; method?: string; url?: string; status?: number; [key: string]: unknown; }
