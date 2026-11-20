@@ -208,7 +208,11 @@ def main():
 
             def completion():
                 area = source('scripts', focused=True)
-                area.fill('pm.\n' + workspace_fixture(target)['scripts'][0]['source'])
+                expect(area).to_be_editable()
+                # The long source is already present; type only the expression
+                # whose completion must disappear when reading with the wheel.
+                page.keyboard.insert_text('pm.\n')
+                expect(area).to_have_value(re.compile(r'^pm\.\n'))
                 area.press('Control+Home')
                 area.press('ArrowRight'); area.press('ArrowRight'); area.press('ArrowRight')
                 area.press('Control+Space')
@@ -219,7 +223,7 @@ def main():
                 page.screenshot(path=str(out / path), full_page=True)
                 screenshots.append(path)
 
-            def wheel_case(name, prepare, selector, expected, hit='center', selection=False, native=False, control=False):
+            def wheel_case(name, prepare, selector, expected, hit='center', selection=False, native=False, control=False, isolated=False):
                 if not pattern.search(name):
                     return
                 case = {'name': name, 'ok': False, 'selector': selector, 'expected': expected, 'hitMode': hit}
@@ -276,6 +280,10 @@ def main():
                     if selection:
                         initial = {item['id']: item.get('selection') for item in before['expected']}
                         assert all(item.get('selection') == initial.get(item['id']) for item in case['after']['expected']), 'Wheel changed the text selection'
+                    if isolated:
+                        own_ids = {item['id'] for item in before['expected']}
+                        others = {item['id']: item for item in before['all'] if item['id'] not in own_ids and ('selection' in item or item['node'].startswith('div#editorContent'))}
+                        assert all(item['id'] not in others or abs(item['top'] - others[item['id']]['top']) <= 1 for item in case['after']['all']), 'Wheel moved another editor or the surrounding settings page'
                     case['ok'] = True
                     print('PASS ' + name, flush=True)
                 except Exception as error:
@@ -309,6 +317,7 @@ def main():
             wheel_case('headers-content-padding', request, '#editorContent', tables, 'padding')
             wheel_case('request-title-over-table', request, '#requestName', tables)
             wheel_case('request-tabs-over-table', request, '#editor-tab-headers', tables)
+            wheel_case('all-page-table-input', lambda: request(pane='all'), '#request-fields-params input[aria-label="Value 1"]', '#editorContent')
             for mode in ['urlencoded', 'formdata']:
                 wheel_case(mode + '-input', lambda mode=mode: request('wheel-' + mode, 'body'), '#request-fields-body input[aria-label="Value 1"]', tables)
 
@@ -320,6 +329,7 @@ def main():
             wheel_case('raw-selected-text', lambda: source(selected=True), raw, raw, selection=True)
             wheel_case('raw-control-wheel', lambda: source(focused=True), raw, raw, native=True, control=True)
             wheel_case('raw-status-footer', lambda: source(focused=True), '#request-fields-body .source-status', raw, selection=True)
+            wheel_case('all-page-source-footer', lambda: request(pane='all'), '#request-fields-body .source-status', raw, selection=True, isolated=True)
             wheel_case('hook-status-footer', lambda: source('scripts', True), '#script-panel-before .source-status', hook, selection=True)
             wheel_case('hook-open-completion', completion, hook, hook, 'first-line', selection=True)
 
@@ -343,7 +353,8 @@ def main():
             wheel_case('mobile-raw-source', lambda: source(focused=True, size=(390, 844)), raw, raw, selection=True)
             wheel_case('mobile-raw-status-footer', lambda: source(focused=True, size=(390, 844)), '#request-fields-body .source-status', raw, selection=True)
             wheel_case('landscape-hook-status-footer', lambda: source('scripts', True, size=(844, 390)), '#script-panel-before .source-status', hook, selection=True)
-            wheel_case('landscape-response-heading', lambda: response(size=(844, 390)), '.response-heading', '#responseContent')
+            # A short response pane first scrolls its controls, then its body.
+            wheel_case('landscape-response-heading', lambda: response(size=(844, 390)), '.response-heading', '#responseContent,.response-panel')
             capture('wheel-final-state')
             completed = bool(cases) and all(case['ok'] for case in cases) and not errors and not dialogs
             browser.close()
