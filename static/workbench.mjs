@@ -1,4 +1,5 @@
 /** Layout-only state: request data and network I/O remain owned by app.js. */
+import {bindWheelScroll} from './wheel-scroll.mjs';
 const $ = id => document.getElementById(id);
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 const KEY = 'minipost.layout.v1';
@@ -19,6 +20,13 @@ export function initWorkbench(storage = localStorage) {
   const wide = matchMedia('(min-width: 1180px)');
   let mobileOpen = false;
   const root = document.documentElement;
+  bindWheelScroll(document.querySelector('.sidebar'),[$('sidebarContent')]);
+  bindWheelScroll(document.querySelector('.response-panel'),[$('responseContent')]);
+  bindWheelScroll(document.querySelector('.request-editor'),()=>{
+    const content=$('editorContent');
+    if(!['body','scripts'].includes(root.dataset.editorPage))return [content];
+    return [content,...content.querySelectorAll('.editor-section:not([hidden]) .editor-section-body'),...content.querySelectorAll('.source-input')];
+  });
   const save = () => { try { storage.setItem(KEY, JSON.stringify(state)); } catch {} };
   const effectiveSplit = () => wide.matches ? state.split : 'stack';
   const visible = () => narrow.matches ? mobileOpen : state.open;

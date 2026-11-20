@@ -1,0 +1,776 @@
+{
+  "source_commit": "2b9f98ee607e59d30d294bc0eef4d5274f94b686",
+  "app_source_commit": "bb021e7a716c7fd05f1fda642111d2ce9ccef77f",
+  "exit_code": 1,
+  "ok": false,
+  "passed": 20,
+  "failed": 14,
+  "page_errors": [],
+  "dialogs": [],
+  "screenshots": [
+    "request-title-over-table.png",
+    "request-tabs-over-table.png",
+    "raw-status-footer.png",
+    "hook-status-footer.png",
+    "response-heading.png",
+    "wheel-final-state.png"
+  ],
+  "cases": [
+    {
+      "name": "query-input",
+      "ok": true,
+      "error": null,
+      "hit": "input[Value 1]",
+      "pulses": [
+        {
+          "hit": "input[Value 1]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 5]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 9]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "headers-input",
+      "ok": true,
+      "error": null,
+      "hit": "input[Value 1]",
+      "pulses": [
+        {
+          "hit": "input[Value 1]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 5]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 9]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "headers-table-text",
+      "ok": true,
+      "error": null,
+      "hit": "th.check",
+      "pulses": [
+        {
+          "hit": "th.check",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "td.check.kv-enabled",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "td.check.kv-enabled",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "headers-content-padding",
+      "ok": true,
+      "error": null,
+      "hit": "div#editorContent.editor-content",
+      "pulses": [
+        {
+          "hit": "div#editorContent.editor-content",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "div#editorContent.editor-content",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "div#editorContent.editor-content",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "request-title-over-table",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "input#requestName[リクエスト名]",
+      "pulses": [
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "request-tabs-over-table",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "button#editor-tab-headers",
+      "pulses": [
+        {
+          "hit": "button#editor-tab-headers",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "button#editor-tab-headers",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "button#editor-tab-headers",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "urlencoded-input",
+      "ok": true,
+      "error": null,
+      "hit": "input[Value 1]",
+      "pulses": [
+        {
+          "hit": "input[Value 1]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 5]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 9]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "formdata-input",
+      "ok": true,
+      "error": null,
+      "hit": "input[Value 1]",
+      "pulses": [
+        {
+          "hit": "input[Value 1]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 5]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "input[Value 9]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "raw-unfocused",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[Raw body]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "hook-unfocused",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "raw-focused",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[Raw body]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "hook-focused",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[送信前スクリプト]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "raw-selected-text",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[Raw body]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "raw-control-wheel",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[Raw body]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "raw-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "hook-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "hook-open-completion",
+      "ok": false,
+      "error": "Locator.fill: Timeout 6000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"送信前スクリプト\", exact=True)\n    - locator resolved to <textarea wrap=\"off\" spellcheck=\"false\" autocomplete=\"off\" autocapitalize=\"off\" aria-label=\"送信前スクリプト\" aria-autocomplete=\"list\" class=\"code-editor source-input\" aria-controls=\"script-suggestions-53\" aria-describedby=\"script-signature-53\"></textarea>\n  - attempting fill action\n    - waiting for element to be visible, enabled and editable\n",
+      "hit": null,
+      "pulses": []
+    },
+    {
+      "name": "response-pretty-code",
+      "ok": true,
+      "error": null,
+      "hit": "span.code-line",
+      "pulses": [
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.token-string",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "response-raw-code",
+      "ok": true,
+      "error": null,
+      "hit": "span.code-line",
+      "pulses": [
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "response-header-list",
+      "ok": true,
+      "error": null,
+      "hit": "td",
+      "pulses": [
+        {
+          "hit": "td",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "td",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "td",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "response-heading",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.response-meta",
+      "pulses": [
+        {
+          "hit": "div.response-meta",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.response-meta",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.response-meta",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "response-toolbar",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "nav#responseTabs.content-tabs.response-navigation[レスポンス表示形式]",
+      "pulses": [
+        {
+          "hit": "nav#responseTabs.content-tabs.response-navigation[レスポンス表示形式]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "nav#responseTabs.content-tabs.response-navigation[レスポンス表示形式]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "nav#responseTabs.content-tabs.response-navigation[レスポンス表示形式]",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "response-plain-text",
+      "ok": true,
+      "error": null,
+      "hit": "span.code-line",
+      "pulses": [
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.code-line",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "standalone-source",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[スクリプトのコード]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[スクリプトのコード]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[スクリプトのコード]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[スクリプトのコード]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "standalone-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "ribbon-inline-source",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[リボンのスクリプト]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[リボンのスクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[リボンのスクリプト]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[リボンのスクリプト]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "ribbon-inline-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "sidebar-row",
+      "ok": true,
+      "error": null,
+      "hit": "strong.tree-label",
+      "pulses": [
+        {
+          "hit": "strong.tree-label",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "button.tree-open",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "span.tree-label",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "sidebar-heading",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "h2#sidebarTitle.sidebar-title",
+      "pulses": [
+        {
+          "hit": "h2#sidebarTitle.sidebar-title",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "h2#sidebarTitle.sidebar-title",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "h2#sidebarTitle.sidebar-title",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "side-request-title",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "input#requestName[リクエスト名]",
+      "pulses": [
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "input#requestName[リクエスト名]",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "mobile-raw-source",
+      "ok": true,
+      "error": null,
+      "hit": "textarea.code-editor.source-input[Raw body]",
+      "pulses": [
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        },
+        {
+          "hit": "textarea.code-editor.source-input[Raw body]",
+          "moved": true,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "mobile-raw-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "landscape-hook-status-footer",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.source-status",
+      "pulses": [
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.source-status",
+          "moved": false,
+          "room": true
+        }
+      ]
+    },
+    {
+      "name": "landscape-response-heading",
+      "ok": false,
+      "error": "Wheel stopped moving the intended content while it still had room",
+      "hit": "div.response-meta",
+      "pulses": [
+        {
+          "hit": "div.response-meta",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.response-heading",
+          "moved": false,
+          "room": true
+        },
+        {
+          "hit": "div.response-heading",
+          "moved": false,
+          "room": true
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {indentEdit,newlineEdit,smartBackspaceEdit,smartHomeSelection,toggleLineC
 import {createTextHistory} from './editor-history.mjs';
 import {createEditorSearch} from './editor-search.mjs';
 import {createEditorDiagnostics} from './editor-diagnostics.mjs';
+import {bindWheelScroll} from './wheel-scroll.mjs';
 export {highlight};
 let editorSequence=0;
 export function createCodeEditor({value='',language='text',label='コード',onChange=()=>{},readOnly=false,intellisense=false,intelligenceContext=()=>({})}={}) {
@@ -95,7 +96,9 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     }
     if(!suggestions.hidden){
       const belowList=Math.max(0,available-pos.y-pos.line),room=Math.max(above,belowList);
-      suggestions.style.maxHeight=`${Math.max(0,Math.min(180,room))}px`;
+      // offsetHeight rounds to whole pixels. A fractional cap can otherwise
+      // look too tall for the space below and cover the caret from above.
+      suggestions.style.maxHeight=`${Math.max(0,Math.floor(Math.min(180,room)))}px`;
       const width=suggestions.offsetWidth,height=suggestions.offsetHeight;
       const top=belowList>=height?pos.y+pos.line:Math.max(4,pos.y-height);
       suggestions.style.left=`${Math.max(4,Math.min(pos.x,root.clientWidth-width-4))}px`;
@@ -282,6 +285,13 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     update(false,75,typed);
   });
   area.addEventListener('scroll',()=>{sync();place();search.position();diagnostics.position();});
+  area.addEventListener('minipost-wheel-scroll',()=>invalidate());
+  // Reading with the wheel must not move completion under the pointer or let a
+  // pending analysis reopen it after the caret has scrolled out of view.
+  root.addEventListener('wheel',event=>{
+    if(!event.ctrlKey&&!event.metaKey&&(event.deltaX||event.deltaY)&&!suggestions.contains(event.target))invalidate();
+  },{passive:true});
+  const unbindWheel=bindWheelScroll(root,[area]);
   area.addEventListener('focus',()=>{history.breakGroup();update(false,100,false);});
   area.addEventListener('click',()=>{history.breakGroup();update(false,75,false);});
   area.addEventListener('select',()=>{
@@ -342,7 +352,7 @@ export function createCodeEditor({value='',language='text',label='コード',onC
     if(event.key==='Enter'&&plain&&!readOnly){event.preventDefault();event.stopPropagation();edit(newlineEdit(area.value,area.selectionStart,area.selectionEnd,{language}));return;}
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)||event.ctrlKey||event.metaKey){history.breakGroup();invalidate();}
   });
-  function dispose(){if(disposed)return;disposed=true;invalidate();document.removeEventListener('input',foreignInput,true);resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
+  function dispose(){if(disposed)return;disposed=true;invalidate();unbindWheel();document.removeEventListener('input',foreignInput,true);resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
   root.append(pre,area,status,suggestions,hint);paint();
   return {element:root,textarea:area,
     get isComposing(){return composing;},

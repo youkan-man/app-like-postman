@@ -1,0 +1,481 @@
+{
+  "after": {
+    "all": [
+      {
+        "connected": true,
+        "focused": true,
+        "height": 106,
+        "id": 35,
+        "left": 0,
+        "node": "textarea.code-editor.source-input[送信前スクリプト]",
+        "rect": {
+          "height": 105.984375,
+          "width": 1134,
+          "x": 278,
+          "y": 311
+        },
+        "scrollHeight": 3257,
+        "scrollWidth": 1728,
+        "selection": [
+          3,
+          3,
+          "forward"
+        ],
+        "top": 0,
+        "width": 1134
+      },
+      {
+        "connected": true,
+        "focused": false,
+        "height": 920,
+        "id": 3,
+        "left": 0,
+        "node": "html",
+        "rect": {
+          "height": 920,
+          "width": 1440,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 920,
+        "scrollWidth": 1440,
+        "top": 0,
+        "width": 1440
+      },
+      {
+        "connected": true,
+        "focused": false,
+        "height": 69,
+        "id": 36,
+        "left": 0,
+        "node": "div#script-suggestions-59.source-suggestions[コード補完]",
+        "rect": {
+          "height": 70.546875,
+          "width": 390,
+          "x": 313,
+          "y": 315
+        },
+        "scrollHeight": 220,
+        "scrollWidth": 388,
+        "top": 151,
+        "width": 388
+      }
+    ],
+    "expected": [
+      {
+        "connected": true,
+        "focused": true,
+        "height": 106,
+        "id": 35,
+        "left": 0,
+        "node": "textarea.code-editor.source-input[送信前スクリプト]",
+        "rect": {
+          "height": 105.984375,
+          "width": 1134,
+          "x": 278,
+          "y": 311
+        },
+        "scrollHeight": 3257,
+        "scrollWidth": 1728,
+        "selection": [
+          3,
+          3,
+          "forward"
+        ],
+        "top": 0,
+        "width": 1134
+      }
+    ]
+  },
+  "before": {
+    "all": [
+      {
+        "connected": true,
+        "focused": true,
+        "height": 106,
+        "id": 35,
+        "left": 0,
+        "node": "textarea.code-editor.source-input[送信前スクリプト]",
+        "rect": {
+          "height": 105.984375,
+          "width": 1134,
+          "x": 278,
+          "y": 311
+        },
+        "scrollHeight": 3257,
+        "scrollWidth": 1728,
+        "selection": [
+          3,
+          3,
+          "forward"
+        ],
+        "top": 0,
+        "width": 1134
+      },
+      {
+        "connected": true,
+        "focused": false,
+        "height": 920,
+        "id": 3,
+        "left": 0,
+        "node": "html",
+        "rect": {
+          "height": 920,
+          "width": 1440,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 920,
+        "scrollWidth": 1440,
+        "top": 0,
+        "width": 1440
+      },
+      {
+        "connected": true,
+        "focused": false,
+        "height": 69,
+        "id": 36,
+        "left": 0,
+        "node": "div#script-suggestions-59.source-suggestions[コード補完]",
+        "rect": {
+          "height": 70.546875,
+          "width": 390,
+          "x": 313,
+          "y": 315
+        },
+        "scrollHeight": 220,
+        "scrollWidth": 388,
+        "top": 0,
+        "width": 388
+      }
+    ],
+    "expected": [
+      {
+        "connected": true,
+        "focused": true,
+        "height": 106,
+        "id": 35,
+        "left": 0,
+        "node": "textarea.code-editor.source-input[送信前スクリプト]",
+        "rect": {
+          "height": 105.984375,
+          "width": 1134,
+          "x": 278,
+          "y": 311
+        },
+        "scrollHeight": 3257,
+        "scrollWidth": 1728,
+        "selection": [
+          3,
+          3,
+          "forward"
+        ],
+        "top": 0,
+        "width": 1134
+      }
+    ]
+  },
+  "error": "Wheel stopped moving the intended content while it still had room",
+  "events": {
+    "scrolls": [
+      {
+        "connected": true,
+        "focused": false,
+        "height": 69,
+        "id": 36,
+        "left": 0,
+        "node": "div#script-suggestions-59.source-suggestions[コード補完]",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "rect": {
+          "height": 70.546875,
+          "width": 390,
+          "x": 313,
+          "y": 315
+        },
+        "scrollHeight": 220,
+        "scrollWidth": 388,
+        "top": 140,
+        "width": 388
+      },
+      {
+        "connected": true,
+        "focused": false,
+        "height": 69,
+        "id": 36,
+        "left": 0,
+        "node": "div#script-suggestions-59.source-suggestions[コード補完]",
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "rect": {
+          "height": 70.546875,
+          "width": 390,
+          "x": 313,
+          "y": 315
+        },
+        "scrollHeight": 220,
+        "scrollWidth": 388,
+        "top": 151,
+        "width": 388
+      }
+    ],
+    "wheels": [
+      {
+        "ctrlKey": false,
+        "deltaX": 0,
+        "deltaY": 140,
+        "path": [
+          "span",
+          "button#script-suggestions-59-0.source-suggestion[environment]",
+          "div#script-suggestions-59.source-suggestions[コード補完]",
+          "div.source-editor",
+          "div#script-panel-before.script-phase-panel",
+          "div#request-fields-scripts.editor-section-body",
+          "section.editor-section",
+          "div#editorContent.editor-content",
+          "section.request-editor[リクエスト編集]",
+          "div#exchange.exchange",
+          "main.main",
+          "div.workspace",
+          "body",
+          "html"
+        ],
+        "prevented": false,
+        "target": "span",
+        "x": 368,
+        "y": 327
+      },
+      {
+        "ctrlKey": false,
+        "deltaX": 0,
+        "deltaY": 140,
+        "path": [
+          "span",
+          "button#script-suggestions-59-4.source-suggestion[response]",
+          "div#script-suggestions-59.source-suggestions[コード補完]",
+          "div.source-editor",
+          "div#script-panel-before.script-phase-panel",
+          "div#request-fields-scripts.editor-section-body",
+          "section.editor-section",
+          "div#editorContent.editor-content",
+          "section.request-editor[リクエスト編集]",
+          "div#exchange.exchange",
+          "main.main",
+          "div.workspace",
+          "body",
+          "html"
+        ],
+        "prevented": false,
+        "target": "span",
+        "x": 368,
+        "y": 327
+      },
+      {
+        "ctrlKey": false,
+        "deltaX": 0,
+        "deltaY": 140,
+        "path": [
+          "span.source-suggestion-detail",
+          "button#script-suggestions-59-5.source-suggestion[test]",
+          "div#script-suggestions-59.source-suggestions[コード補完]",
+          "div.source-editor",
+          "div#script-panel-before.script-phase-panel",
+          "div#request-fields-scripts.editor-section-body",
+          "section.editor-section",
+          "div#editorContent.editor-content",
+          "section.request-editor[リクエスト編集]",
+          "div#exchange.exchange",
+          "main.main",
+          "div.workspace",
+          "body",
+          "html"
+        ],
+        "prevented": false,
+        "target": "span.source-suggestion-detail",
+        "x": 368,
+        "y": 327
+      }
+    ]
+  },
+  "name": "hook-open-completion",
+  "ok": false,
+  "point": {
+    "hit": "span",
+    "visible": {
+      "bottom": 416.984375,
+      "left": 278,
+      "right": 1412,
+      "top": 311
+    },
+    "x": 368,
+    "y": 327
+  },
+  "pulses": [
+    {
+      "after": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "before": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "hit": "span",
+      "moved": false,
+      "room": true
+    },
+    {
+      "after": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "before": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "hit": "span",
+      "moved": false,
+      "room": true
+    },
+    {
+      "after": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "before": [
+        {
+          "connected": true,
+          "focused": true,
+          "height": 106,
+          "id": 35,
+          "left": 0,
+          "node": "textarea.code-editor.source-input[送信前スクリプト]",
+          "rect": {
+            "height": 105.984375,
+            "width": 1134,
+            "x": 278,
+            "y": 311
+          },
+          "scrollHeight": 3257,
+          "scrollWidth": 1728,
+          "selection": [
+            3,
+            3,
+            "forward"
+          ],
+          "top": 0,
+          "width": 1134
+        }
+      ],
+      "hit": "span.source-suggestion-detail",
+      "moved": false,
+      "room": true
+    }
+  ],
+  "source_commit": "2968163aec8fa07de218f1fe0926d5843e75d6a1"
+}
