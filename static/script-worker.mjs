@@ -65,7 +65,9 @@ export async function executeScript(source, context = {}, options = {}) {
   try {
     checkActive();
     const ctx = copy(context);
-    const model = ctx.workspace ? createWorkspaceModel(ctx.workspace,{checkActive,requestRef:ctx.ribbonOwnerRef || ctx.requestRef || null,environmentId:ctx.environmentId || ''}) : null;
+    const model = ctx.workspace ? createWorkspaceModel(ctx.workspace,{checkActive,
+      requestRef:Object.hasOwn(ctx,'ribbonOwnerRef')?ctx.ribbonOwnerRef:ctx.requestRef || null,
+      ribbonScopeId:ctx.ribbonScopeId || null,environmentId:ctx.environmentId || ''}) : null;
     const workspaceBefore = model ? copy(model.state) : null;
     const tools = createScriptTools({signal,checkActive});
     const same = (left, right, seen = new WeakMap()) => {

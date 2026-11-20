@@ -259,3 +259,39 @@ test('a JSON ribbon value keeps its whole-value conflict boundary when only one 
   workspace.tabs[0].ribbonState.ribbons[0].groups[0].controls[0].value.user=2;const before=structuredClone(workspace);
   assert.throws(()=>commit(workspace,primary,output),/同じ項目/);assert.deepEqual(workspace,before);
 });
+
+test('scope-only ribbon actions resolve their owner, share child writes and commit ordered stages to that request',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables();
+  const setup=await run(workspace,primary,`const r=minipost.ribbons.create({key:'main'});const g=minipost.ribbons.groups(r.id).create({});minipost.ribbons.controls(r.id,g.id).create({type:'number',key:'count',value:3});minipost.ribbons.controls(r.id,g.id).create({type:'display',key:'result',value:{value:0}});ribbon.activate(r.id);`);commit(workspace,primary,setup);
+  const owner=workspace.tabs[0],scopeId=owner.ribbonState.id;
+  const other={...structuredClone(owner),id:'other',name:'Other'};other.ribbonState.id='other-scope';other.ribbonState.ribbons[0].groups[0].controls[0].value=100;workspace.tabs.push(other);workspace.activeId=other.id;
+  workspace.scripts=[saved('child','Child',`const value=ribbon.get('main.count')*2;ribbon.set('main.result',{value});return value;`),saved('parent','Parent',`const value=await scripts.run('child',input);store.set('event',input);return value;`)];
+  const staged=structuredClone(workspace),temporary=new PrimaryVariables(),payload={type:'click',values:{count:3}};
+  const context=makeScriptContext(staged,temporary,{ribbonScopeId:scopeId,scriptId:'parent',input:payload});
+  assert.equal(context.request,null);assert.equal(context.requestRef,null);assert.equal(context.ribbonOwnerRef,'draft:draft');
+  const isolated=Function(`${scriptExecutorSource()}\nreturn executeScript;`)();
+  const output=await isolated(staged.scripts[1].source,context);
+  assert.equal(output.result,6);commit(staged,temporary,output);commit(workspace,primary,{stages:[output]});
+  assert.deepEqual(owner.ribbonState.ribbons[0].groups[0].controls[1].value,{value:6});assert.deepEqual(other.ribbonState.ribbons[0].groups[0].controls[1].value,{value:0});assert.deepEqual(workspace.scriptData.event,payload);assert.equal(workspace.activeId,other.id);
+});
+
+test('a saved request scope resolves without an editor tab and explicit null owner stays disabled',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),model=createWorkspaceModel(workspace,{requestRef:'collection:request'});
+  const ribbon=model.api.ribbons.create({key:'main'}),group=model.api.ribbons.groups(ribbon.id).create({});model.api.ribbons.controls(ribbon.id,group.id).create({type:'number',key:'count',value:4});
+  const stored=model.state,item=stored.collections[0].item[0],context=makeScriptContext(stored,primary,{ribbonScopeId:item.ribbonState.id});
+  assert.equal(context.ribbonOwnerRef,'collection:request');assert.equal(context.request,null);
+  // Direct Worker clients may carry the captured scope without a host-derived
+  // owner reference; the scope remains sufficient and takes precedence.
+  delete context.ribbonOwnerRef;context.requestRef='draft:draft';
+  const output=await executeScript(`return ribbon.set('main.count',ribbon.get('main.count')+1);`,context);commit(stored,primary,output);assert.equal(item.ribbonState.ribbons[0].groups[0].controls[0].value,5);
+  const tab={id:'editor',collectionId:'collection',itemId:'request',request:item.request},empty=makeScriptContext(stored,primary,{tab,ribbonOwner:null,ribbonScopeId:null});
+  assert.equal(empty.requestRef,'collection:request');assert.equal(empty.ribbonOwnerRef,null);
+  const none=await executeScript(`return {live:ribbon.list(),definitions:minipost.ribbons.list()};`,empty);assert.deepEqual(none.result,{live:[],definitions:[]});
+});
+
+test('an initially empty request scope can create a ribbon from a request hook context',async()=>{
+  const workspace=fixture(),primary=new PrimaryVariables(),tab=workspace.tabs[0],context=makeScriptContext(workspace,primary,{tab,ribbonScopeId:null});
+  assert.equal(context.ribbonScopeId,null);assert.equal(context.ribbonOwnerRef,'draft:draft');
+  const output=await executeScript(`const r=minipost.ribbons.create({key:'main'});const g=minipost.ribbons.groups(r.id).create({});minipost.ribbons.controls(r.id,g.id).create({type:'number',key:'count',value:6});return ribbon.get('main.count');`,context);
+  assert.equal(output.result,6);commit(workspace,primary,output);assert.equal(tab.ribbonState.ribbons[0].groups[0].controls[0].value,6);
+});

@@ -20,11 +20,20 @@ export function scriptRibbonSnapshot(workspace,{ribbonOwner,ribbonScopeId}={}) {
 export function makeScriptContext(workspace, primary, {input,scriptId,tab,ribbonOwner=tab,ribbonScopeId,result,environmentId=workspace.environmentId}={}) {
   const view={...workspace,environmentId};
   const context=contextFor(view,tab || {request:newRequest()},primary.rows);
-  const references=new Set(scriptRequestCatalog(workspace,{preferCanonical:true}).map(entry=>entry.id));
+  const ribbonSnapshot=scriptRibbonSnapshot(workspace,{ribbonOwner,ribbonScopeId});
+  const catalog=scriptRequestCatalog(workspace,{preferCanonical:true}),references=new Set(catalog.map(entry=>entry.id));
   const existingReference=value=>{const reference=scriptRequestReference(value);return references.has(reference)?reference:null;};
+  let ownerReference=existingReference(ribbonOwner);
+  if(ribbonSnapshot.ribbonScopeId){
+    // UI actions and nested relations capture the durable scope ID without an
+    // open request tab. Resolve its canonical owner before entering the Worker.
+    const owners=catalog.filter(entry=>getRequestRibbonState(workspace,{...entry,id:entry.draftId||entry.id})?.id===ribbonSnapshot.ribbonScopeId);
+    if(owners.length!==1)throw new Error('リボンの実行先リクエストが見つからないか、重複しています。');
+    ownerReference=owners[0].id;
+  }
   return {
-    ...scriptRibbonSnapshot(workspace,{ribbonOwner,ribbonScopeId}),
-    workspace:clone(workspace),environmentId:environmentId || '',requestRef:existingReference(tab),ribbonOwnerRef:existingReference(ribbonOwner),
+    ...ribbonSnapshot,
+    workspace:clone(workspace),environmentId:environmentId || '',requestRef:existingReference(tab),ribbonOwnerRef:ownerReference,
     variableContext:tab?clone({collectionId:tab.collectionId,pendingFolderId:tab.pendingFolderId,request:tab.request}):null,
     input,scriptId,scripts:clone(workspace.scripts || []),bindings:clone(workspace.scriptBindings || {}),bindingId:tab?.request?._minipost?.scriptBindingId,data:clone(workspace.scriptData || {}),
     variables:context.vars,primary:primary.snapshot(),environment:valueMap(context.environment?.values),globals:valueMap(workspace.globals),

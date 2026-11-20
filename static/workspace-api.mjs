@@ -118,7 +118,7 @@ export function reconcileWorkspace(target, source) {
 }
 
 /** Self-contained so the isolated Worker can receive this factory as source. */
-export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=null,environmentId='',onChange=()=>{}}={}) {
+export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=null,ribbonScopeId=null,environmentId='',onChange=()=>{}}={}) {
   const state=JSON.parse(JSON.stringify(initial)),copy=value=>structuredClone(value);
   const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
   const id=()=>globalThis.crypto?.randomUUID?.() || `script-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -158,6 +158,11 @@ export function createWorkspaceModel(initial, {checkActive=()=>{},requestRef=nul
   }
   function draftRows(){return listRoot('tabs').filter(tab=>!tab.collectionId||!tab.itemId||!tree().some(entry=>entry.collectionId===tab.collectionId&&entry.itemId===tab.itemId&&entry.node.request)).map(node=>({id:`draft:${node.id}`,draftId:node.id,name:node.name,path:node.name,node}));}
   const requestRows=()=>[...tree().filter(entry=>entry.node.request),...draftRows()];
+  if(ribbonScopeId){
+    const owners=requestRows().filter(entry=>entry.node.ribbonState?.id===ribbonScopeId);
+    if(owners.length!==1)throw new Error('リボンの実行先リクエストが見つからないか、重複しています。');
+    requestRef=owners[0].id;
+  }
   const folderRows=()=>tree().filter(entry=>Array.isArray(entry.node.item));
   const requestEntry=reference=>choose(requestRows(),reference??requestRef,'リクエスト');
   function descriptor(entry){const {node,siblings,parents,...meta}=entry;return {...copy(node),...meta};}

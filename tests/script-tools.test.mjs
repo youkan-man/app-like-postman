@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash,createHmac,webcrypto} from 'node:crypto';
 import vm from 'node:vm';
 import {createScriptTools} from '../static/script-tools.mjs';
+import {compileRequest,normalizeRequest} from '../static/core.mjs';
 
 const tools=createScriptTools();
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -71,6 +72,22 @@ test('request builder produces native MiniPost JSON/form/auth shapes without mut
   assert.throws(()=>tools.request.build({url:'x',json:{},body:'x'}),TypeError);
   assert.throws(()=>tools.request.build({url:'x',json:{bad:NaN}}),TypeError);
   assert.throws(()=>tools.request.build({url:'x',basic:{},bearer:'x'}),TypeError);
+});
+
+test('request builder survives the production compiler with spaces, literal plus, escapes and template query values',()=>{
+  const options={url:'{{base}}/echo?literal=a+b&encoded=a%2Bb&once=%2520#section',query:{'key with space':'雪 a+b',scope:'{{scope}}',tag:['a b','c+d']},
+    method:'POST',headers:{'X-Helper':'yes'},json:{message:'日本語',enabled:false},bearer:'test-token'};
+  const request=tools.request.build(options);
+  assert.match(request.url,/literal=a\+b&encoded=a%2Bb&once=%2520&key%20with%20space=/);
+  const workspace={collections:[],environments:[],globals:[{key:'base',value:'http://example.test'},{key:'scope',value:'folder'}]};
+  const {payload}=compileRequest(workspace,{request:normalizeRequest(request),settings:{}});
+  assert.equal(payload.url,'http://example.test/echo');
+  assert.deepEqual(payload.query,[{key:'literal',value:'a+b'},{key:'encoded',value:'a+b'},{key:'once',value:'%20'},
+    {key:'key with space',value:'雪 a+b'},{key:'scope',value:'folder'},{key:'tag',value:'a b'},{key:'tag',value:'c+d'}]);
+  assert.deepEqual(JSON.parse(payload.body),options.json);
+  const headers=Object.fromEntries(payload.headers.map(row=>[row.key.toLowerCase(),row.value]));
+  assert.equal(headers.authorization,'Bearer test-token');assert.equal(headers['content-type'],'application/json');assert.equal(headers['x-helper'],'yes');
+  assert.equal(tools.request.build({url:'http://example.test/echo?literal=a+b#section',query:{}}).url,'http://example.test/echo?literal=a+b#section');
 });
 
 test('JSON Pointer and dot/bracket paths preserve escaped keys, missing values and false/null values',()=>{

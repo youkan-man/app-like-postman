@@ -101,7 +101,14 @@ export function createScriptTools({signal, checkActive = () => {}} = {}) {
     if(own(options,'basic')&&own(options,'bearer'))throw new TypeError('認証はbasicまたはbearerの1つを指定してください。');
     const method=String(options.method||'GET').toUpperCase();if(!/^[!#$%&'*+.^_`|~0-9A-Z-]+$/.test(method))throw new TypeError('HTTPメソッドが不正です。');
     let address=options.url,header=headerRows(options.headers||[]);
-    if(own(options,'query')){const hash=address.indexOf('#'),fragment=hash<0?'':address.slice(hash);address=hash<0?address:address.slice(0,hash);const at=address.indexOf('?'),rows=at<0?[]:pairs(address.slice(at+1));address=(at<0?address:address.slice(0,at))+'?'+query.stringify([...rows,...pairs(options.query)])+fragment;}
+    if(own(options,'query')){
+      const hash=address.indexOf('#'),fragment=hash<0?'':address.slice(hash);address=hash<0?address:address.slice(0,hash);
+      // MiniPost preserves literal plus signs in typed URLs. Encode new spaces
+      // as %20 and retain the original query instead of decoding/re-encoding it.
+      const encoded=query.stringify(options.query).replaceAll('+','%20');
+      if(encoded)address+=(address.includes('?')?/[?&]$/.test(address)?'':'&':'?')+encoded;
+      address+=fragment;
+    }
     const result={method,url:address,header};
     if(own(options,'json')){result.body={mode:'raw',raw:JSON.stringify(jsonClone(options.json)),options:{raw:{language:'json'}}};if(headers.get(header,'content-type')===undefined)result.header=headers.set(header,'Content-Type','application/json');}
     else if(own(options,'form'))result.body={mode:'urlencoded',urlencoded:pairs(options.form)};
