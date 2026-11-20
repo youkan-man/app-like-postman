@@ -3,6 +3,7 @@ import {confirmAction} from './confirm-dialog.mjs';
 import {SCHEMA,clone,uid,rows,enabled,findItem,walkItems,contextFor,newRequest} from './core.mjs';
 import {PrimaryVariables,RESPONSE_KEY,extractVariableNames,upsertVariable,responseMetadata,metadataElements,extractionWrites,requestAutomation,variableText,checkName} from './runtime.mjs';
 import {createCodeEditor} from './code-editor.mjs';
+import {createEmbeddedScriptEditor,refreshEmbeddedScriptEditors} from './embedded-script-editor.mjs';
 import {executeRequest} from './execution.mjs';
 import {runScript} from './script-runner.mjs';
 import {initScriptWorkspace} from './script-workspace.mjs';
@@ -13,6 +14,7 @@ import {createScriptRelationRunner} from './script-relations.mjs';
 import {scriptEditorContext} from './script-editor-context.mjs';
 import {applyResponseMutation,restoreOriginalResponse,applyRequestMutation} from './script-response.mjs';
 import {newRelation,newStep,newRelationStep,relationStepType,walkRelationSteps,cloneRelationSteps,RELATION_STEP_TYPES,runRelation,OPERATORS,NEXT,END} from './relations.mjs';
+import {relationStepLocations,canMoveRelationStep,moveRelationStep,insertRelationStep,wrapRelationStep} from './relation-tree.mjs';
 import {requestKey} from './revisions.mjs';
 export function responseRequestKey(workspace,tab){
   const original=workspace.collections.find(collection=>collection._mpId===tab.collectionId);
@@ -379,9 +381,18 @@ export function initStudio(api) {
       const options=[['','直接入力'],...w().scripts.map(script=>[script.id,script.name])];
       if(scriptId&&!saved)options.push([scriptId,'削除されたスクリプト']);
       const choose=select(options,scriptId||'',value=>{config[`${phase}ScriptId`]=value;save();api.renderEditor();});choose.setAttribute('aria-label',`${title}に実行するスクリプト`);picker.append(choose);
-      if(saved)picker.append(btn('編集',()=>scriptWorkspace.open(saved.id),'button'));
-      else if(!scriptId)picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
-      picker.append(run);panel.append(picker,createCodeEditor({value:saved?saved.source:config[phase],language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),readOnly:Boolean(scriptId),label:`${title}スクリプト`,onChange:value=>{if(!scriptId){config[phase]=value;save();}}}).element);
+      let code;
+      if(scriptId){
+        let embedded;const edit=btn('編集',()=>embedded.edit(),'button');edit.setAttribute('aria-label',`${title}スクリプトを編集`);
+        embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>config[`${phase}ScriptId`],persist,preview:true,label:`${title}スクリプト`,
+          intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),
+          onState:state=>{edit.disabled=!state.available;edit.setAttribute('aria-pressed',String(state.editing));},onError:error=>toast(error.message)});
+        picker.append(edit);code=embedded.element;
+      }else{
+        picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
+        code=createCodeEditor({value:config[phase],language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),label:`${title}スクリプト`,onChange:value=>{config[phase]=value;save();}}).element;
+      }
+      picker.append(run);panel.append(picker,code);
     }
     selectPhase(scriptPhases.get(requestKey(w(),tab))||'before');
     phases.onkeydown=event=>{const current=phaseNodes.findIndex(item=>item.tab===event.target);if(current<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?1:(current+1)%2;phaseNodes[next].tab.click();phaseNodes[next].tab.focus();};
@@ -402,6 +413,12 @@ export function initStudio(api) {
     let id=w().relations[0].id;const box=field('追加先',select([...w().relations.map(r=>[r.id,r.name]),['__new__','新しいリレーション']],id,v=>id=v));showModal('リレーションに追加',box,()=>{closeModal();if(id==='__new__')createRelation(null,reference);else{const relation=w().relations.find(r=>r.id===id);if(!relation)return;relation.steps.push(newStep(reference));persist();openRelation(id);}},'追加');
   }
   const collapsedSteps=new Set();
+  function relationDestination(relation,siblings,index=siblings.length){
+    if(siblings===relation.steps)return {index};
+    const owner=relationStepLocations(relation).find(entry=>entry.step.steps===siblings||entry.step.elseSteps===siblings);
+    if(!owner)throw new Error('追加先のブロックがありません。');
+    return {parentId:owner.step.id,branch:owner.step.steps===siblings?'steps':'elseSteps',index};
+  }
   function chooseStep(anchor,relation,siblings=relation.steps,index=siblings.length,onChoose=()=>{}){
     const loopDepth=(list,depth=0)=>{
       if(list===siblings)return depth;
@@ -414,7 +431,8 @@ export function initStudio(api) {
     openItemMenu(anchor,RELATION_STEP_TYPES.map(([type,label])=>({label,disabled:['break','continue'].includes(type)&&!insideLoop,run:()=>{onChoose();addStep(relation,index,siblings,type);}})));
   }
   function addStep(relation,index=relation.steps.length,siblings=relation.steps,type='request'){
-    const step=newRelationStep(type);siblings.splice(index,0,step);persist();surfaceKey='';syncView('relations');api.closeNavigation();
+    const step=newRelationStep(type);try{insertRelationStep(relation,step,relationDestination(relation,siblings,index));}catch(error){toast(error.message);return;}
+    persist();surfaceKey='';syncView('relations');api.closeNavigation();
     const row=[...$('workspacePage').querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===step.id);
     row?.querySelector('select,input,button')?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
   }
@@ -442,14 +460,59 @@ export function initStudio(api) {
     const add=btn('追加 ▾',event=>chooseStep(event.currentTarget,relation),'button');add.id='addRelationStep';add.setAttribute('aria-label','ステップを追加');
     const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'実行設定',run:()=>relationSettings(relation)},{label:'変更履歴',run:()=>api.showRevisions('relation:'+relation.id)},{label:'エクスポート',run:()=>api.exportFile(relation.name+'.relation.json',relation)}]),'icon-button');more.setAttribute('aria-label','リレーションの操作');
     header.append(start,stopButton,add,more);page.append(header);
-    const editor=el('div','relation-editor');editor.id='relationSteps';const options=requestOptions(),save=()=>persist();
+    const editor=el('div','relation-editor');editor.id='relationSteps';editor.setAttribute('aria-label','実行手順');const options=requestOptions(),save=()=>persist();
+    let draggedStepId=null;
     const repaint=(focusId=null,action=null)=>{
       const scroll=page.scrollTop;persist();surfaceKey='';syncView('relations');page.scrollTop=scroll;
       const node=[...page.querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===focusId);
       const control=action?node?.querySelector('[data-step-action="'+action+'"]'):node?.querySelector('select,input');
       const alternate=action?node?.querySelector('[data-step-action="'+(action==='up'?'down':'up')+'"]'):null;
-      (control&&!control.disabled?control:alternate&&!alternate.disabled?alternate:node?.querySelector('select,input')||page.querySelector('#addRelationStep'))?.focus({preventScroll:true});
+      (control&&!control.disabled&&control.getClientRects().length?control:alternate&&!alternate.disabled&&alternate.getClientRects().length?alternate:node?.querySelector('[data-step-action="move"]')||node?.querySelector('select,input')||page.querySelector('#addRelationStep'))?.focus({preventScroll:true});
     };
+    const blockTypes=new Set(['repeat','forEach','while','if']);
+    const location=id=>relationStepLocations(relation).find(entry=>entry.step.id===id);
+    const outerDestination=step=>{
+      const entry=location(step.id);if(!entry?.parent)return null;
+      const parent=location(entry.parent.id);return relationDestination(relation,parent.siblings,parent.index+1);
+    };
+    const innerDestination=step=>{
+      const entry=location(step.id),previous=entry?.siblings.slice(0,entry.index).reverse().find(value=>blockTypes.has(relationStepType(value)));
+      return previous?{parentId:previous.id,branch:'steps'}:null;
+    };
+    const moveStep=(step,target,action='move')=>{
+      if(!target||!canMoveRelationStep(relation,step.id,target))return;
+      try{
+        moveRelationStep(relation,step.id,target);for(const id of location(step.id).ancestors)collapsedSteps.delete(id);repaint(step.id,action);
+      }catch(error){toast(error.message);}
+    };
+    const destinations=step=>{
+      const targets=[{label:'最上位',target:{}}];
+      for(const entry of relationStepLocations(relation))if(blockTypes.has(relationStepType(entry.step))){
+        const kind=relationStepType(entry.step),title=RELATION_STEP_TYPES.find(([type])=>type===kind)?.[1]||kind;
+        for(const branch of kind==='if'?['steps','elseSteps']:['steps'])targets.push({label:'ステップ '+entry.label+' '+title+(kind==='if'?' · '+(branch==='steps'?'成立':'不成立'):''),target:{parentId:entry.step.id,branch}});
+      }
+      return targets.filter(({target})=>canMoveRelationStep(relation,step.id,target));
+    };
+    const moveMenu=(anchor,step)=>{
+      const choices=destinations(step);if(!choices.length)return toast('移動先のブロックがありません。');
+      openItemMenu(anchor,choices.map(({label,target})=>({label,run:()=>moveStep(step,target)})));
+    };
+    const wrapMenu=(anchor,step)=>openItemMenu(anchor,RELATION_STEP_TYPES.filter(([type])=>blockTypes.has(type)).map(([type,label])=>({label,run:()=>{
+      try{const wrapper=wrapRelationStep(relation,step.id,type);collapsedSteps.delete(wrapper.id);repaint(step.id,'move');}catch(error){toast(error.message);}
+    }})));
+    const clearDropTargets=()=>{for(const node of editor.querySelectorAll('.drop-target,.drop-before,.drop-after'))node.classList.remove('drop-target','drop-before','drop-after');editor.classList.remove('drop-target');};
+    const draggedId=event=>draggedStepId||event.dataTransfer?.getData('application/x-minipost-relation-step')||event.dataTransfer?.getData('text/plain');
+    function dropArea(node,target){
+      node.ondragover=event=>{
+        const id=draggedId(event);if(!id)return;event.preventDefault();event.stopPropagation();clearDropTargets();
+        const allowed=canMoveRelationStep(relation,id,target());event.dataTransfer.dropEffect=allowed?'move':'none';if(allowed)node.classList.add('drop-target');
+      };
+      node.ondragleave=event=>{if(!node.contains(event.relatedTarget))node.classList.remove('drop-target');};
+      node.ondrop=event=>{
+        const id=draggedId(event);if(!id)return;event.preventDefault();event.stopPropagation();clearDropTargets();
+        const step=location(id)?.step;if(step)moveStep(step,target());draggedStepId=null;
+      };
+    }
     function conditionEditor(step,label,siblings,request){
       const condition=step.condition,branch=el('div','step-branch');
       const source=select([['response','レスポンス'],['primary','一次変数'],['variables','変数'],['result','スクリプト結果']],condition.source,v=>{condition.source=v;save();});source.setAttribute('aria-label','ステップ '+label+' の分岐元');
@@ -477,18 +540,20 @@ export function initStudio(api) {
       for(const [index,step] of siblings.entries()){
         const type=relationStepType(step),label=prefix+(index+1),group=['repeat','forEach','while','if'].includes(type);
         const row=el('section','relation-step'+(group?' relation-group':''));row.dataset.stepId=step.id;row.dataset.stepType=type;
-        const top=el('div','relation-step-heading'),drag=el('span','step-drag','⠿');drag.draggable=true;drag.title='並べ替え';drag.ondragstart=event=>{event.stopPropagation();event.dataTransfer.setData('text/plain',step.id);};top.append(drag,el('strong','step-number',label));
-        const body=el('div','relation-step-body');
+        const top=el('div','relation-step-heading'),drag=btn('⠿',event=>moveMenu(event.currentTarget,step),'step-drag icon-button');drag.draggable=true;drag.title='移動 · Alt+矢印';drag.dataset.stepAction='move';drag.setAttribute('aria-label','ステップ '+label+' を移動');
+        drag.ondragstart=event=>{event.stopPropagation();draggedStepId=step.id;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('application/x-minipost-relation-step',step.id);event.dataTransfer.setData('text/plain',step.id);};
+        drag.ondragend=()=>{draggedStepId=null;clearDropTargets();};top.append(drag,el('strong','step-number',label));
+        const body=el('div','relation-step-body');body.id='relation-body-'+step.id;
         if(type==='request'){
           const value=JSON.stringify(step.draftId?{draftId:step.draftId}:{collectionId:step.collectionId,itemId:step.itemId});
           const picker=select([['','リクエストを選択'],...options],options.some(([v])=>v===value)?value:'',v=>{delete step.draftId;step.collectionId='';step.itemId='';if(v)Object.assign(step,JSON.parse(v));save();});picker.setAttribute('aria-label','ステップ '+label+' のリクエスト');top.append(picker);
         }else{
           const title=RELATION_STEP_TYPES.find(([kind])=>kind===type)?.[1]||type;
           if(group){
-            const toggle=btn(title,()=>{body.hidden=!body.hidden;body.hidden?collapsedSteps.add(step.id):collapsedSteps.delete(step.id);toggle.setAttribute('aria-expanded',String(!body.hidden));},'relation-kind');toggle.setAttribute('aria-label','ステップ '+label+' '+title);body.hidden=collapsedSteps.has(step.id);toggle.setAttribute('aria-expanded',String(!body.hidden));top.append(toggle);
+            const toggle=btn(title,()=>{body.hidden=!body.hidden;body.hidden?collapsedSteps.add(step.id):collapsedSteps.delete(step.id);toggle.setAttribute('aria-expanded',String(!body.hidden));},'relation-kind');toggle.setAttribute('aria-label','ステップ '+label+' '+title);toggle.setAttribute('aria-controls',body.id);body.hidden=collapsedSteps.has(step.id);toggle.setAttribute('aria-expanded',String(!body.hidden));top.append(toggle);
           }else top.append(el('strong','relation-kind',title));
         }
-        const move=delta=>{const at=siblings.indexOf(step),to=at+delta;if(to<0||to>=siblings.length)return;siblings.splice(at,1);siblings.splice(to,0,step);repaint(step.id,delta<0?'up':'down');};
+        const move=delta=>{const at=siblings.indexOf(step),to=at+delta;if(to<0||to>=siblings.length)return;moveStep(step,relationDestination(relation,siblings,to+Number(delta>0)),delta<0?'up':'down');};
         const up=btn('↑',()=>move(-1),'icon-button'),down=btn('↓',()=>move(1),'icon-button');
         up.setAttribute('aria-label','ステップ '+label+' を上へ');down.setAttribute('aria-label','ステップ '+label+' を下へ');up.dataset.stepAction='up';down.dataset.stepAction='down';up.disabled=index===0;down.disabled=index===siblings.length-1;
         const more=btn('⋯',()=>{},'icon-button');more.setAttribute('aria-label','ステップ '+label+' の操作');top.append(up,down,more);
@@ -498,23 +563,43 @@ export function initStudio(api) {
           walkRelationSteps(relation.steps,child=>{for(const key of ['onTrue','onFalse'])if(removed.has(child[key]))child[key]=NEXT;});
           repaint(siblings[Math.min(at,siblings.length-1)]?.id);
         };
-        bindContext(row,more,(a,e)=>openItemMenu(a,[
-          {label:'ステップを追加',run:()=>chooseStep(a,relation,siblings,siblings.indexOf(step)+1)},
-          {label:'複製',run:()=>{const copied=cloneRelationSteps([step])[0];siblings.splice(siblings.indexOf(step)+1,0,copied);repaint(copied.id);}},
-          {label:'削除',danger:true,run:remove}
-        ],e));row.append(top,body);
-        row.ondragover=event=>{event.preventDefault();event.stopPropagation();row.classList.add('drop-target');};
-        row.ondragleave=()=>row.classList.remove('drop-target');
-        row.ondrop=event=>{event.preventDefault();event.stopPropagation();const id=event.dataTransfer.getData('text/plain'),from=siblings.findIndex(s=>s.id===id);row.classList.remove('drop-target');if(from<0||id===step.id)return;const [moving]=siblings.splice(from,1);siblings.splice(siblings.indexOf(step),0,moving);repaint(moving.id);};
+        bindContext(row,more,(a,e)=>{
+          const outside=outerDestination(step);
+          openItemMenu(a,[
+            {label:'ステップを追加',run:()=>chooseStep(a,relation,siblings,siblings.indexOf(step)+1)},
+            {label:'ブロックで囲む',run:()=>wrapMenu(a,step)},
+            {label:'ブロックへ移動',disabled:!destinations(step).length,run:()=>moveMenu(a,step)},
+            {label:'外へ移動',disabled:!outside||!canMoveRelationStep(relation,step.id,outside),run:()=>moveStep(step,outside)},
+            {label:'上へ',disabled:siblings.indexOf(step)===0,run:()=>move(-1)},
+            {label:'下へ',disabled:siblings.indexOf(step)===siblings.length-1,run:()=>move(1)},
+            {label:'複製',run:()=>{try{const copied=cloneRelationSteps([step])[0];insertRelationStep(relation,copied,relationDestination(relation,siblings,siblings.indexOf(step)+1));repaint(copied.id,'move');}catch(error){toast(error.message);}}},
+            {label:'削除',danger:true,run:remove}
+          ],e);
+        });row.append(top,body);
+        row.addEventListener('keydown',event=>{
+          if(!event.altKey||event.ctrlKey||event.metaKey||event.target.closest('input,textarea,select,[contenteditable=true]')||event.target.closest('.relation-step')!==row||!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.key))return;
+          event.preventDefault();event.stopPropagation();
+          if(event.key==='ArrowUp')move(-1);else if(event.key==='ArrowDown')move(1);else moveStep(step,event.key==='ArrowLeft'?outerDestination(step):innerDestination(step));
+        });
+        const rowDestination=event=>relationDestination(relation,siblings,siblings.indexOf(step)+Number(event.clientY>=row.getBoundingClientRect().top+row.getBoundingClientRect().height/2));
+        row.ondragover=event=>{
+          const id=draggedId(event);if(!id)return;event.preventDefault();event.stopPropagation();clearDropTargets();const target=rowDestination(event),allowed=canMoveRelationStep(relation,id,target);
+          event.dataTransfer.dropEffect=allowed?'move':'none';if(allowed)row.classList.add(target.index===siblings.indexOf(step)?'drop-before':'drop-after');
+        };
+        row.ondragleave=event=>{if(!row.contains(event.relatedTarget))row.classList.remove('drop-before','drop-after');};
+        row.ondrop=event=>{const id=draggedId(event);if(!id)return;event.preventDefault();event.stopPropagation();clearDropTargets();const moving=location(id)?.step;if(moving)moveStep(moving,rowDestination(event));draggedStepId=null;};
         if(type==='request'){
           const timing=el('div','step-timing');timing.append(numberField('開始前 ms',step.delayMs,v=>{step.delayMs=v;save();}),numberField('回数',step.repeat,v=>{step.repeat=v;save();},1),numberField('間隔 ms',step.intervalMs,v=>{step.intervalMs=v;save();}));
           const check=el('input');check.type='checkbox';check.checked=step.condition.enabled;check.setAttribute('aria-label','ステップ '+label+' の条件分岐');const checkLabel=el('label','settings-line');checkLabel.append(check,'条件分岐');timing.append(checkLabel);
           const branch=conditionEditor(step,label,siblings,true);branch.hidden=!step.condition.enabled;check.onchange=()=>{step.condition.enabled=check.checked;branch.hidden=!check.checked;save();};body.append(timing,branch);
         }else if(type==='script'){
-          const fields=el('div','step-fields'),picker=select([['','スクリプトを選択'],...w().scripts.map(script=>[script.id,script.name])],step.scriptId,v=>{step.scriptId=v;save();});picker.setAttribute('aria-label','ステップ '+label+' のスクリプト');
+          let embedded;
+          const fields=el('div','step-fields'),picker=select([['','スクリプトを選択'],...w().scripts.map(script=>[script.id,script.name])],step.scriptId,v=>{step.scriptId=v;save();embedded?.refresh();});picker.setAttribute('aria-label','ステップ '+label+' のスクリプト');
+          const pickerLine=el('div','relation-script-picker'),edit=btn('編集',()=>embedded?.edit(),'text-button');edit.setAttribute('aria-label','ステップ '+label+' のスクリプトを編集');pickerLine.append(picker,edit);
           const format=select([['saved','保存した入力'],['json','JSON'],['text','テキスト'],['response','レスポンス']],step.inputFormat,v=>{step.inputFormat=v;payload.hidden=!['json','text'].includes(v);save();});format.setAttribute('aria-label','ステップ '+label+' の入力形式');
           const payload=field('入力',input(step.input,'ステップ '+label+' の入力',v=>{step.input=v;save();}));payload.classList.add('step-wide');payload.hidden=!['json','text'].includes(step.inputFormat);
-          fields.append(field('スクリプト',picker),field('入力形式',format),field('結果の変数',input(step.resultVariable,'ステップ '+label+' の結果の変数',v=>{step.resultVariable=v;save();})),payload);body.append(fields);
+          embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>step.scriptId,persist,label:'ステップ '+label+' のコード',onState:state=>edit.disabled=!state.available,onError:error=>toast(error.message)});
+          fields.append(field('スクリプト',pickerLine),field('入力形式',format),field('結果の変数',input(step.resultVariable,'ステップ '+label+' の結果の変数',v=>{step.resultVariable=v;save();})),payload);body.append(fields,embedded.element);
         }else if(type==='wait')top.insertBefore(numberField('待機 ms',step.delayMs,v=>{step.delayMs=v;save();}),up);
         else if(group){
           const fields=el('div','step-fields'+(type==='forEach'?' step-array-fields':type!=='if'?' step-loop-fields':''));
@@ -530,18 +615,17 @@ export function initStudio(api) {
           if(fields.children.length)body.append(fields);
           if(type==='while'||type==='if')body.append(conditionEditor(step,label,siblings,false));
           for(const [key,title,suffix] of type==='if'?[['steps','成立','T.'],['elseSteps','不成立','F.']]:[['steps','処理','']]){
-            const block=el('div','relation-block');block.dataset.branch=key;
+            const block=el('div','relation-block');block.dataset.branch=key;block.dataset.parentStepId=step.id;block.dataset.empty=String(!step[key].length);block.setAttribute('role','group');block.setAttribute('aria-label','ステップ '+label+' の'+title);
             const addChild=btn('追加 ▾',event=>chooseStep(event.currentTarget,relation,step[key],step[key].length,()=>collapsedSteps.delete(step.id)),'text-button');addChild.setAttribute('aria-label','ステップ '+label+' の'+title+'に追加');
-            if(type==='if'){
-              const heading=el('div','relation-block-heading');heading.append(el('strong','',title),addChild);block.append(heading);
-            }else{addChild.classList.add('relation-add-child');top.insertBefore(addChild,up);}
-            renderSteps(step[key],block,label+'.'+suffix);body.append(block);
+            const heading=el('div','relation-block-heading');heading.append(el('strong','',type==='if'?title:'繰り返す処理'),addChild);block.append(heading);
+            dropArea(block,()=>({parentId:step.id,branch:key}));renderSteps(step[key],block,label+'.'+suffix);body.append(block);
           }
         }
         parent.append(row);
       }
     }
     renderSteps(relation.steps,editor);
+    dropArea(editor,()=>({}));
     editor.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('.relation-step,input,select'))return;event.preventDefault();openItemMenu(editor,[{label:'ステップを追加',run:()=>chooseStep(editor,relation)}],event);};
     page.append(editor);const log=el('section','relation-log');log.id='relationRunLog';log.setAttribute('aria-live','polite');page.append(log);renderRunLog();
   }
@@ -595,6 +679,7 @@ export function initStudio(api) {
     const flatten=value=>value?.stages?value.stages.flatMap(flatten):value?[value]:[],stages=flatten(output);
     const patches=stages.flatMap(stage=>stage.workspaceWrites||[]),roots=new Set(patches.map(change=>change.path[0]));
     const affects=(root,id)=>patches.some(change=>change.path[0]===root&&(change.kind!=='order'||change.path.length>1)&&(!change.path[1]||change.path[1].id===id));
+    if(roots.has('scripts'))refreshEmbeddedScriptEditors(w());
     if(api.side()==='scripts')scriptWorkspace.refreshForChanges(output);
     if(api.side()==='relations'&&affects('relations',relationId)){surfaceKey='';syncView('relations');}
     if(api.side()==='environments'){

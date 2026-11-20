@@ -170,6 +170,51 @@ def main():
             assert primary['method']=='POST' and primary['httpStatus']=='200'
             passed('pre/post scripts execute and primary variables override environment values in HTTP')
 
+            # Edit a shared hook in its request surface. Native keyboard history
+            # must stay attached to the same editor across autosave and repaint.
+            side('scripts');page.locator('#sidebarAdd').click();menu('スクリプトを作成')
+            page.locator('#modal').get_by_label('スクリプト名',exact=True).fill('Embedded request hook')
+            page.locator('#modalSubmit').click()
+            hook_original="request.header.push({key:'X-Embedded-Hook',value:'initial'});"
+            hook_changed="request.header.push({key:'X-Embedded-Hook',value:'edited'});"
+            page.get_by_label('スクリプトのコード',exact=True).fill(hook_original)
+            hook_id=next(script['id'] for script in stored()['scripts'] if script['name']=='Embedded request hook')
+            choose('Seed');editor('scripts');page.locator('#script-tab-before').click()
+            page.get_by_label('送信前に実行するスクリプト',exact=True).select_option(hook_id)
+            hook=page.get_by_label('送信前スクリプト',exact=True)
+            expect(hook).to_have_js_property('readOnly',True)
+            hook.evaluate('node=>window.__embeddedHookEditor=node')
+            page.locator('#script-panel-before').get_by_role('button',name='送信前スクリプトを編集',exact=True).click()
+            expect(page.locator('html')).to_have_attribute('data-workspace-view','request')
+            expect(page.locator('#requestName')).to_have_value('Seed')
+            expect(hook).to_be_focused();expect(hook).to_have_js_property('readOnly',False)
+            hook.press('Control+a');page.keyboard.insert_text(hook_changed)
+            assert next(script['source'] for script in stored()['scripts'] if script['id']==hook_id)==hook_changed
+            assert hook.evaluate('node=>node===window.__embeddedHookEditor && node.selectionStart===node.value.length && node.selectionEnd===node.value.length')
+            hook.press('Control+z');expect(hook).to_have_value(hook_original);expect(hook).to_be_focused()
+            assert next(script['source'] for script in stored()['scripts'] if script['id']==hook_id)==hook_original
+            hook.press('Control+Shift+z');expect(hook).to_have_value(hook_changed);expect(hook).to_be_focused()
+            assert next(script['source'] for script in stored()['scripts'] if script['id']==hook_id)==hook_changed
+            assert hook.evaluate('node=>node===window.__embeddedHookEditor')
+            capture('embedded-request-hook-desktop')
+            page.set_viewport_size({'width':320,'height':720})
+            hook.scroll_into_view_if_needed()
+            expect(hook).to_be_visible()
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            assert hook.evaluate('node=>{const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1}')
+            capture('embedded-request-hook-320')
+            page.set_viewport_size({'width':1440,'height':1000})
+            send()
+            received=json.loads(page.locator('.response-code').inner_text())
+            assert dict(received['headers'])['X-Embedded-Hook']=='edited',received
+            fixture.reload(page);expect(page.locator('#connectionStatus')).to_contain_text('connected')
+            choose('Seed');editor('scripts');page.locator('#script-tab-before').click()
+            expect(page.get_by_label('送信前に実行するスクリプト',exact=True)).to_have_value(hook_id)
+            expect(page.get_by_label('送信前スクリプト',exact=True)).to_have_value(hook_changed)
+            page.get_by_label('送信前に実行するスクリプト',exact=True).select_option('')
+            stored()
+            passed('saved request hooks edit in place, keep native Undo and editor identity, persist and run the edited source over HTTP')
+
             page.locator('#extractResponse').click()
             expect(page.locator('.metadata-tree')).to_be_visible()
             page.get_by_label('抽出パス',exact=True).fill('/body/method')
@@ -313,9 +358,13 @@ def main():
             page.locator('.relation-page-heading').scroll_into_view_if_needed()
             assert page.locator('#relationSteps').evaluate('''root => {
                 const loops=[...root.querySelectorAll('[data-step-type="repeat"],[data-step-type="forEach"],[data-step-type="while"]')];
-                return loops.every(row=>row.querySelector(':scope > .relation-step-heading > .relation-add-child') &&
-                    !row.querySelector(':scope > .relation-step-body > .relation-block > .relation-block-heading'));
-            }'''), 'loop child actions must share the existing heading'
+                return loops.every(row=>{
+                    const block=row.querySelector(':scope > .relation-step-body > .relation-block[data-branch="steps"]');
+                    const heading=block?.querySelector(':scope > .relation-block-heading');
+                    return block?.dataset.parentStepId===row.dataset.stepId && heading?.textContent.includes('繰り返す処理') &&
+                        heading.querySelector('button') && block.getBoundingClientRect().height>0;
+                });
+            }'''), 'each loop must have a visible body boundary with its own compact heading and add action'
             assert page.locator('.step-array-fields').evaluate('''fields => {
                 const boxes=[...fields.children].slice(0,4).map(field=>field.getBoundingClientRect());
                 return Math.max(...boxes.map(box=>box.bottom))-Math.min(...boxes.map(box=>box.bottom))<=1;
@@ -388,6 +437,121 @@ def main():
                 expect(page.locator('#addRelationStep')).to_be_in_viewport()
                 capture(f'relation-control-{width}')
             passed('nested relation controls keep their labels and actions within 320px and 390px screens')
+
+            # Reorganize existing operations through the public editor, then
+            # verify the resulting tree by executing it over actual HTTP.
+            page.set_viewport_size({'width':1440,'height':1000})
+            side('relations');page.locator('#sidebarAdd').click();menu('リレーションを作成')
+            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Block edits')
+            page.locator('#modalSubmit').click()
+
+            def block_flow():
+                return next(relation for relation in stored()['relations'] if relation['name']=='Block edits')
+
+            def operation_menu(identifier):
+                page.locator(f'[data-step-id="{identifier}"] > .relation-step-heading > button[aria-label$="の操作"]').click()
+
+            add_control('スクリプト')
+            page.get_by_label('ステップ 1 のスクリプト',exact=True).select_option(script_id)
+            page.get_by_label('ステップ 1 の入力形式',exact=True).select_option('json')
+            page.get_by_label('ステップ 1 の入力',exact=True).fill('{"reset":true}')
+            relation_source=next(script['source'] for script in stored()['scripts'] if script['id']==script_id)
+            edited_relation_source="store.set('relationEmbeddedEdit',true);\n"+relation_source
+            page.get_by_role('button',name='ステップ 1 のスクリプトを編集',exact=True).click()
+            relation_editor=page.get_by_label('ステップ 1 のコード',exact=True)
+            expect(relation_editor).to_be_visible();expect(relation_editor).to_be_focused()
+            expect(relation_editor).to_have_js_property('readOnly',False)
+            expect(page.locator('html')).to_have_attribute('data-workspace-view','relations')
+            expect(page.get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
+            relation_editor.evaluate('node=>window.__embeddedRelationEditor=node')
+            relation_editor.press('Control+a');page.keyboard.insert_text(edited_relation_source)
+            assert next(script['source'] for script in stored()['scripts'] if script['id']==script_id)==edited_relation_source
+            assert relation_editor.evaluate('node=>node===window.__embeddedRelationEditor && node.selectionStart===node.value.length')
+            expect(relation_editor).to_be_focused()
+            capture('relation-inline-script-desktop')
+            page.set_viewport_size({'width':320,'height':720})
+            relation_editor.scroll_into_view_if_needed()
+            expect(relation_editor).to_be_visible()
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            assert relation_editor.evaluate('node=>{const rect=node.getBoundingClientRect();return rect.left>=0&&rect.right<=innerWidth+1}')
+            capture('relation-inline-script-320')
+            page.set_viewport_size({'width':1440,'height':1000})
+            add_control('繰り返し')
+            block_id=block_flow()['steps'][1]['id']
+            block=page.locator(f'.relation-block[data-parent-step-id="{block_id}"][data-branch="steps"]')
+            expect(block).to_be_visible()
+            expect(block.locator('.relation-step')).to_have_count(0)
+            expect(block.get_by_role('button',name='ステップ 2 の処理に追加',exact=True)).to_be_visible()
+            expect(block.locator(':scope > .relation-block-heading')).to_contain_text('繰り返す処理')
+            assert block.bounding_box()['height']>=28
+            capture('relation-empty-block-desktop')
+            page.set_viewport_size({'width':320,'height':720})
+            block.scroll_into_view_if_needed()
+            expect(block.get_by_role('button',name='ステップ 2 の処理に追加',exact=True)).to_be_in_viewport()
+            assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+            capture('relation-empty-block-320')
+            page.set_viewport_size({'width':1440,'height':1000})
+            passed('new empty loops expose a visible nested body and add action at desktop and 320px')
+
+            add_control('スクリプト')
+            page.get_by_label('ステップ 3 のスクリプト',exact=True).select_option(script_id)
+            page.get_by_label('ステップ 3 の入力形式',exact=True).select_option('json')
+            page.get_by_label('ステップ 3 の入力',exact=True).fill('null')
+            child_id=block_flow()['steps'][2]['id']
+            operation_menu(child_id);menu('ブロックで囲む');menu('繰り返し')
+            wrapped=block_flow()['steps'][2]
+            assert wrapped['type']=='repeat' and wrapped['steps'][0]['id']==child_id,wrapped
+            wrapper_id=wrapped['id']
+            operation_menu(child_id);menu('ブロックへ移動');menu('ステップ 2 繰り返し')
+            moved=block_flow()
+            assert moved['steps'][1]['steps'][0]['id']==child_id and moved['steps'][2]['steps']==[],moved
+            operation_menu(wrapper_id);menu('削除')
+            operation_menu(child_id);menu('外へ移動')
+            promoted=block_flow()
+            assert promoted['steps'][1]['steps']==[] and promoted['steps'][2]['id']==child_id,promoted
+            page.locator(f'[data-step-id="{child_id}"] > .relation-step-heading [data-step-action="move"]').press('Alt+ArrowRight')
+            nested=block_flow()
+            assert len(nested['steps'])==2 and nested['steps'][1]['steps'][0]['id']==child_id,nested
+            passed('existing steps wrap into blocks, move across parents, promote outside and re-nest by keyboard without changing identity')
+
+            add_control('リクエスト')
+            pick=page.get_by_label('ステップ 3 のリクエスト',exact=True)
+            options=pick.locator('option').evaluate_all('(nodes)=>nodes.map(node=>({value:node.value,label:node.textContent}))')
+            pick.select_option(next(option['value'] for option in options if option['label'].endswith(' / Finish')))
+            request_id=block_flow()['steps'][2]['id']
+            page.locator(f'[data-step-id="{request_id}"] > .relation-step-heading [data-step-action="move"]').drag_to(block.locator(':scope > .relation-block-heading'))
+            arranged=block_flow()
+            assert len(arranged['steps'])==2 and [step['id'] for step in arranged['steps'][1]['steps']]==[child_id,request_id],arranged
+            page.locator('#runRelation').click()
+            expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=30000)
+            ws=stored();run=ws['relationRuns'][-1]
+            assert run['relationId']==arranged['id'] and run['status']=='succeeded',run
+            assert [entry['type'] for entry in run['entries']]==['script','script','request','script','request'],run
+            assert [entry['requestName'] for entry in run['entries'] if entry['type']=='request']==['Finish','Finish'],run
+            assert ws['scriptData']['loopSeen']==[{'item':None,'index':None},{'item':None,'index':None}],ws['scriptData']
+            assert {row['key']:row['value'] for row in primary_values()}['counter']=='2'
+            passed('native dragging moves a request into a loop and execution follows the edited nested order over HTTP')
+            assert ws['scriptData']['relationEmbeddedEdit'] is True
+            page.get_by_role('button',name='ステップ 1 のスクリプトを編集',exact=True).click()
+            page.get_by_label('ステップ 1 のコード',exact=True).fill(relation_source)
+            assert next(script['source'] for script in stored()['scripts'] if script['id']==script_id)==relation_source
+            passed('relation script Edit keeps the same plan and editor, persists the shared source and executes its in-place changes')
+
+            for width,height in [(1440,1000),(320,720)]:
+                page.set_viewport_size({'width':width,'height':height})
+                page.locator(f'[data-step-id="{block_id}"]').scroll_into_view_if_needed()
+                expect(block).to_be_visible()
+                assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                assert block.evaluate('''node=>{
+                    const bounds=node.getBoundingClientRect();
+                    return [...node.querySelectorAll('.relation-step')].every(child=>{
+                        const box=child.getBoundingClientRect();
+                        return box.left>=bounds.left&&box.right<=bounds.right+1&&box.top>=bounds.top&&box.bottom<=bounds.bottom+1;
+                    });
+                }''')
+                assert page.locator('#relationSteps').evaluate('(root)=>[...root.querySelectorAll("input,select,button")].filter(node=>node.offsetParent!==null).every(node=>{const box=node.getBoundingClientRect();return box.left>=-1&&box.right<=innerWidth+1})')
+                capture(f'relation-edited-block-{width}')
+            passed('visible loop boundaries contain their child operations and controls at desktop and 320px')
             assert not errors,errors
             passed('no uncaught browser JavaScript errors')
             browser.close()

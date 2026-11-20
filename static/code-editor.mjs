@@ -333,6 +333,29 @@ export function createCodeEditor({value='',language='text',label='コード',onC
   function dispose(){if(disposed)return;disposed=true;invalidate();document.removeEventListener('input',foreignInput,true);resizeObserver?.disconnect();search?.dispose();diagnostics?.dispose();client?.dispose();}
   root.append(pre,area,status,suggestions,hint);paint();
   return {element:root,textarea:area,
+    get isComposing(){return composing;},
+    setReadOnly(next){
+      next=Boolean(next);if(readOnly===next)return;
+      invalidate();history.breakGroup();readOnly=next;area.readOnly=next;
+      // Search owns its replace controls, while the textarea and its undo
+      // journal stay mounted when a saved-script preview becomes editable.
+      search.dispose();search.button.remove();
+      search=createEditorSearch({root,area,readOnly,edit,select});status.insertBefore(search.button,diagnostics.button);
+      if(!next)update(false,75,false);
+    },
+    syncValue(next,{resetHistory=false}={}){
+      if(disposed||composing)return false;
+      next=String(next??'');const before=area.value,saved=selection(),scroll={top:area.scrollTop,left:area.scrollLeft};
+      if(before===next){if(resetHistory){history.reset(next);fallbackMode=true;}return true;}
+      applying=true;invalidate();
+      try{
+        area.value=next;knownValue=next;restoreSelection({start:Math.min(saved.start,next.length),end:Math.min(saved.end,next.length),direction:saved.direction});
+        if(resetHistory)history.reset(next);else history.record(before,next,saved,selection());
+        fallbackMode=true;pendingInputSelection=null;lastSelection=selection();diagnostics.clear();search.refresh();paint();
+        area.scrollTop=scroll.top;area.scrollLeft=scroll.left;sync();
+      }finally{applying=false;}
+      update(false,75,false);return true;
+    },
     setLanguage(next){invalidate();diagnostics.clear();language=next;root.dataset.language=next;setState('idle');paint();},
     setValue(next){
       next=String(next??'');
