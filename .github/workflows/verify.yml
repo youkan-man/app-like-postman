@@ -86,6 +86,12 @@ jobs:
       - name: Viewport layout, pane resizing and long request data
         if: ${{ !cancelled() }}
         run: python tests/ui_layout.py 2>&1 | tee artifacts/browser/ui-layout.log
+      - name: Native wheel scrolling across pane controls
+        if: ${{ !cancelled() }}
+        run: python tests/ui_wheel_scroll.py 2>&1 | tee artifacts/browser/ui-wheel-scroll.log
+      - name: Visible source text follows horizontal and vertical scrolling
+        if: ${{ !cancelled() }}
+        run: python tests/ui_scroll_sync.py 2>&1 | tee artifacts/browser/ui-scroll-sync.log
       - name: Upgrade with cached modules and bulk deletion
         if: ${{ !cancelled() }}
         run: python tests/ui_asset_update.py 2>&1 | tee artifacts/browser/ui-asset-update.log

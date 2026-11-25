@@ -1,0 +1,614 @@
+{
+  "ok": true,
+  "baseline": {
+    "served_app_source": "8d4e934b159ffcdf9e486ccf0c327ea43f61dbfe",
+    "browser_checkout": "2b2cec2894e62b41856e82b91f98219eff371f32",
+    "test_sha256": "a68c1a75663d300409f1590d175185fd15c856dc70bb66b54d5bbeeb31391782",
+    "passed": 9,
+    "failed": 8,
+    "page_errors": [],
+    "dialogs": [],
+    "representative": {
+      "name": "saved-hook-390",
+      "input": {
+        "x": 10,
+        "y": 389,
+        "width": 355,
+        "height": 340,
+        "top": 0,
+        "left": 0,
+        "scrollWidth": 1728,
+        "scrollHeight": 3236,
+        "font": "13px / 21.45px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+        "fontSize": "13px",
+        "lineHeight": "21.45px",
+        "padding": "10px 12px"
+      },
+      "highlight": {
+        "x": 10,
+        "y": 389,
+        "width": 355,
+        "height": 340,
+        "top": 0,
+        "left": 0,
+        "scrollWidth": 1608,
+        "scrollHeight": 2990,
+        "font": "12px / 19.8px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+        "fontSize": "12px",
+        "lineHeight": "19.8px",
+        "padding": "10px 12px"
+      },
+      "pulses": [
+        {
+          "label": "middle",
+          "inputDelta": {
+            "top": 240,
+            "left": 160
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": -160,
+              "y": -240
+            },
+            {
+              "offset": 15375,
+              "x": -160,
+              "y": -240
+            },
+            {
+              "offset": 30748,
+              "x": -160,
+              "y": -240
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 160
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 160
+          }
+        },
+        {
+          "label": "right-edge",
+          "inputDelta": {
+            "top": 0,
+            "left": 1213
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": -1093,
+              "y": 0
+            },
+            {
+              "offset": 15375,
+              "x": -1093,
+              "y": 0
+            },
+            {
+              "offset": 30748,
+              "x": -1093,
+              "y": 0
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 1373
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 1253
+          }
+        },
+        {
+          "label": "back-from-right-edge",
+          "inputDelta": {
+            "top": 0,
+            "left": -80
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "offset": 15375,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "offset": 30748,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 1293
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 1253
+          }
+        },
+        {
+          "label": "bottom-edge",
+          "inputDelta": {
+            "top": 2656,
+            "left": 0
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 0,
+              "y": -2410
+            },
+            {
+              "offset": 15375,
+              "x": 0,
+              "y": -2410
+            },
+            {
+              "offset": 30748,
+              "x": 0,
+              "y": -2410
+            }
+          ],
+          "inputOffset": {
+            "top": 2896,
+            "left": 1293
+          },
+          "highlightOffset": {
+            "top": 2650,
+            "left": 1253
+          }
+        },
+        {
+          "label": "back-from-bottom-edge",
+          "inputDelta": {
+            "top": -80,
+            "left": 0
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "offset": 15375,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "offset": 30748,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "inputOffset": {
+            "top": 2816,
+            "left": 1293
+          },
+          "highlightOffset": {
+            "top": 2650,
+            "left": 1253
+          }
+        }
+      ]
+    }
+  },
+  "final": {
+    "source_commit": "2b2cec2894e62b41856e82b91f98219eff371f32",
+    "test_sha256": "a68c1a75663d300409f1590d175185fd15c856dc70bb66b54d5bbeeb31391782",
+    "exit_codes": {
+      "ui_scroll_sync": 0,
+      "ui_wheel_scroll": 0,
+      "ui_layout": 0
+    },
+    "scroll_sync": {
+      "ok": true,
+      "passed": 17,
+      "failed": 0,
+      "page_errors": [],
+      "dialogs": [],
+      "cases": [
+        {
+          "name": "body-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "body-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "hook-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "hook-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "saved-hook-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "saved-hook-650",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "saved-hook-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "saved-hook-320",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "ribbon-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "ribbon-650",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "ribbon-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "ribbon-320",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "relation-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "relation-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "standalone-1440",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "standalone-390",
+          "ok": true,
+          "error": null
+        },
+        {
+          "name": "saved-hook-1440-resize-390",
+          "ok": true,
+          "error": null
+        }
+      ]
+    },
+    "wheel": {
+      "ok": true,
+      "passed": 36,
+      "failed": 0,
+      "page_errors": [],
+      "dialogs": []
+    },
+    "layout": {
+      "ok": true,
+      "checks": 26,
+      "page_errors": [],
+      "native_dialogs": [],
+      "crashes": []
+    },
+    "representative": {
+      "name": "saved-hook-390",
+      "input": {
+        "x": 10,
+        "y": 389,
+        "width": 355,
+        "height": 340,
+        "top": 0,
+        "left": 0,
+        "scrollWidth": 1592,
+        "scrollHeight": 2986,
+        "font": "12px / 19.8px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+        "fontSize": "12px",
+        "lineHeight": "19.8px",
+        "padding": "8px"
+      },
+      "highlight": {
+        "x": 10,
+        "y": 389,
+        "width": 355,
+        "height": 340,
+        "top": 0,
+        "left": 0,
+        "scrollWidth": 1600,
+        "scrollHeight": 2986,
+        "font": "12px / 19.8px ui-monospace, SFMono-Regular, Consolas, \"Liberation Mono\", monospace",
+        "fontSize": "12px",
+        "lineHeight": "19.8px",
+        "padding": "8px"
+      },
+      "pulses": [
+        {
+          "label": "middle",
+          "inputDelta": {
+            "top": 240,
+            "left": 160
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": -160,
+              "y": -240
+            },
+            {
+              "offset": 15375,
+              "x": -160,
+              "y": -240
+            },
+            {
+              "offset": 30748,
+              "x": -160,
+              "y": -240
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 160
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 160
+          }
+        },
+        {
+          "label": "right-edge",
+          "inputDelta": {
+            "top": 0,
+            "left": 1077
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": -1077,
+              "y": 0
+            },
+            {
+              "offset": 15375,
+              "x": -1077,
+              "y": 0
+            },
+            {
+              "offset": 30748,
+              "x": -1077,
+              "y": 0
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 1237
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 1237
+          }
+        },
+        {
+          "label": "back-from-right-edge",
+          "inputDelta": {
+            "top": 0,
+            "left": -80
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 80,
+              "y": 0
+            },
+            {
+              "offset": 15375,
+              "x": 80,
+              "y": 0
+            },
+            {
+              "offset": 30748,
+              "x": 80,
+              "y": 0
+            }
+          ],
+          "inputOffset": {
+            "top": 240,
+            "left": 1157
+          },
+          "highlightOffset": {
+            "top": 240,
+            "left": 1157
+          }
+        },
+        {
+          "label": "bottom-edge",
+          "inputDelta": {
+            "top": 2406,
+            "left": 0
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 0,
+              "y": -2406
+            },
+            {
+              "offset": 15375,
+              "x": 0,
+              "y": -2406
+            },
+            {
+              "offset": 30748,
+              "x": 0,
+              "y": -2406
+            }
+          ],
+          "inputOffset": {
+            "top": 2646,
+            "left": 1157
+          },
+          "highlightOffset": {
+            "top": 2646,
+            "left": 1157
+          }
+        },
+        {
+          "label": "back-from-bottom-edge",
+          "inputDelta": {
+            "top": -80,
+            "left": 0
+          },
+          "glyphMovement": [
+            {
+              "offset": 0,
+              "x": 0,
+              "y": 80
+            },
+            {
+              "offset": 15375,
+              "x": 0,
+              "y": 80
+            },
+            {
+              "offset": 30748,
+              "x": 0,
+              "y": 80
+            }
+          ],
+          "inputOffset": {
+            "top": 2566,
+            "left": 1157
+          },
+          "highlightOffset": {
+            "top": 2566,
+            "left": 1157
+          }
+        }
+      ]
+    }
+  },
+  "source_verification": {
+    "verified": true,
+    "matched_files": 77,
+    "tested_commit": "2b2cec2894e62b41856e82b91f98219eff371f32",
+    "production_commit": "15f65412d159328043f59533eb1764766766237b",
+    "identical_tests_before_and_after": true
+  },
+  "node_tests": {
+    "passed": 142,
+    "failed": 0,
+    "log": "node-regression.log"
+  },
+  "screenshots_reviewed": [
+    "before.png",
+    "after.png"
+  ],
+  "native_evidence": {
+    "file": "native-evidence.tar.gz",
+    "bytes": 160071,
+    "sha256": "f1229ec083a87bc0b35c8efd58bf9400f5a14c35a281c2e78da4ad161e351216",
+    "files": [
+      {
+        "name": "baseline/results.json",
+        "bytes": 470450,
+        "sha256": "e6eddb221b1488b8390a403704cd7d7554ae725d957bf39d43088c28375f6790"
+      },
+      {
+        "name": "baseline/summary.json",
+        "bytes": 4206,
+        "sha256": "db22a9218cc68dd321cb08292fc9b476b9b4ff44538da0faa96585e3a4fc7023"
+      },
+      {
+        "name": "baseline/source-identity.json",
+        "bytes": 7756,
+        "sha256": "8219658ab401502f867ccacde6dc55764c2a0a44d9eb6a61d511cba70f2c7a08"
+      },
+      {
+        "name": "baseline/saved-hook-390.png",
+        "bytes": 55686,
+        "sha256": "d2057570d07803ffd9024c11e9ba51e56811a94d0b46e0e366a1e68129ac6c73"
+      },
+      {
+        "name": "final/scroll-sync-results.json",
+        "bytes": 445850,
+        "sha256": "f32e7e2882c4202a9cb3b998c13cd3af3b23d5f745b5f64ce83a117f736a6f3b"
+      },
+      {
+        "name": "final/wheel-scroll-results.json",
+        "bytes": 671564,
+        "sha256": "0b482f1b4df386cb4d6e4286ef237d75480f822ec9c93ae1917c167150c0da2d"
+      },
+      {
+        "name": "final/layout-results.json",
+        "bytes": 64302,
+        "sha256": "d69b6d2163d5a08ee1d38ecc8a5821f20554e41c09088f8f04725b41c416a73d"
+      },
+      {
+        "name": "final/source-identity.json",
+        "bytes": 7756,
+        "sha256": "b84853e0a8f03d8ee934ae3900355c0f06c4b1d6c54695aa18b994a20659e289"
+      },
+      {
+        "name": "final/saved-hook-390.png",
+        "bytes": 55780,
+        "sha256": "8a1530e4eba6e240c24bda6b54c8c0704d203f02ea253ea0b3f825ff4a23ec3c"
+      },
+      {
+        "name": "final/summary.json",
+        "bytes": 6075,
+        "sha256": "c36978868701138e9caf05355dfd7d9df80eb4786102ed0b94668cae2addabea"
+      }
+    ]
+  },
+  "operations": {
+    "baseline_capture": "op-e7e5834bbbf8",
+    "baseline_test_exit_code": 1,
+    "final_capture": "op-826e8f45df90",
+    "final_status": "succeeded"
+  },
+  "cleanup": {
+    "app": {
+      "id": "sb-cf6f2030b164",
+      "status": "deleted",
+      "runtime": "ABSENT",
+      "verified": true,
+      "exists": false,
+      "operation_busy": false,
+      "deleted_at": "2026-11-25T03:01:04.563661+00:00"
+    },
+    "browser": {
+      "id": "sb-73960cd9dee9",
+      "status": "deleted",
+      "runtime": "ABSENT",
+      "verified": true,
+      "exists": false,
+      "operation_busy": false,
+      "deleted_at": "2026-11-25T03:03:04.839811+00:00"
+    }
+  }
+}
