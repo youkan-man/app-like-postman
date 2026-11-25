@@ -517,6 +517,7 @@ function renderSelection() {
   const inCollection = Boolean(findItem(collection, draft.itemId)?.item.request);
   const temporary = requestSession.isTemporary(draft) && !inCollection;
   $('requestDirty').textContent = temporary ? (requestSession.isBlank(draft) ? '' : draft.dirty ? '一時編集 · 未保存' : '一時編集') : draft.dirty ? '自動保存済み · 未登録' : '';
+  $('requestDirty').title = $('requestDirty').textContent;
   $('saveDraft').hidden = !temporary || requestSession.isBlank(draft);
   $('requestHistory').hidden = temporary;
   $('saveRequest').hidden = inCollection;

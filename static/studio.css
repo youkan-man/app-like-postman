@@ -95,6 +95,7 @@
 .request-identity {flex-basis:190px;}
 .request-title:has(#requestDirty:not(:empty)) .request-identity {flex-basis:330px;}
 .request-title #requestName {min-width:4.25em;}
+.request-title #requestDirty {flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;}
 .request-identity #requestType {flex:0 0 auto;min-width:0;width:auto;min-height:28px;padding:3px 20px 3px 6px;border-color:var(--line);font-family:inherit;font-size:12px;font-weight:600;line-height:1.4;color:var(--text);background:var(--surface);}
 .method-label.method-relation {width:auto;white-space:nowrap;font-family:inherit;font-size:10px;color:var(--accent);}
 :root[data-editor-page=relation] .editor-content {padding-top:2px;}
