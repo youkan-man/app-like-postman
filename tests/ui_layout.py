@@ -168,7 +168,7 @@ def main():
                 settle()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'), current_case
                 controls('.topbar', 'button,select')
-                controls('.request-title', 'input,button,#requestDirty,#breadcrumb')
+                controls('.request-title', 'input,select,button,#requestDirty,#breadcrumb')
                 actions = controls('.request-actions', 'button')['items']
                 assert max(item['rect']['y'] for item in actions)-min(item['rect']['y'] for item in actions) <= 2, (current_case, 'request action wraps onto its own row', actions)
                 controls('.urlbar', 'input,select,button')

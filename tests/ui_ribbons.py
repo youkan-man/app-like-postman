@@ -824,9 +824,10 @@ return {lines:160};
             assert log.evaluate('(node,left)=>node.scrollLeft===left', reading['left'])
             assert page.locator('#workspacePage').evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['page'])
             capture('ribbon-stream-log-reading')
-            remaining = log.evaluate('node=>node.scrollHeight-node.clientHeight-node.scrollTop')
             log.hover()
-            page.mouse.wheel(0, remaining + 24)
+            # Logs keep arriving while Playwright positions the pointer. Scroll
+            # a full log height so the real wheel reaches the moving tail.
+            page.mouse.wheel(0, log.evaluate('node=>node.scrollHeight'))
             page.wait_for_function('''()=>{
                 const node=window.__ribbonScrollingLog;
                 return node?.isConnected && node.scrollHeight-node.clientHeight-node.scrollTop<=2;
