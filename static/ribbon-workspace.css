@@ -131,7 +131,7 @@ select.ribbon-selector,.ribbon-selector select {width:100%;min-height:32px;paddi
 .ribbon-reference-settings {min-width:0;padding:4px 7px;border:1px solid var(--ribbon-line);border-radius:3px;background:var(--surface);}
 .ribbon-reference-settings>summary {padding:2px 0;font-size:13px;font-weight:600;cursor:pointer;}
 .ribbon-reference-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:6px 0 3px;}
-.ribbons-page .embedded-script-editor .source-input {padding:8px 10px;min-height:0;font:inherit;line-height:inherit;resize:none;}
+.ribbons-page .embedded-script-editor :is(.source-input,.source-highlight) {padding:8px 10px;}
 .ribbon-operation-result {min-width:0;overflow-wrap:anywhere;}
 .ribbon-operation-result:empty {display:none;}
 .ribbon-operation-result[data-state=error],.ribbon-operation-result[data-state=stopped] {color:var(--red);}
