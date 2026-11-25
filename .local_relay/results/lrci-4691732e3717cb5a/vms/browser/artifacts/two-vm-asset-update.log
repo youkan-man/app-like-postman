@@ -1,0 +1,5 @@
+PASS legacy root modules are loaded over HTTP and expose the exact missing deletion APIs
+PASS updated application and its relative module graph load exclusively from uncached assets URLs
+PASS old module bytes remain in the real browser cache without an additional server read
+PASS bulk deletion completes with warmed legacy caches and removes both drafts and their revisions
+PASS reload preserves the empty draft list without partial deletion, native dialogs or browser errors
