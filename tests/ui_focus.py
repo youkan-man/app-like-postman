@@ -134,13 +134,13 @@ def main():
             passed('form-data type selection retains focus, key and text/file mode')
             screenshot(page, 'form-data-desktop')
 
-            page.locator('#sidebarTabs [data-sidebar=relations]').click()
+            page.locator('#sidebarTabs [data-sidebar=collections]').click()
             page.locator('#sidebarAdd').click()
-            page.get_by_role('menuitem', name='リレーションを作成').click()
+            page.get_by_role('menuitem', name='リレーション').click()
             page.locator('#modalSubmit').click()
-            expect(page.get_by_role('button', name='停止', exact=True)).to_be_disabled()
+            expect(page.locator('#send')).to_contain_text('実行')
             expect(page.locator('#addRelationStep')).to_be_visible()
-            passed('idle relation stop control cannot be activated')
+            passed('idle relation has one enabled execution action')
             for number in range(1, 4):
                 page.locator('#addRelationStep').click()
                 page.get_by_role('menuitem', name='リクエスト', exact=True).click()
@@ -172,20 +172,20 @@ def main():
             passed('relation context insert/duplicate/delete maintain focus on the resulting step')
             # A rejected run must restore the control state; it must not leave
             # a Stop button that can be clicked forever with no running task.
-            page.locator('#runRelation').click()
-            expect(page.locator('#runRelation')).to_be_enabled()
-            expect(page.get_by_role('button', name='停止', exact=True)).to_be_disabled()
+            page.locator('#send').click()
+            expect(page.locator('#send')).to_be_enabled()
+            expect(page.locator('#send')).to_contain_text('実行')
             expect(page.locator('#relationRunLog')).to_contain_text('未選択のリクエスト')
-            passed('invalid relation run restores Run/Stop controls and keeps the error visible')
+            passed('invalid relation run restores its execution action and keeps the error visible')
 
             # Assign the missing steps and test a real abortable wait.
             for row in page.locator('.relation-step').all():
                 row.locator('select').first.select_option(index=1)
             page.locator('.relation-step').first.get_by_label('開始前 ms').fill('10000')
-            page.locator('#runRelation').click()
-            expect(page.get_by_role('button', name='停止', exact=True)).to_be_enabled()
-            page.get_by_role('button', name='停止', exact=True).click()
-            expect(page.get_by_role('button', name='停止', exact=True)).to_be_disabled(timeout=5000)
+            page.locator('#send').click()
+            expect(page.locator('#send')).to_have_text('停止')
+            page.locator('#send').click()
+            expect(page.locator('#send')).to_contain_text('実行', timeout=5000)
             passed('relation stop is available only during execution and cancels the pending wait')
 
             for width, height in [(390, 844), (320, 720)]:

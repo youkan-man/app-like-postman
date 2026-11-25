@@ -1,5 +1,8 @@
 /** Immutable transport evidence, separate from the editable request template. */
-import {clone, uid, displayUrl} from './core.mjs';
+import {clone, uid, displayUrl, isRelationRequest} from './core.mjs';
+
+export const relationStatusLabel = status => ({running:'実行中',succeeded:'完了',failed:'失敗',cancelled:'停止',completed_with_errors:'エラーあり'}[status] || status || '未実行');
+export const isRelationHistory = entry => entry?.type === 'relation' || isRelationRequest(entry?.tab?.request);
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 export function sentRequests(value) {
@@ -8,8 +11,12 @@ export function sentRequests(value) {
 }
 
 export function historyEntry(tab, result, {environmentId = '', environmentName = '', at = new Date().toISOString()} = {}) {
+  const relation = isRelationRequest(tab.request) || result.type === 'relation';
+  if (relation && typeof result.run?.environmentId === 'string') environmentId = result.run.environmentId;
+  if (relation && typeof result.run?.environmentName === 'string') environmentName = result.run.environmentName;
   const entry = {id: uid(), at, tab: clone(tab), environmentId, environmentName,
-    status: result.status ?? 'ERR'};
+    status: relation ? result.run?.status || 'failed' : result.status ?? 'ERR'};
+  if (relation) {entry.type = 'relation'; if (result.run) entry.relation_run = clone(result.run);}
   if (result.elapsed_ms != null) entry.elapsed_ms = result.elapsed_ms;
   if (result.error || result instanceof Error) entry.error = String(result.error || result.message);
   const sent = sentRequests(result);
@@ -18,11 +25,12 @@ export function historyEntry(tab, result, {environmentId = '', environmentName =
 }
 
 export function historyUrl(entry) {
+  if (isRelationHistory(entry)) return '';
   return sentRequests(entry)?.[0]?.url || displayUrl(entry.tab.request.url);
 }
 
 /** The viewer never resolves variables or changes the selected editor/environment. */
-export function createHistoryView(root, {edit, copy}) {
+export function createHistoryView(root, {edit, copy, renderRelation}) {
   const node = (tag, className, text) => {
     const value = document.createElement(tag);
     if (className) value.className = className;
@@ -64,11 +72,12 @@ export function createHistoryView(root, {edit, copy}) {
     if (shown === entry && root.childElementCount) return;
     shown = entry; root.replaceChildren(); root.scrollTop = 0;
     if (!entry) {
-      const empty = node('div', 'workspace-empty'); empty.append(node('h1', '', '送信履歴はありません'));
+      const empty = node('div', 'workspace-empty'); empty.append(node('h1', '', '実行履歴はありません'));
       root.append(empty); return;
     }
     root.dataset.historyId = entry.id || '';
     const heading = node('div', 'sent-heading'), title = node('h1', '', entry.tab.name || 'リクエスト');
+    if (isRelationHistory(entry)) title.prepend(node('span','method-label method-relation','リレーション'),document.createTextNode(' '));
     const editButton = button('編集用に開く', () => edit(entry)); editButton.dataset.historyEdit = '';
     heading.append(title, editButton); root.append(heading);
     const info = node('div', 'sent-info');
@@ -76,11 +85,17 @@ export function createHistoryView(root, {edit, copy}) {
     info.append(node('time', '', Number.isNaN(date.valueOf()) ? '' : date.toLocaleString()));
     if (entry.environmentName) info.append(node('span', '', entry.environmentName));
     const outcome = node('span', 'sent-outcome');
-    outcome.append(node('span', `history-code${Number(entry.status) >= 400 || entry.status === 'ERR' ? ' sent-error' : ''}`, entry.status ?? 'ERR'));
+    const relation = isRelationHistory(entry);
+    outcome.append(node('span', `history-code${Number(entry.status) >= 400 || ['ERR','failed','completed_with_errors'].includes(entry.status) ? ' sent-error' : ''}`, relation ? relationStatusLabel(entry.status) : entry.status ?? 'ERR'));
     if (entry.elapsed_ms != null) outcome.append(node('span', '', `${entry.elapsed_ms} ms`));
     info.append(outcome);
     root.append(info);
     if (entry.error) root.append(node('p', 'sent-error', entry.error));
+    if (relation) {
+      if (entry.relation_run && renderRelation) {const log=node('div','sent-relation');root.append(log);renderRelation(log,entry.relation_run);}
+      else if (entry.relation_run) root.append(section('実行ログ',JSON.stringify(entry.relation_run,null,2)));
+      return;
+    }
     const requests = sentRequests(entry);
     if (requests === null) {
       const message = node('p', 'sent-notice', 'この履歴には送信時の実値が保存されていません。');

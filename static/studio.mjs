@@ -1,6 +1,6 @@
 import {confirmAction} from './confirm-dialog.mjs';
 /** Workspace pages own editing state; runtime, scripts and relation execution are separate. */
-import {SCHEMA,clone,uid,rows,enabled,findItem,walkItems,contextFor,newRequest} from './core.mjs';
+import {SCHEMA,clone,uid,rows,enabled,findItem,walkItems,contextFor,newRequest,isRelationRequest} from './core.mjs';
 import {PrimaryVariables,RESPONSE_KEY,extractVariableNames,upsertVariable,responseMetadata,metadataElements,extractionWrites,requestAutomation,variableText,checkName} from './runtime.mjs';
 import {createCodeEditor} from './code-editor.mjs';
 import {createEmbeddedScriptEditor,refreshEmbeddedScriptEditors} from './embedded-script-editor.mjs';
@@ -13,7 +13,9 @@ import {createScriptHost,makeScriptContext,formatScriptValue} from './script-hos
 import {createScriptRelationRunner} from './script-relations.mjs';
 import {scriptEditorContext} from './script-editor-context.mjs';
 import {applyResponseMutation,restoreOriginalResponse,applyRequestMutation} from './script-response.mjs';
-import {newRelation,newStep,newRelationStep,relationStepType,walkRelationSteps,cloneRelationSteps,RELATION_STEP_TYPES,runRelation,OPERATORS,NEXT,END} from './relations.mjs';
+import {newCondition,newStep,newRelationStep,relationStepType,walkRelationSteps,cloneRelationSteps,RELATION_STEP_TYPES,OPERATORS,NEXT,END} from './relations.mjs';
+import {newRelationRequest,relationForRequest,relationRequestEntries,findRelationRequest} from './relation-requests.mjs';
+import {relationStatusLabel} from './sent-history.mjs';
 import {relationStepLocations,canMoveRelationStep,moveRelationStep,insertRelationStep,wrapRelationStep} from './relation-tree.mjs';
 import {requestKey} from './revisions.mjs';
 export function responseRequestKey(workspace,tab){
@@ -31,9 +33,9 @@ export function initStudio(api) {
   let session=null;try {session=sessionStorage;}catch {}
   const primary=new PrimaryVariables(session,storageError),snapshots=new Map(),scriptLogs=new Map(),scriptPhases=new Map();
   try {for(const [key,value] of JSON.parse(session?.getItem(RESPONSE_KEY)||'[]')) snapshots.set(key,value);}catch {}
-  let envSelection=w().environmentId||'',relationId='',surfaceKey='',creationContext=null,controller=null,running=null;
+  let envSelection=w().environmentId||'',surfaceKey='',creationContext=null;
   const manualControllers=new Set();
-    w().relations ||= [];w().relationRuns ||= [];
+  w().relationRuns ||= [];
   const runScriptRelation=createScriptRelationRunner({filesFor:api.filesFor,getResponses,requestFor:api.requestFor,
     onResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
   const scriptWorkspace=initScriptWorkspace({...api,primary,runScriptRelation,getResponses,openScripts:()=>{surfaceKey='';setSurface('scripts');},runningChanged:refreshStop,
@@ -41,7 +43,7 @@ export function initStudio(api) {
   const ribbonWorkspace=initRibbonWorkspace({...api,primary,runScriptRelation,getResponses,openRibbons:()=>{surfaceKey='';setSurface('ribbons');},openScript:id=>scriptWorkspace.open(id),runningChanged:refreshStop,
     showRibbonRequest:()=>{setSurface('collections');api.renderAll();},
     recordResponse:(tab,result,environmentId)=>{rememberResponse(tab,result);api.recordBackground(tab,result,environmentId);}});
-  function refreshStop(){$('stopRelationGlobal').hidden=!(controller||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning());ribbonWorkspace.refresh();}
+  function refreshStop(){$('stopRelationGlobal').hidden=!(api.hasBackgroundRequests()||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning());ribbonWorkspace.refresh();}
   function setSurface(side){api.setSide(side);api.renderSidebar();syncView(side);api.closeNavigation();}
   function changedEnvironment(){persist();api.renderEnvironments();}
   function rememberResponse(tab,result){
@@ -50,6 +52,13 @@ export function initStudio(api) {
     try{session?.setItem(RESPONSE_KEY,JSON.stringify([...snapshots]));}catch{storageError();}
   }
   function responseFor(tab){return snapshots.get(responseRequestKey(w(),tab));}
+  function relationResponseFor(tab){
+    const relation=relationForRequest(tab.request,tab.name);if(!relation)return null;
+    const run=[...(w().relationRuns||[])].reverse().find(value=>value.relationId===relation.id);
+    if(!run)return null;
+    const elapsed=Date.parse(run.finishedAt)-Date.parse(run.startedAt);
+    return {type:'relation',run,received_at:run.finishedAt,...(Number.isFinite(elapsed)?{elapsed_ms:elapsed}:{})};
+  }
   function getResponses(){
     return [...snapshots].map(([id,result])=>{
       const saved=id.startsWith('request:'),requestId=saved?id.slice('request:'.length):id;
@@ -115,6 +124,10 @@ export function initStudio(api) {
   }
   function responseMenu(anchor,event){
     const tab=api.active(),result=responseFor(tab),busy=api.isRequestRunning(tab);
+    if(result?.type==='relation'||(!result&&isRelationRequest(tab.request))){
+      const run=(result?.type==='relation'?result:relationResponseFor(tab))?.run;
+      openItemMenu(anchor,[{label:'ログをコピー',disabled:!run,run:()=>api.copyText(JSON.stringify(run,null,2))},{label:'ログを保存',disabled:!run,run:()=>api.exportFile(`${tab.name}.run.json`,run)}],event);return;
+    }
     const selection=window.getSelection(),selected=selection?.anchorNode&&$('responseContent').contains(selection.anchorNode)?String(selection):'';
     openItemMenu(anchor,[
       ...(selected?[{label:'選択箇所をコピー',run:()=>api.copyText(selected)},null]:[]),
@@ -126,10 +139,11 @@ export function initStudio(api) {
       }}
     ],event);
   }
-  async function execute(tab,{signal,environmentId=w().environmentId,files={},onProgress,relationAncestors=[]}={}) {
+  async function execute(tab,{signal,environmentId=w().environmentId,files={},onProgress,onRelationProgress,relationAncestors=[]}={}) {
     const host=createScriptHost({workspace:w(),primary,environmentId,filesFor:api.filesFor,getResponses,runRelation:(relation,context)=>runScriptRelation(relation,{...context,ancestorRelationIds:relationAncestors}),onResponse:(sent,result,env)=>{rememberResponse(sent,result);api.recordBackground(sent,result,env);}});
     const live={};
-    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,scriptCall:host,
+    const result=await executeRequest({workspace:w(),tab,files,primary,environmentId,signal,onProgress,onRelationProgress,relationAncestors,scriptCall:host,
+      filesFor:api.filesFor,requestFor:api.requestFor,getResponses,onResponse:(sent,response,env)=>{rememberResponse(sent,response);api.recordBackground(sent,response,env);},
       onScriptLog:({phase,...entry})=>{(live[phase]||=[]).push(entry);noteScript(tab,{phase,logs:live[phase]});},
       onVariables:(saved,changes)=>{if(saved)persist();api.workspaceChanged?.(changes);ribbonWorkspace.refresh();if(api.side()==='environments'&&!document.activeElement?.closest('.variables-page')){surfaceKey='';syncView('environments');}},onScript:entry=>noteScript(tab,entry)});
     rememberResponse(tab,result);return result;
@@ -174,70 +188,50 @@ export function initStudio(api) {
   function renderSidebarSection(side){
     if(side==='ribbons'){ribbonWorkspace.sidebar();return true;}
     if(side==='scripts'){scriptWorkspace.sidebar();return true;}
-    if(!['environments','relations'].includes(side))return false;
+    if(side!=='environments')return false;
     const root=$('sidebarContent'),query=$('search').value.toLowerCase();root.replaceChildren();
     $('sidebarAdd').hidden=false;$('clearHistory').hidden=true;
-    $('search').placeholder=side==='environments'?'環境を検索':'リレーションを検索';
-    $('sidebarAdd').setAttribute('aria-label',side==='environments'?'環境を追加':'リレーションを追加');
+    $('search').placeholder='環境を検索';$('sidebarAdd').setAttribute('aria-label','環境を追加');
     function row(title,selected,open,menu,attributes={}){
       const line=el('div',`tree-row${selected?' selected':''}`),button=btn(title,open,'tree-open'),more=btn('⋯',()=>{},'icon-button');more.setAttribute('aria-label',`${title}の操作`);
       Object.assign(line.dataset,attributes);if(attributes.scope==='globals')button.id='globalVariables';line.append(button,more);bindContext(line,more,menu);root.append(line);
     }
-    if(side==='environments'){
-      row('一次変数',envSelection==='primary',()=>{envSelection='primary';surfaceKey='';api.renderSidebar();syncView(side);api.closeNavigation();},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable('primary')},{label:'すべて消去',danger:true,run:async()=>{if(await confirmAction('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView(side);}}}],e),{scope:'primary'});
-      row('Globals',envSelection==='globals',()=>editEnvironment(null,true),(a,e)=>api.environmentMenu(null,true,a,e),{scope:'globals'});
-      for(const env of w().environments.filter(e=>e.name.toLowerCase().includes(query)))row(env.name,envSelection===env.id,()=>{api.chooseEnvironment(env.id);editEnvironment(env);},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable(env.id)},{label:'環境を追加',run:()=>createEnvironment(env.id)},...api.environmentActions(env,false)],e),{environmentId:env.id});
-    } else {
-      for(const relation of (w().relations||[]).filter(r=>r.name.toLowerCase().includes(query)))row(relation.name,relation.id===relationId,()=>openRelation(relation.id),(a,e)=>openItemMenu(a,[
-        {label:'実行',disabled:Boolean(controller),run:()=>{openRelation(relation.id);startRelation(relation);}},
-        ...(controller&&running?.relationId===relation.id?[{label:'停止',run:()=>controller?.abort()}]:[]),
-        {label:'リレーションを追加',run:()=>createRelation(relation.id)},
-        {label:'ステップを追加',run:()=>{openRelation(relation.id);chooseStep($('addRelationStep'),relation);}},
-        {label:'複製',run:()=>duplicateRelation(relation)},
-        {label:'削除',danger:true,run:async()=>{
-          if(controller&&running?.relationId===relation.id)return toast('実行中です。停止してから削除してください。');
-          if(await confirmAction('「'+relation.name+'」を削除しますか？')){
-            if(controller&&running?.relationId===relation.id)return toast('実行中です。停止してから削除してください。');
-            w().relations=w().relations.filter(r=>r!==relation);persist();surfaceKey='';api.renderSidebar();syncView('relations');
-          }
-        }}
-      ],e),{relationId:relation.id});
-      if(!root.children.length)root.append(el('p','sidebar-empty','リレーションはありません'));
-    }
+    row('一次変数',envSelection==='primary',()=>{envSelection='primary';surfaceKey='';api.renderSidebar();syncView(side);api.closeNavigation();},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable('primary')},{label:'すべて消去',danger:true,run:async()=>{if(await confirmAction('一次変数をすべて消去しますか？')){primary.clear();surfaceKey='';syncView(side);}}}],e),{scope:'primary'});
+    row('Globals',envSelection==='globals',()=>editEnvironment(null,true),(a,e)=>api.environmentMenu(null,true,a,e),{scope:'globals'});
+    for(const env of w().environments.filter(e=>e.name.toLowerCase().includes(query)))row(env.name,envSelection===env.id,()=>{api.chooseEnvironment(env.id);editEnvironment(env);},(a,e)=>openItemMenu(a,[{label:'変数を追加',run:()=>addVariable(env.id)},{label:'環境を追加',run:()=>createEnvironment(env.id)},...api.environmentActions(env,false)],e),{environmentId:env.id});
     return true;
   }
   function syncView(side,force=false){
-    $('addTab').disabled=side==='history';$('addTab').title=side==='history'?'送信履歴はリクエスト送信時に追加されます':'選択中のカテゴリに追加';
-    const kind=['environments','relations','history','scripts','ribbons'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
-    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','relations','scripts','ribbons'].includes(kind);
+    $('addTab').disabled=side==='history';$('addTab').title=side==='history'?'リクエストの実行時に追加されます':'新規作成';
+    const kind=['environments','history','scripts','ribbons'].includes(side)?side:'request';document.documentElement.dataset.workspaceView=kind;
+    $('exchange').hidden=kind!=='request';$('workspacePage').hidden=!['environments','scripts','ribbons'].includes(kind);
     $('historyPage').hidden=kind!=='history';
     ribbonWorkspace.refresh();
     if(kind==='ribbons'){surfaceKey='ribbons';ribbonWorkspace.render(force);return;}
     if(kind==='scripts'){surfaceKey='scripts';scriptWorkspace.render(force);return;}
     if(kind==='history'){surfaceKey='';api.renderHistoryPage();return;}
     if(kind==='request'){surfaceKey='';return;}
-    if(kind==='environments'&&!['globals','primary'].includes(envSelection)&&!w().environments.some(e=>e.id===envSelection))envSelection=w().environmentId||'';
-    if(kind==='relations'&&!w().relations?.some(r=>r.id===relationId))relationId=w().relations?.[0]?.id||'';
-    const key=kind+':'+(kind==='environments'?envSelection:relationId);
-    if(force||surfaceKey!==key){surfaceKey=key;kind==='environments'?environmentPage():relationPage();}
+    if(!['globals','primary'].includes(envSelection)&&!w().environments.some(e=>e.id===envSelection))envSelection=w().environmentId||'';
+    const key='environments:'+envSelection;
+    if(force||surfaceKey!==key){surfaceKey=key;environmentPage();}
   }
   function captureContext(context){creationContext=context;}
-  function createItem(kind,context={}){
+  function createItem(kind,context={},reference=null){
     const collection=w().collections.find(c=>c._mpId===context.collectionId),parent=context.parentId?findItem(collection,context.parentId)?.item:collection;
-    if(!parent){if(kind==='request'){api.addDraft();return;}toast('追加先のコレクションを選択してください。');return;}
-    let name=kind==='request'?'新しいリクエスト':'新しいフォルダー',placement='after';
-    const box=el('div');box.append(field('名前',input(name,'追加する名前',value=>name=value)));
-    box.append(el('p','workspace-note',`追加先: ${collection.info.name}${parent!==collection?' / '+parent.name:''}`));
-    showModal(kind==='request'?'リクエストを追加':'フォルダーを追加',box,()=>{
+    if(!parent){if(kind==='request'){api.addDraft();return;}if(kind==='relation'){createRelation(reference);return;}toast('追加先のコレクションを選択してください。');return;}
+    let name=kind==='request'?'新しいリクエスト':kind==='relation'?'新しいリレーション':'新しいフォルダー';
+    const box=field('名前',input(name,'追加する名前',value=>name=value));
+    showModal(kind==='request'?'HTTPリクエストを追加':kind==='relation'?'リレーションを追加':'フォルダーを追加',box,()=>{
       if(!name.trim())throw new Error('名前を入力してください。');
       const c=w().collections.find(c=>c._mpId===context.collectionId),p=context.parentId?findItem(c,context.parentId)?.item:c;
       if(!p||!Array.isArray(p.item))throw new Error('追加先が変更されました。追加先を選び直してください。');
       const sibling=p.item.findIndex(i=>i._mpId===context.siblingId);if(context.siblingId&&sibling<0)throw new Error('挿入位置の項目が削除されています。');
-      const item={_mpId:uid(),name:name.trim(),...(kind==='folder'?{item:[]}:{request:newRequest()})};
-      p.item.splice(context.siblingId?sibling+(placement==='after'?1:0):p.item.length,0,item);
+      const item={_mpId:uid(),name:name.trim(),...(kind==='folder'?{item:[]}:{request:kind==='relation'?newRelationRequest(name.trim()):newRequest()})};
+      if(reference&&kind==='relation')item.request.relation.steps.push(newStep(reference));
+      p.item.splice(context.siblingId?sibling+1:p.item.length,0,item);
       const ancestors=new Set([c._mpId,p._mpId,...(context.parentId?findItem(c,context.parentId)?.parents||[]:[]).map(node=>node._mpId)]);
       w().collapsed=(w().collapsed||[]).filter(id=>!ancestors.has(id));persist();closeModal();
-      if(item.request)api.openRequest(c,item);else{captureContext({collectionId:c._mpId,parentId:item._mpId});setSurface('collections');api.renderAll();}
+      if(item.request){api.setSide('collections');api.openRequest(c,item);}else{captureContext({collectionId:c._mpId,parentId:item._mpId});setSurface('collections');api.renderAll();}
     },'追加');
   }
   function creationMenu(anchor,event,root=false){
@@ -245,10 +239,10 @@ export function initStudio(api) {
     if(side==='environments')actions=[{label:'環境を作成',run:()=>createEnvironment()},{label:envSelection==='primary'?'一次変数を追加':envSelection==='globals'?'Globalsに変数を追加':'表示中の環境に変数を追加',disabled:!scopeRows(),run:()=>addVariable()}];
     else if(side==='scripts')actions=[{label:'スクリプトを作成',run:()=>scriptWorkspace.create()}];
     else if(side==='ribbons')actions=[{label:'リボンを作成',run:()=>ribbonWorkspace.create()}];
-    else if(side==='relations')actions=[{label:'リレーションを作成',run:()=>createRelation()},{label:'ステップを追加',disabled:!w().relations?.some(r=>r.id===relationId),run:()=>chooseStep($('addRelationStep'),w().relations.find(r=>r.id===relationId))}];
     else {
       const context=root?null:creationContext;
-      actions=[{label:context?'リクエストを追加':'リクエストを作成',run:()=>context?createItem('request',context):api.addDraft()},
+      actions=[{label:'HTTPリクエスト',run:()=>context?createItem('request',context):api.addDraft()},
+        {label:'リレーション',run:()=>context?createItem('relation',context):createRelation()},
         {label:'フォルダーを追加',disabled:!context,run:()=>createItem('folder',context)},
         {label:'コレクションを作成',run:api.newCollection}];
     }
@@ -288,15 +282,24 @@ export function initStudio(api) {
     const tab=()=>referenceTab(collection,item),parent=findItem(collection,item._mpId)?.parents.at(-1);
     const context={collectionId:collection._mpId,parentId:parent?._mpId,siblingId:item._mpId};
     return [
-      {label:'リクエストを追加',run:()=>createItem('request',context)},
+      {label:'HTTPリクエスト',run:()=>createItem('request',context)},
+      {label:'リレーション',run:()=>createItem('relation',context)},
       {label:'フォルダーを追加',run:()=>createItem('folder',context)},
       {label:'環境変数を抽出',run:()=>extractEnvironment(tab())},
-      {label:'スクリプトを編集',run:()=>{api.openRequest(collection,item);api.selectEditorPage('scripts');}},
+      ...(isRelationRequest(item.request)?[
+        {label:'ステップを追加',run:()=>{api.openRequest(collection,item);chooseStep($('addRelationStep'),relationForRequest(api.active().request,api.active().name));}},
+        {label:'実行設定',run:()=>{api.openRequest(collection,item);relationSettings(relationForRequest(api.active().request,api.active().name));}}
+      ]:[{label:'スクリプトを編集',run:()=>{api.openRequest(collection,item);api.selectEditorPage('scripts');}}]),
       {label:'リボンを編集',run:()=>{api.openRequest(collection,item);ribbonWorkspace.open();}},
-      {label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab()),run:()=>responseExtraction(tab())},
+      ...(!isRelationRequest(item.request)?[{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab()),run:()=>responseExtraction(tab())}]:[]),
       {label:'リレーションに追加',run:()=>addRequestToRelation({collectionId:collection._mpId,itemId:item._mpId})},null];
   }
-  function draftActions(tab){return [{label:'環境変数を抽出',run:()=>extractEnvironment(tab)},{label:'スクリプトを編集',run:()=>{api.selectRequest(tab.id);api.selectEditorPage('scripts');}},{label:'リボンを編集',run:()=>{api.selectRequest(tab.id);ribbonWorkspace.open();}},{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab),run:()=>responseExtraction(tab)},{label:'リレーションに追加',run:()=>addRequestToRelation({draftId:tab.id})}];}
+  function draftActions(tab){return [{label:'環境変数を抽出',run:()=>extractEnvironment(tab)},
+    ...(isRelationRequest(tab.request)?[
+      {label:'ステップを追加',run:()=>{api.selectRequest(tab.id);chooseStep($('addRelationStep'),relationForRequest(tab.request,tab.name));}},
+      {label:'実行設定',run:()=>{api.selectRequest(tab.id);relationSettings(relationForRequest(tab.request,tab.name));}}
+    ]:[{label:'スクリプトを編集',run:()=>{api.selectRequest(tab.id);api.selectEditorPage('scripts');}},{label:'レスポンスから一次変数を抽出',disabled:!responseFor(tab),run:()=>responseExtraction(tab)}]),
+    {label:'リボンを編集',run:()=>{api.selectRequest(tab.id);ribbonWorkspace.open();}},{label:'リレーションに追加',run:()=>addRequestToRelation({draftId:tab.id})}];}
   function responseExtraction(tab,choosePath=null){
     const result=responseFor(tab),metadata=responseMetadata(result);if(!metadata){toast('レスポンスを受信してから抽出してください。');return;}
     const {elements,truncated}=metadataElements(metadata);let path='/status',name='status',saveRule=false,nameEdited=false;
@@ -402,15 +405,50 @@ export function initStudio(api) {
     if(imported.length){const details=el('details','imported-scripts');details.append(el('summary','','インポートしたスクリプト'));for(const event of imported){const source=Array.isArray(event.script?.exec)?event.script.exec.join('\n'):event.script?.exec||'';const section=el('section','scripts-block');section.append(el('h4','',event.listen||'Script'),el('pre','',source),btn('編集欄へコピー',()=>{const key=event.listen==='prerequest'?'before':'after';config[key]+=(config[key]?'\n':'')+source;save();api.renderEditor();},'button'));details.append(section);}root.append(details);}
   }
   function requestOptions(){
-    const options=[];for(const c of w().collections)walkItems(c.item,(item,parents)=>{if(item.request)options.push([JSON.stringify({collectionId:c._mpId,itemId:item._mpId}),`${c.info.name} / ${[...parents.map(p=>p.name),item.name].join(' / ')}`]);});
-    for(const tab of w().tabs)if(!w().collections.some(c=>c._mpId===tab.collectionId&&findItem(c,tab.itemId)?.item.request))options.push([JSON.stringify({draftId:tab.id}),`下書き / ${tab.name}`]);return options;
+    const selected=api.active(),options=[];
+    for(const c of w().collections)walkItems(c.item,(item,parents)=>{
+      if(!item.request||selected.collectionId===c._mpId&&selected.itemId===item._mpId)return;
+      options.push([JSON.stringify({collectionId:c._mpId,itemId:item._mpId}),`${c.info.name} / ${[...parents.map(p=>p.name),item.name].join(' / ')}${isRelationRequest(item.request)?' · リレーション':''}`]);
+    });
+    for(const tab of w().tabs)if(tab.id!==selected.id&&!w().collections.some(c=>c._mpId===tab.collectionId&&findItem(c,tab.itemId)?.item.request))options.push([JSON.stringify({draftId:tab.id}),`下書き / ${tab.name}${isRelationRequest(tab.request)?' · リレーション':''}`]);return options;
   }
-  function openRelation(id){relationId=id;surfaceKey='';setSurface('relations');$('workspacePage').querySelector('input[aria-label="リレーション名"]')?.focus({preventScroll:true});}
-  function createRelation(afterId=null,reference=null){let name='新しいリレーション';const box=field('リレーション名',input(name,'リレーション名',v=>name=v));showModal('リレーションを作成',box,()=>{if(!name.trim())throw new Error('名前を入力してください。');const relation=newRelation(name.trim());if(reference)relation.steps.push(newStep(reference));const at=w().relations.findIndex(r=>r.id===afterId);w().relations.splice(afterId&&at>=0?at+1:w().relations.length,0,relation);persist();closeModal();openRelation(relation.id);},'作成');}
-  function duplicateRelation(relation){const copy=clone(relation);copy.id=uid();copy.name+=' copy';copy.steps=cloneRelationSteps(copy.steps);w().relations.splice(w().relations.indexOf(relation)+1,0,copy);persist();openRelation(copy.id);}
+  function openRelation(id){
+    const entry=findRelationRequest(w(),id);if(!entry)return null;
+    api.setSide('collections');
+    if(entry.collectionId){
+      const collection=w().collections.find(value=>value._mpId===entry.collectionId);
+      const ancestors=new Set([entry.collectionId,...(findItem(collection,entry.itemId)?.parents||[]).map(value=>value._mpId)]);
+      w().collapsed=(w().collapsed||[]).filter(value=>!ancestors.has(value));api.openRequest(collection,entry.owner);
+    }else api.selectRequest(entry.draftId);
+    return api.active();
+  }
+  function createRelation(reference=null){
+    let name='新しいリレーション';const box=field('名前',input(name,'リレーション名',v=>name=v));
+    showModal('リレーションを作成',box,()=>{
+      if(!name.trim())throw new Error('名前を入力してください。');
+      const request=newRelationRequest(name.trim());if(reference)request.relation.steps.push(newStep(reference));
+      closeModal();api.addDraft('relation',{name:name.trim(),request});
+    },'作成');
+  }
+  function commitRelation(relation){
+    const tab=api.active();
+    if(isRelationRequest(tab.request)&&tab.request.relation.id===relation.id){tab.request.relation=relation;api.touchTab(tab);return;}
+    const entry=findRelationRequest(w(),relation.id);
+    if(entry){entry.request.relation=relation;relation.name=entry.owner.name;}
+    persist();api.renderSidebar();
+  }
   function addRequestToRelation(reference){
-    if(!w().relations.length){createRelation(null,reference);return;}
-    let id=w().relations[0].id;const box=field('追加先',select([...w().relations.map(r=>[r.id,r.name]),['__new__','新しいリレーション']],id,v=>id=v));showModal('リレーションに追加',box,()=>{closeModal();if(id==='__new__')createRelation(null,reference);else{const relation=w().relations.find(r=>r.id===id);if(!relation)return;relation.steps.push(newStep(reference));persist();openRelation(id);}},'追加');
+    const source=findRelationRequest(w(),reference);
+    const targets=relationRequestEntries(w()).filter(entry=>entry.relation.id!==source?.relation.id);
+    if(!targets.length){createRelation(reference);return;}
+    let id=targets[0].relation.id;
+    const choices=targets.map(entry=>[entry.relation.id,entry.collectionId?`${w().collections.find(c=>c._mpId===entry.collectionId)?.info.name} / ${entry.owner.name}`:`下書き / ${entry.owner.name}`]);
+    const box=field('追加先',select([...choices,['__new__','新しいリレーション']],id,v=>id=v));
+    showModal('リレーションに追加',box,()=>{
+      closeModal();if(id==='__new__'){createRelation(reference);return;}
+      const tab=openRelation(id);if(!tab)return;
+      const relation=relationForRequest(tab.request,tab.name);relation.steps.push(newStep(reference));commitRelation(relation);api.renderEditor();
+    },'追加');
   }
   const collapsedSteps=new Set();
   function relationDestination(relation,siblings,index=siblings.length){
@@ -432,8 +470,8 @@ export function initStudio(api) {
   }
   function addStep(relation,index=relation.steps.length,siblings=relation.steps,type='request'){
     const step=newRelationStep(type);try{insertRelationStep(relation,step,relationDestination(relation,siblings,index));}catch(error){toast(error.message);return;}
-    persist();surfaceKey='';syncView('relations');api.closeNavigation();
-    const row=[...$('workspacePage').querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===step.id);
+    commitRelation(relation);api.renderEditor();api.closeNavigation();
+    const row=[...$('editorContent').querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===step.id);
     (row?.querySelector('select,input')||row?.querySelector('button'))?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'});
   }
   function numberField(title,value,change,min=0){
@@ -448,26 +486,23 @@ export function initStudio(api) {
     const stop=el('label','settings-line'),check=el('input');check.type='checkbox';check.checked=value.stopOnError;check.onchange=()=>value.stopOnError=check.checked;stop.append(check,'エラーで停止');box.append(stop);
     showModal('実行設定',box,()=>{
       for(const [key,min] of [['repeat',1],['intervalMs',0],['maxExecutions',0]])if(!Number.isSafeInteger(value[key])||value[key]<min)throw new Error('回数と時間を有効な整数にしてください。');
-      Object.assign(relation,value);persist();closeModal();
+      Object.assign(relation,value);commitRelation(relation);closeModal();
     },'保存');
   }
-  function relationPage(){
-    const page=$('workspacePage'),relation=w().relations.find(r=>r.id===relationId);page.replaceChildren();
-    if(!relation){const empty=el('div','workspace-empty');empty.append(el('h1','','リレーション'),btn('リレーションを作成',()=>createRelation(),'button primary'));page.append(empty);return;}
-    const header=el('div','workspace-page-heading relation-page-heading'),name=input(relation.name,'リレーション名',v=>{relation.name=v;persist();api.renderSidebar();});header.append(el('h1','','リレーション'),name);
-    const start=btn('実行',()=>startRelation(relation),'button primary');start.id='runRelation';start.disabled=Boolean(controller);
-    const stopButton=btn('停止',()=>controller?.abort(),'button');stopButton.id='stopRelationLocal';stopButton.disabled=!(controller&&running?.relationId===relation.id);
+  function renderRelationRequest(page,tab){
+    const relation=relationForRequest(tab.request,tab.name);page.replaceChildren();
+    if(!relation)return;
+    const tools=$('relationTools');tools.replaceChildren();
     const add=btn('追加 ▾',event=>chooseStep(event.currentTarget,relation),'button');add.id='addRelationStep';add.setAttribute('aria-label','ステップを追加');
-    const more=btn('⋯',event=>openItemMenu(event.currentTarget,[{label:'実行設定',run:()=>relationSettings(relation)},{label:'変更履歴',run:()=>api.showRevisions('relation:'+relation.id)},{label:'エクスポート',run:()=>api.exportFile(relation.name+'.relation.json',relation)}]),'icon-button');more.setAttribute('aria-label','リレーションの操作');
-    header.append(start,stopButton,add,more);page.append(header);
-    const editor=el('div','relation-editor');editor.id='relationSteps';editor.setAttribute('aria-label','実行手順');const options=requestOptions(),save=()=>persist();
+    tools.append(add,btn('実行設定',()=>relationSettings(relation),'button'));
+    const editor=el('div','relation-editor');editor.id='relationSteps';editor.setAttribute('aria-label','実行手順');const options=requestOptions(),save=()=>commitRelation(relation);
     let draggedStepId=null;
     const repaint=(focusId=null,action=null)=>{
-      const scroll=page.scrollTop;persist();surfaceKey='';syncView('relations');page.scrollTop=scroll;
+      const scroll=page.scrollTop;save();renderRelationRequest(page,tab);page.scrollTop=scroll;
       const node=[...page.querySelectorAll('.relation-step')].find(e=>e.dataset.stepId===focusId);
       const control=action?node?.querySelector('[data-step-action="'+action+'"]'):node?.querySelector('select,input');
       const alternate=action?node?.querySelector('[data-step-action="'+(action==='up'?'down':'up')+'"]'):null;
-      (control&&!control.disabled&&control.getClientRects().length?control:alternate&&!alternate.disabled&&alternate.getClientRects().length?alternate:node?.querySelector('[data-step-action="move"]')||node?.querySelector('select,input')||page.querySelector('#addRelationStep'))?.focus({preventScroll:true});
+      (control&&!control.disabled&&control.getClientRects().length?control:alternate&&!alternate.disabled&&alternate.getClientRects().length?alternate:node?.querySelector('[data-step-action="move"]')||node?.querySelector('select,input')||$('addRelationStep'))?.focus({preventScroll:true});
     };
     const blockTypes=new Set(['repeat','forEach','while','if']);
     const location=id=>relationStepLocations(relation).find(entry=>entry.step.id===id);
@@ -513,20 +548,20 @@ export function initStudio(api) {
         const step=location(id)?.step;if(step)moveStep(step,target());draggedStepId=null;
       };
     }
-    function conditionEditor(step,label,siblings,request){
-      const condition=step.condition,branch=el('div','step-branch');
-      const source=select([['response','レスポンス'],['primary','一次変数'],['variables','変数'],['result','スクリプト結果']],condition.source,v=>{condition.source=v;save();});source.setAttribute('aria-label','ステップ '+label+' の分岐元');
-      const path=input(condition.path,'ステップ '+label+' の比較元',v=>{condition.path=v;save();});
-      const op=select(OPERATORS,condition.operator,v=>{condition.operator=v;save();});op.setAttribute('aria-label','ステップ '+label+' の比較');
+    function conditionEditor(step,label,siblings,request,condition=step.condition||newCondition(!request)){
+      const branch=el('div','step-branch'),saveCondition=()=>{step.condition=condition;save();};
+      const source=select([['response','レスポンス'],['primary','一次変数'],['variables','変数'],['result','スクリプト結果']],condition.source,v=>{condition.source=v;saveCondition();});source.setAttribute('aria-label','ステップ '+label+' の分岐元');
+      const path=input(condition.path,'ステップ '+label+' の比較元',v=>{condition.path=v;saveCondition();});
+      const op=select(OPERATORS,condition.operator,v=>{condition.operator=v;saveCondition();});op.setAttribute('aria-label','ステップ '+label+' の比較');
       const pathRow=el('div','step-branch-path');pathRow.append(path);
       if(request){
         const meta=btn('⋯',()=>{
           const c=w().collections.find(c=>c._mpId===step.collectionId),item=findItem(c,step.itemId)?.item,tab=item?referenceTab(c,item):w().tabs.find(t=>t.id===step.draftId);
           if(!tab)return toast('リクエストを選択してください。');
-          responseExtraction(tab,value=>{condition.path=value;path.value=value;save();});
+          responseExtraction(tab,value=>{condition.path=value;path.value=value;saveCondition();});
         },'icon-button');meta.setAttribute('aria-label','受信済みの要素から選択');pathRow.append(meta);
       }
-      branch.append(field('参照元',source),field('値 / パス',pathRow),field('比較',op),field('比較値',input(condition.value,'比較する値 / {{変数}}',v=>{condition.value=v;save();})));
+      branch.append(field('参照元',source),field('値 / パス',pathRow),field('比較',op),field('比較値',input(condition.value,'比較する値 / {{変数}}',v=>{condition.value=v;saveCondition();})));
       if(request){
         const targets=[[NEXT,'次へ'],[END,'全体の次の回へ'],...siblings.map((s,n)=>[s.id,'ステップ '+label.split('.').slice(0,-1).concat(n+1).join('.')])];
         for(const [key,title] of [['onTrue','条件成立時'],['onFalse','不成立時']]){
@@ -590,8 +625,8 @@ export function initStudio(api) {
         row.ondrop=event=>{const id=draggedId(event);if(!id)return;event.preventDefault();event.stopPropagation();clearDropTargets();const moving=location(id)?.step;if(moving)moveStep(moving,rowDestination(event));draggedStepId=null;};
         if(type==='request'){
           const timing=el('div','step-timing');timing.append(numberField('開始前 ms',step.delayMs,v=>{step.delayMs=v;save();}),numberField('回数',step.repeat,v=>{step.repeat=v;save();},1),numberField('間隔 ms',step.intervalMs,v=>{step.intervalMs=v;save();}));
-          const check=el('input');check.type='checkbox';check.checked=step.condition.enabled;check.setAttribute('aria-label','ステップ '+label+' の条件分岐');const checkLabel=el('label','settings-line');checkLabel.append(check,'条件分岐');timing.append(checkLabel);
-          const branch=conditionEditor(step,label,siblings,true);branch.hidden=!step.condition.enabled;check.onchange=()=>{step.condition.enabled=check.checked;branch.hidden=!check.checked;save();};body.append(timing,branch);
+          const condition=step.condition||newCondition(false),check=el('input');check.type='checkbox';check.checked=condition.enabled;check.setAttribute('aria-label','ステップ '+label+' の条件分岐');const checkLabel=el('label','settings-line');checkLabel.append(check,'条件分岐');timing.append(checkLabel);
+          const branch=conditionEditor(step,label,siblings,true,condition);branch.hidden=!condition.enabled;check.onchange=()=>{condition.enabled=check.checked;step.condition=condition;branch.hidden=!check.checked;save();};body.append(timing,branch);
         }else if(type==='script'){
           let embedded;
           const fields=el('div','step-fields'),picker=select([['','スクリプトを選択'],...w().scripts.map(script=>[script.id,script.name])],step.scriptId,v=>{step.scriptId=v;save();embedded?.refresh();});picker.setAttribute('aria-label','ステップ '+label+' のスクリプト');
@@ -627,53 +662,35 @@ export function initStudio(api) {
     renderSteps(relation.steps,editor);
     dropArea(editor,()=>({}));
     editor.oncontextmenu=event=>{if(event.defaultPrevented||event.target.closest('.relation-step,input,select'))return;event.preventDefault();openItemMenu(editor,[{label:'ステップを追加',run:()=>chooseStep(editor,relation)}],event);};
-    page.append(editor);const log=el('section','relation-log');log.id='relationRunLog';log.setAttribute('aria-live','polite');page.append(log);renderRunLog();
+    if(!relation.steps.length)editor.append(el('div','relation-empty','ステップを追加してください'));
+    page.append(editor);
   }
-  function stopRelation(){controller?.abort();for(const manual of manualControllers)manual.abort();scriptWorkspace.stop();ribbonWorkspace.stop();}
-  function renderRunLog(){
-    const root=$('relationRunLog');if(!root)return;
-    const run=running?.relationId===relationId?running:[...(w().relationRuns||[])].reverse().find(r=>r.relationId===relationId);
-    const start=$('runRelation');if(start)start.disabled=Boolean(controller);
-    const stop=$('stopRelationLocal');if(stop)stop.disabled=!(controller&&running?.relationId===relationId);
-    root.replaceChildren();root.hidden=!run;if(!run)return;
-    const labels={running:'実行中',succeeded:'完了',failed:'失敗',cancelled:'停止',completed_with_errors:'エラーあり'};
-    const heading=el('div','section-tools');heading.append(el('h2','','実行結果 · '+(labels[run.status]||run.status)),btn('ログを保存',()=>api.exportFile('relation-run.json',run),'text-button'));root.append(heading);
-    if(run.error)root.append(el('p','error',run.error));
-    const table=el('table','run-table'),head=el('tr');for(const title of ['回','ステップ','処理','結果','時間','詳細'])head.append(el('th','',title));table.append(head);
-    for(const entry of run.entries){
-      const row=el('tr',entry.status),branch=entry.branch;
-      const detail=entry.error||(branch?(branch.matched?'成立':'不成立')+' → '+(branch.target===NEXT?'次へ':branch.target===END?'全体の次の回へ':'ステップ '+(branch.targetIndex+1)):entry.loops?.map(loop=>loop.iteration+' 周目').join(' / ')||'');
-      for(const value of [entry.round,entry.stepPath||entry.index+1,entry.requestName,entry.httpStatus?entry.httpStatus+' · '+(labels[entry.status]||entry.status):labels[entry.status]||entry.status,entry.elapsed_ms!=null?entry.elapsed_ms+' ms':'',detail])row.append(el('td','',String(value??'')));
-      table.append(row);
+  function stopRelation(){api.stopBackgroundRequests();for(const manual of manualControllers)manual.abort();scriptWorkspace.stop();ribbonWorkspace.stop();}
+  function renderRelationResult(host,run,{highlight=true}={}){
+    const top=host.scrollTop,left=host.scrollLeft;
+    const root=el('section','relation-log');if(highlight)root.id='relationRunLog';root.setAttribute('aria-label','実行ログ');
+    host.replaceChildren(root);
+    if(run){
+      root.dataset.runStatus=run.status;
+      if(run.error)root.append(el('p','error',run.error));
+      const table=el('table','run-table'),head=el('thead'),labels=el('tr'),body=el('tbody');
+      for(const title of ['回','ステップ','処理','結果','時間','詳細']){const cell=el('th','',title);cell.scope='col';labels.append(cell);}
+      head.append(labels);table.append(head,body);
+      for(const entry of run.entries||[]){
+        const row=el('tr',entry.status),branch=entry.branch;
+        const detail=entry.error||(branch?(branch.matched?'成立':'不成立')+' → '+(branch.target===NEXT?'次へ':branch.target===END?'全体の次の回へ':'ステップ '+(branch.targetIndex+1)):entry.loops?.map(loop=>loop.iteration+' 周目').join(' / ')||'');
+        for(const value of [entry.round,entry.stepPath||entry.index+1,entry.requestName,entry.httpStatus?entry.httpStatus+' · '+relationStatusLabel(entry.status):relationStatusLabel(entry.status),entry.elapsed_ms!=null?entry.elapsed_ms+' ms':'',detail])row.append(el('td','',String(value??'')));
+        body.append(row);
+        if(entry.relationRun){
+          const nested=el('tr','nested-run'),cell=el('td'),details=el('details'),summary=el('summary','',entry.relationRun.name||entry.requestName),content=el('div');cell.colSpan=6;
+          details.append(summary,content);cell.append(details);nested.append(cell);body.append(nested);
+          details.addEventListener('toggle',()=>{if(details.open&&!content.childElementCount)renderRelationResult(content,entry.relationRun,{highlight:false});});
+        }
+      }
+      if(run.entries?.length)root.append(table);
     }
-    root.append(table);for(const node of $('relationSteps')?.querySelectorAll('.relation-step')||[])node.classList.toggle('running',run.status==='running'&&node.dataset.stepId===run.current?.stepId);
-  }
-  async function startRelation(relation){
-    if(controller)return toast('実行中のリレーションを停止してから開始してください。');
-    const target=w(),chosenEnv=relation.environmentId||target.environmentId;
-    if(chosenEnv&&!target.environments.some(e=>e.id===chosenEnv))return toast('選択した環境が削除されています。');
-    controller=new AbortController();running={relationId:relation.id,name:relation.name,status:'running',entries:[]};refreshStop();renderRunLog();
-    const ensureWorkspace=()=>{if(w()!==target)throw new Error('ワークスペースが変更されたため、実行を停止しました。');};
-    const scriptCatalog=clone(target.scripts||[]),bindings=clone(target.scriptBindings||{});
-    try{
-      const result=await runRelation(relation,{workspace:target,primary:()=>primary.snapshot(),variables:tab=>contextFor({...target,environmentId:chosenEnv},tab||{request:newRequest()},primary.rows).vars,signal:controller.signal,
-        capturePrimary:keys=>{const restore=primary.capture(keys);return ()=>{restore();ribbonWorkspace.refresh();};},
-        writePrimary:writes=>{primary.apply(writes);ribbonWorkspace.refresh();},
-        execute:async(tab,{signal})=>{ensureWorkspace();const response=await execute(tab,{signal,environmentId:chosenEnv,files:api.filesFor(tab,signal),relationAncestors:[relation.id]});ensureWorkspace();api.recordBackground(tab,response,chosenEnv);return response;},
-        executeScript:async(script,{signal,input:payload,raw})=>{
-          ensureWorkspace();const context=makeScriptContext(target,primary,{input:payload,scriptId:script.id,result:raw,environmentId:chosenEnv});
-          context.scripts=clone(scriptCatalog);context.bindings=clone(bindings);
-          context.workspace.scripts=clone(scriptCatalog);context.workspace.scriptBindings=clone(bindings);
-          const host=createScriptHost({workspace:target,primary,environmentId:chosenEnv,filesFor:api.filesFor,getResponses,runRelation:(next,context)=>runScriptRelation(next,{...context,ancestorRelationIds:[relation.id]}),onResponse:(tab,response,env)=>{rememberResponse(tab,response);api.recordBackground(tab,response,env);}});
-          const output=await runScript(script.source,context,{signal,timeoutMs:script.timeoutMs,onCall:host});
-          if(signal.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');ensureWorkspace();
-          if(output.request||output.response)throw new Error('リレーションのスクリプトではリクエスト・レスポンスを書き換えられません。');
-          const environment=target.environments.find(env=>env.id===chosenEnv);
-          if(applyScriptWrites(target,primary,environment,output))persist();api.workspaceChanged?.(output);ribbonWorkspace.refresh();return output;
-        },onProgress:run=>{running=run;renderRunLog();}});
-      ensureWorkspace();target.relationRuns.push(clone(result));persist();
-    }catch(error){running={relationId:relation.id,name:relation.name,status:'failed',entries:running?.entries||[],error:error.message};toast(error.message);}
-    finally{controller=null;refreshStop();renderRunLog();api.renderSidebar();}
+    if(highlight)for(const node of $('relationSteps')?.querySelectorAll('.relation-step')||[])node.classList.toggle('running',run?.status==='running'&&node.dataset.stepId===run.current?.stepId);
+    host.scrollTop=top;host.scrollLeft=left;
   }
   function refreshForChanges(output){
     const flatten=value=>value?.stages?value.stages.flatMap(flatten):value?[value]:[],stages=flatten(output);
@@ -681,7 +698,6 @@ export function initStudio(api) {
     const affects=(root,id)=>patches.some(change=>change.path[0]===root&&(change.kind!=='order'||change.path.length>1)&&(!change.path[1]||change.path[1].id===id));
     if(roots.has('scripts'))refreshEmbeddedScriptEditors(w());
     if(api.side()==='scripts')scriptWorkspace.refreshForChanges(output);
-    if(api.side()==='relations'&&affects('relations',relationId)){surfaceKey='';syncView('relations');}
     if(api.side()==='environments'){
       let changed=envSelection==='globals'?roots.has('globals'):envSelection==='primary'?stages.some(stage=>stage.writes?.primary?.length||stage.primaryRowsWrites?.length):affects('environments',envSelection);
       if(roots.has('environmentId')&&!['primary','globals'].includes(envSelection)){envSelection=w().environmentId||'';changed=true;}
@@ -694,10 +710,10 @@ export function initStudio(api) {
   $('extractResponse').onclick=()=>responseExtraction(api.active());
   if($('responseActions'))bindContext($('responseContent'),$('responseActions'),responseMenu);
   $('sidebarContent').addEventListener('contextmenu',event=>{if(event.defaultPrevented||event.target.closest('.tree-row,.history-entry,input'))return;event.preventDefault();creationMenu($('sidebarContent'),event,true);});
-  return {primary,execute,rememberResponse,responseFor,transferResponse,forgetResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,refreshForChanges,
+  return {primary,execute,rememberResponse,responseFor,relationResponseFor,transferResponse,forgetResponse,syncView,renderSidebarSection,editEnvironment,environmentChosen,refreshForChanges,renderRelationRequest,renderRelationResult,refreshRunningState:refreshStop,
     createEnvironment,creationMenu,createItem,captureContext,requestActions,draftActions,renderScripts,responseExtraction,runResponseScript,addRequestToRelation,
     scriptKeydown:scriptWorkspace.keydown,
     refreshRibbon:()=>ribbonWorkspace.refresh(),
-    isRunning:()=>Boolean(controller||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning()),
-    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relations||=[];w().relationRuns||=[];scriptPhases.clear();scriptWorkspace.reset();ribbonWorkspace.reset();},refresh(){surfaceKey='';scriptWorkspace.invalidate();syncView(api.side());ribbonWorkspace.refresh();}};
+    isRunning:()=>Boolean(api.hasRunningRequests()||manualControllers.size||scriptWorkspace.isRunning()||ribbonWorkspace.isRunning()),
+    reset(){surfaceKey='';envSelection=w().environmentId||'';w().relationRuns||=[];scriptPhases.clear();scriptWorkspace.reset();ribbonWorkspace.reset();},refresh(){surfaceKey='';scriptWorkspace.invalidate();syncView(api.side());ribbonWorkspace.refresh();}};
 }

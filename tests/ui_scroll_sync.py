@@ -118,7 +118,7 @@ def main():
                     page.locator('#ribbonProperties .ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
                     return page.get_by_label('リボンのスクリプト', exact=True)
                 if kind == 'relation':
-                    sidebar('relations')
+                    sidebar('collections')
                     page.locator('[data-relation-id="sync-relation"] .tree-open').click()
                     close_navigation()
                     page.get_by_role('button', name='ステップ 1 のスクリプトを編集', exact=True).click()

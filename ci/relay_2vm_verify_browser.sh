@@ -57,6 +57,7 @@ run_ui_suite ui_binary_workflows two-vm-binary-workflows.log
 run_ui_suite ui_focus two-vm-ui-focus.log
 run_ui_suite ui_extraction two-vm-ui-extraction.log
 run_ui_suite ui_automation native-ui-automation.log
+run_ui_suite ui_relation_requests two-vm-relation-requests.log
 for suite in browser_smoke ui_workbench ui_edgecases ui_settings ui_selection ui_backup ui_storage ui_paging; do
   run_ui_suite "$suite" "native-${suite}.log"
 done
@@ -86,6 +87,9 @@ assert not any(standalone[key] for key in ['page_errors','native_dialogs','crash
 assert workspace_api['ok'] and workspace_api['mode']=='native Chromium HTTP' and workspace_api['native_indexeddb']
 assert not any(workspace_api[key] for key in ['page_errors','native_dialogs','crashes'])
 automation=json.loads((root/'automation/results.json').read_text())
+relation_requests=json.loads((root/'relation-requests/results.json').read_text())
+assert relation_requests['ok'] and relation_requests['mode']=='native Chromium HTTP'
+assert not relation_requests['page_errors'] and not relation_requests['native_dialogs']
 network=json.loads((root/'two-vm-network.json').read_text())
 layout=json.loads((root/'layout/results.json').read_text())
 assert layout['ok'] and layout['mode']=='native Chromium HTTP'
@@ -141,6 +145,8 @@ summary['ribbon_checks']=len(ribbons['checks'])
 summary['screenshots']+=len(ribbons['screenshots'])
 summary['script_workspace_api_checks']=len(workspace_api['checks'])
 summary['screenshots']+=len(workspace_api['screenshots'])
+summary['relation_request_checks']=len(relation_requests['checks'])
+summary['screenshots']+=len(relation_requests['screenshots'])
 (root/'two-vm-summary.json').write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))
 PY

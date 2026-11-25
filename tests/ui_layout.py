@@ -168,7 +168,7 @@ def main():
                 settle()
                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'), current_case
                 controls('.topbar', 'button,select')
-                controls('.request-title', 'input,button,#requestDirty,#breadcrumb')
+                controls('.request-title', 'input,select,button,#requestDirty,#breadcrumb')
                 actions = controls('.request-actions', 'button')['items']
                 assert max(item['rect']['y'] for item in actions)-min(item['rect']['y'] for item in actions) <= 2, (current_case, 'request action wraps onto its own row', actions)
                 controls('.urlbar', 'input,select,button')
@@ -264,7 +264,7 @@ def main():
                     expect(page.locator('html')).to_have_attribute('data-layout', 'stack')
                     page.locator('#send').click()
                     expect(page.locator('#responseStatus')).to_contain_text('200', timeout=15000)
-                    expect(page.locator('#send')).to_contain_text('Send')
+                    expect(page.locator('#send')).to_contain_text('送信')
                     settle()
                     request_header()
                     geometry(editor)

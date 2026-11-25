@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "Relations as a request type",
+  "source_commit": "40c39092e33edd38e653752870b86a4d0f93a28d",
+  "source_tree": "a51e851510c3d75eb44f95d97ee1323c141dd40a",
+  "pull_request": 35,
+  "state": "passed",
+  "unit_verification": {
+    "node": {
+      "passed": 762,
+      "failed": 0,
+      "log": "node-regression.log"
+    },
+    "python": {
+      "passed": 81,
+      "failed": 0,
+      "log": "python-regression.log"
+    },
+    "scope_note": "All tested .mjs modules, Node test files, Python backend files and Python unit tests are unchanged since the passing unit run. Later changes affect header CSS, the status title attribute, and native UI test selectors/wheel gesture timing."
+  },
+  "diagnostics": {
+    "header": "The new type selector collapsed request names to10px in a1280px side layout; native geometry confirmed the cause and a min-name/flex-basis correction. A narrower292.5px pane also required the status label to shrink.",
+    "ribbon": "A controlled240ms append interval reproduced a stale wheel-distance measurement. The original579px wheel moved scrollTop from415 to994 exactly, but left112px to the growing tail. The test now hovers first and wheels a full content height; all original reading and tail-follow assertions remain."
+  },
+  "native_verification": {
+    "mode": "native Chromium HTTP across two isolated VMs",
+    "final_source": "40c39092e33edd38e653752870b86a4d0f93a28d",
+    "source_identity_files": 78,
+    "source_identity_verified": true,
+    "final_suites": {
+      "ui_layout": 26,
+      "ui_ribbons": 26,
+      "ui_relation_requests": 11
+    },
+    "earlier_source": "f37e16b811f7cc0d95c8c0fb7b3dd01126d014c7",
+    "earlier_passed_suites": {
+      "ui_focus": 12,
+      "ui_automation": 28,
+      "ui_script_workspace_api": 26,
+      "ui_script_response": 18,
+      "ui_scroll_sync": 17,
+      "ui_text_url_navigation": 17,
+      "ui_binary_workflows": 23,
+      "ui_selection": 12,
+      "ui_draft_lifecycle": 22,
+      "ui_sent_values": 19,
+      "ui_wheel_scroll": 36
+    },
+    "accepted_suites": 14,
+    "accepted_checks": 293,
+    "scope_note": "The earlier source passed the11 related suites. Subsequent production changes are limited to shared request-header CSS and the request state title attribute; the final layout/ribbon/relation suites cover those changes.",
+    "page_errors": [],
+    "native_dialogs": []
+  },
+  "native_archive": {
+    "sha256": "10318af0e544e946451943feed8dfeddd6d6464e882dfd9f0e1b1aa09e3db8eb",
+    "size_bytes": 271402,
+    "members": 16
+  },
+  "screenshots_reviewed": true,
+  "screenshots": [
+    {
+      "file": "relation-request-desktop.png",
+      "bytes": 93690,
+      "sha256": "88460afa811405ae379212307d788e80328933d45dd809dbd928fd35f77e6e7d"
+    },
+    {
+      "file": "relation-request-390.png",
+      "bytes": 55452,
+      "sha256": "29607356236ba2b9723b1e5e9f220a8e9e79b20162ab0e03dd3ddf278e3d195e"
+    },
+    {
+      "file": "relation-request-320.png",
+      "bytes": 48607,
+      "sha256": "2c09e95149dfb80241bdf50bbc35b98f5647d24a8b0e998eb1ae88f42815ba6c"
+    }
+  ],
+  "visual_review": "1440px desktop and390/320px phone screenshots inspected. Request kind labels are fully readable; nested blocks and shared results remain within the viewport. Native layout checks additionally confirm1280px split and292.5px request-pane geometry.",
+  "evidence_archive": "native-evidence.tar.gz",
+  "native_summary": "native-summary.json",
+  "verification_date": "2026-11-25"
+}

@@ -81,7 +81,7 @@ def main():
             def ready(name):
                 expect(page.locator('#request-fields-body .file-pick').filter(has_text=name)).to_have_attribute('aria-busy','false')
             def send(data=None):
-                page.locator('#send').click(); expect(page.locator('#send')).to_contain_text('Send',timeout=30000)
+                page.locator('#send').click(); expect(page.locator('#send')).to_contain_text('送信',timeout=30000)
                 expect(page.locator('#responseStatus')).to_contain_text('200')
                 result=json.loads(page.locator('.response-code').inner_text())
                 if data is not None:
@@ -140,9 +140,9 @@ def main():
             pick('second.bin',second);ready('second.bin');choose('Upload A')
             delayed_reads();replacement=b'new selection\x00\xff';pick('hold-replacement.bin',replacement)
             expect(page.locator('[data-file-slot=binary] .file-pick')).to_have_attribute('aria-busy','true')
-            count=len(RECEIVED);page.locator('#send').click();expect(page.locator('#send')).to_contain_text('Cancel');assert len(RECEIVED)==count
+            count=len(RECEIVED);page.locator('#send').click();expect(page.locator('#send')).to_contain_text('停止');assert len(RECEIVED)==count
             page.evaluate("window.__releases['hold-replacement.bin']()")
-            expect(page.locator('#send')).to_contain_text('Send');expect(page.locator('#responseStatus')).to_contain_text('200')
+            expect(page.locator('#send')).to_contain_text('送信');expect(page.locator('#responseStatus')).to_contain_text('200')
             assert json.loads(page.locator('.response-code').inner_text())['sha256']==hashlib.sha256(replacement).hexdigest()
             passed('Send during replacement read waits and sends the new file, never the old one')
             pick('hold-background.bin',b'background');choose('Upload B')
@@ -157,7 +157,7 @@ def main():
             pick('recovered.bin',b'recovered');ready('recovered.bin');send(b'recovered')
             passed('read failure discards old bytes, blocks transmission, and recovers on reselection')
             pick('hold-cancel.bin',b'cancel wait');count=len(RECEIVED)
-            page.locator('#send').click();expect(page.locator('#send')).to_contain_text('Cancel');page.locator('#send').click()
+            page.locator('#send').click();expect(page.locator('#send')).to_contain_text('停止');page.locator('#send').click()
             expect(page.locator('#responseStatus')).to_have_text('CANCELLED');assert len(RECEIVED)==count
             page.evaluate("window.__releases['hold-cancel.bin']()")
             ready('hold-cancel.bin');send(b'cancel wait');passed('Cancel interrupts a pending file send without sending or losing the file')
@@ -165,9 +165,9 @@ def main():
             page.locator('#editor-tab-scripts').click()
             page.get_by_label('送信前スクリプト',exact=True).fill('await new Promise(resolve => setTimeout(resolve, 1200));')
             page.locator('#editor-tab-body').click();pick('snapshot.bin',b'snapshot');ready('snapshot.bin')
-            page.locator('#send').click();expect(page.locator('#send')).to_contain_text('Cancel')
+            page.locator('#send').click();expect(page.locator('#send')).to_contain_text('停止')
             pick('changed-after-send.bin',b'changed');ready('changed-after-send.bin')
-            expect(page.locator('#send')).to_contain_text('Send');expect(page.locator('#responseStatus')).to_contain_text('200')
+            expect(page.locator('#send')).to_contain_text('送信');expect(page.locator('#responseStatus')).to_contain_text('200')
             assert json.loads(page.locator('.response-code').inner_text())['sha256']==hashlib.sha256(b'snapshot').hexdigest()
             page.locator('#editor-tab-scripts').click();page.get_by_label('送信前スクリプト',exact=True).fill('');page.locator('#editor-tab-body').click()
             passed('asynchronous pre-request scripts use the attachment captured at Send')
@@ -206,7 +206,7 @@ def main():
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 expect(page.locator('#sidebarTabs')).to_be_visible()
                 tabs=page.locator('#sidebarTabs button').all();boxes=[tab.bounding_box() for tab in tabs]
-                assert [tab.get_attribute('data-sidebar') for tab in tabs]==['collections','environments','history','relations','scripts','ribbons']
+                assert [tab.get_attribute('data-sidebar') for tab in tabs]==['collections','environments','history','scripts','ribbons']
                 assert all(box for box in boxes) and max(b['x'] for b in boxes)-min(b['x'] for b in boxes)<1,boxes
                 assert page.locator('#sidebarTabs').evaluate('e=>e.scrollWidth<=e.clientWidth&&e.scrollHeight<=e.clientHeight')
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
@@ -274,7 +274,7 @@ def main():
             expect(page.locator('[data-draft-id]')).to_have_count(0)
             sidebar=page.locator('#sidebarContent')
             sidebar.click(button='right',position={'x':8,'y':sidebar.bounding_box()['height']-4})
-            page.get_by_role('menuitem',name='リクエストを作成',exact=True).click()
+            page.get_by_role('menuitem',name='HTTPリクエスト',exact=True).click()
             expect(page.locator('#requestName')).to_have_value('Untitled request')
             expect(page.locator('[data-draft-id]')).to_have_count(1)
             page.get_by_role('button',name='Untitled requestの下書き操作',exact=True).click()
@@ -296,12 +296,15 @@ def main():
             page.locator('[data-scope=primary] .icon-button').click();page.get_by_role('menuitem',name='すべて消去',exact=True).click()
             page.locator('#appConfirm').get_by_role('button',name='削除',exact=True).click()
             expect(page.locator('#workspacePage .kv-data-row')).to_have_count(0)
-            page.locator('#sidebarTabs-relations').click();page.locator('#sidebarAdd').click()
-            page.get_by_role('menuitem',name='リレーションを作成',exact=True).click()
-            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Delete flow');page.locator('#modalSubmit').click()
-            page.get_by_role('button',name='Delete flowの操作',exact=True).click();page.get_by_role('menuitem',name='削除',exact=True).click()
+            page.locator('#sidebarTabs-collections').click();page.locator('#sidebarAdd').click()
+            page.get_by_role('menuitem',name='リレーション',exact=True).click()
+            page.locator('#modal').locator('input').first.fill('Delete flow');page.locator('#modalSubmit').click()
+            relation_row=page.locator('[data-relation-id]').filter(has=page.locator('.tree-label',has_text='Delete flow'))
+            relation_row.locator('.icon-button').click()
+            delete_relation=page.get_by_role('menuitem',name='削除',exact=True)
+            (delete_relation if delete_relation.count() else page.get_by_role('menuitem',name='下書きを削除',exact=True)).click()
             page.locator('#appConfirm').get_by_role('button',name='削除',exact=True).click()
-            expect(page.get_by_role('button',name='Delete flowの操作',exact=True)).to_have_count(0)
+            expect(relation_row).to_have_count(0)
             passed('primary context clear and relation deletion require in-app confirmation')
             assert not dialogs,dialogs;assert not errors,errors
             passed('no browser-native alert/confirm/prompt or uncaught JavaScript errors')

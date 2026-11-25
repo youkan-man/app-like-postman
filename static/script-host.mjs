@@ -1,9 +1,10 @@
 /** App capabilities available to scripts. Execution does not depend on an open request. */
-import {clone,uid,rows,enabled,walkItems,normalizeRequest,compileRequest,contextFor,newRequest} from './core.mjs';
+import {clone,uid,rows,enabled,walkItems,normalizeRequest,compileRequest,contextFor,newRequest,isRelationRequest} from './core.mjs';
 import {responseMetadata,upsertVariable} from './runtime.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {getRequestRibbonState,findRequestRibbonState} from './ribbons.mjs';
 import {createWorkspaceModel,workspaceChanges} from './workspace-api.mjs';
+import {relationForRequest,findRelationRequest} from './relation-requests.mjs';
 
 const valueMap = values => Object.fromEntries(rows(values).filter(row => row.key && enabled(row)).map(row => [row.key,row.value]));
 const variableRows = values => Object.entries(values || {}).map(([key,value]) => ({key,value,enabled:true}));
@@ -105,14 +106,18 @@ export function createScriptHost({workspace,primary,environmentId=workspace.envi
       if(format==='text')return new TextDecoder().decode(bytes);
       let binary='';for(let at=0;at<bytes.length;at+=8192)binary+=String.fromCharCode(...bytes.subarray(at,at+8192));return btoa(binary);
     }
-    if(method==='relations.run'){
+    async function invokeRelation(relation,entry){
       if(typeof runRelation!=='function')throw new Error('この実行環境ではリレーションを実行できません。');
       if(!options||typeof options!=='object'||Array.isArray(options))throw new TypeError('実行オプションはオブジェクトで指定してください。');
-      const staged=clone(source),before=clone(staged),model=createWorkspaceModel(staged),relation=model.api.relations.get(reference),selected=options.environmentId??(relation.environmentId||environmentId);
+      const staged=clone(source),before=clone(staged),selected=options.environmentId??(relation.environmentId||environmentId),began=Date.now();
       if(selected&&!(staged.environments||[]).some(value=>value.id===selected))throw new Error('実行に使用する環境がありません。');
+      const saved=findRelationRequest(staged,relation.id);
+      const owner=entry?{...entry,id:entry.draftId||entry.itemId||entry.id}:saved?.request?{...saved.owner,id:saved.draftId||saved.itemId,collectionId:saved.collectionId,itemId:saved.itemId}:null;
+      const ownerRef=owner?scriptRequestReference(owner):callerRequestRef;
+      const ownerScope=owner?scriptRibbonSnapshot(staged,{ribbonOwner:owner}).ribbonScopeId:ribbonScopeId;
       const originalPrimary=clone(variables?.primary||primary.snapshot()),initialPrimary=clone(originalPrimary);
       const originalPrimaryRows=clone(callerPrimaryRows || (variables?variableRows(originalPrimary):primary.rows || variableRows(originalPrimary)));
-      const result=await runRelation(clone(relation),{workspace:staged,primary:initialPrimary,primaryRows:clone(originalPrimaryRows),signal,environmentId:selected,requestRef:callerRequestRef,ribbonScopeId});
+      const result=await runRelation(clone(relation),{workspace:staged,primary:initialPrimary,primaryRows:clone(originalPrimaryRows),signal,environmentId:selected,requestRef:ownerRef,ribbonScopeId:ownerScope,...(owner?{ownerTab:owner}:{})});
       if(signal?.aborted)throw new DOMException('スクリプトを停止しました。','AbortError');
       createWorkspaceModel(staged).validate();
       const finalPrimary=result?.primary??initialPrimary,primaryWrites=[];
@@ -120,16 +125,20 @@ export function createScriptHost({workspace,primary,environmentId=workspace.envi
       const primaryExpected=primaryWrites.map(({key})=>({key,exists:Object.hasOwn(originalPrimary,key),...(Object.hasOwn(originalPrimary,key)?{value:originalPrimary[key]}:{})}));
       const finalPrimaryRows=clone(result?.primaryRows || originalPrimaryRows);
       if(!result?.primaryRows)for(const row of primaryWrites){if(row.remove){for(let at=finalPrimaryRows.length-1;at>=0;at--)if(finalPrimaryRows[at].key===row.key)finalPrimaryRows.splice(at,1);}else upsertVariable(finalPrimaryRows,row.key,row.value);}
-      return {__minipostTransaction:true,value:result?.result,workspaceWrites:workspaceChanges(before,staged),primaryWrites,primaryExpected,
+      const value=entry?{type:'relation',run:result?.result,elapsed_ms:Date.now()-began,received_at:new Date().toISOString()}:result?.result;
+      if(entry)onResponse(owner,value,selected);
+      return {__minipostTransaction:true,value,workspaceWrites:workspaceChanges(before,staged),primaryWrites,primaryExpected,
         primaryRowsWrites:workspaceChanges({globals:originalPrimaryRows},{globals:finalPrimaryRows}),logs:result?.logs||[]};
     }
+    if(method==='relations.run')return invokeRelation(createWorkspaceModel(source).api.relations.get(reference));
     if(method!=='requests.send')throw new Error(`利用できないAPIです: ${method}`);
     if(options===null||typeof options!=='object'||Array.isArray(options))throw new Error('送信オプションはオブジェクトで指定してください。');
     let entry;
-    if(reference&&typeof reference==='object'&&('url' in reference||'request' in reference)) {
+    if(reference&&typeof reference==='object'&&('url' in reference||'request' in reference||reference.type==='relation')) {
       const saved=catalog.find(item=>item.id===reference.id);
       entry={...saved,id:saved?.id||uid(),name:reference.name||saved?.name||'Script request',request:normalizeRequest(reference.request || reference),settings:clone(reference.settings || saved?.settings || {})};
     }else entry=resolve(catalog,reference,'リクエスト');
+    if(isRelationRequest(entry.request))return invokeRelation(relationForRequest(clone(entry.request),entry.name),entry);
     const selected=options.environmentId ?? environmentId;
     if(selected&&!(source.environments||[]).some(env=>env.id===selected))throw new Error('送信に使用する環境がありません。');
     const view=clone(source);view.environmentId=selected;

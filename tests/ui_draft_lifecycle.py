@@ -252,7 +252,7 @@ def main():
             response = sent_response.value.json()
             assert response['ok'], response
             expect(page.locator('#responseStatus')).to_contain_text('200')
-            expect(page.locator('#send')).to_contain_text('Send')
+            expect(page.locator('#send')).to_contain_text('送信')
             received = json.loads(response['body'])
             assert received['path'] == '/echo?temporary=1' and received['body'] == edited_body
             sent = state()
@@ -323,7 +323,7 @@ def main():
                 response = sent_response.value.json()
                 assert response['ok'], response
                 expect(page.locator('#responseStatus')).to_contain_text('200')
-                expect(page.locator('#send')).to_contain_text('Send')
+                expect(page.locator('#send')).to_contain_text('送信')
                 received = json.loads(response['body'])
                 assert received['method'] == 'POST' and received['path'] == '/echo'
                 assert received['body'] == f'legacy-{index}'
@@ -484,7 +484,7 @@ def main():
             history('history-2').locator('[data-select-open]').press('Control+a')
             selected(['history:history-2'])
             history('history-2').locator('[data-select-open]').press('Shift+F10')
-            page.get_by_role('menuitem', name='送信履歴を削除', exact=True).click()
+            page.get_by_role('menuitem', name='実行履歴を削除', exact=True).click()
             confirmation()
             assert {entry['id'] for entry in state()['history']} == {'history-1', 'history-3', 'history-4'}
             assert state()['tabs'] == []
@@ -551,7 +551,7 @@ def main():
             response = sent_response.value.json()
             assert response['ok'], response
             expect(page.locator('#responseStatus')).to_contain_text('200')
-            expect(page.locator('#send')).to_contain_text('Send')
+            expect(page.locator('#send')).to_contain_text('送信')
             received = json.loads(response['body'])
             assert received['method'] == 'POST' and received['path'] == '/echo?formdata-index=1'
             content_type = next(value for key, value in received['headers'] if key.lower() == 'content-type')

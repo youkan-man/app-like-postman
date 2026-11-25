@@ -300,3 +300,22 @@ test('pm.response.json only provides return members when the received body can b
   assert.match(model(buildLanguageProject('',{})),/ResponseJSON = unknown;/);
   assert.match(model(buildLanguageProject('',{response:{body:'metadata without raw text'}})),/ResponseJSON = unknown;/);
 });
+
+test('relation request completion exposes definition fields, canonical aliases, and the correct execution result',()=>{
+  const relation={id:'flow-id',name:'Flow',repeat:1,intervalMs:0,maxExecutions:0,stopOnError:true,steps:[]};
+  const context={request:{type:'relation',relation},requests:[
+    {id:'collection:flow',name:'Flow',path:'API / Flow',request:{type:'relation',relation},settings:{}},
+    {id:'collection:http',name:'HTTP',path:'API / HTTP',request:{method:'GET',url:''},settings:{}}
+  ],relations:[{id:'flow-id',requestId:'collection:flow',name:'Flow'}]};
+  assert.ok(labels('request.get("relation").',context).includes('steps'));
+  assert.ok(labels('minipost.requests.edit("Flow").get("relation").',context).includes('repeat'));
+  assert.ok(labels('pm.relations.run("',context).includes('collection:flow'));
+  const relationResult=labels('const result=await minipost.requests.send("Flow");result.',context);
+  assert.ok(relationResult.includes('run'));assert.ok(!relationResult.includes('body'));
+  const httpResult=labels('const result=await pm.requests.send("HTTP");result.',context);
+  assert.ok(httpResult.includes('status'));assert.ok(httpResult.includes('body'));assert.ok(!httpResult.includes('run'));
+  assert.ok(labels('const result=await minipost.requests.send("Flow");result.run.entries[0].',context).includes('relationRun'));
+  const received={...context,rawResponse:{type:'relation',run:{id:'run',relationId:'flow-id',name:'Flow',status:'succeeded',startedAt:'',entries:[]},elapsed_ms:1,received_at:''}};
+  assert.ok(labels('response.',received).includes('run'));assert.ok(!labels('response.',received).includes('setHeader'));
+  assert.ok(labels('pm.response.run.',received).includes('entries'));
+});

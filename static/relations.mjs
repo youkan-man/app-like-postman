@@ -67,6 +67,14 @@ export function evaluateCondition(condition,context){
     default:throw new Error('不明な比較演算子: '+condition.operator);
   }
 }
+function requestTarget(workspace,step){
+  const draft=step.draftId?(workspace.tabs||[]).find(tab=>tab.id===step.draftId):null;
+  if(step.draftId&&!draft?.request)return null;
+  const collectionId=draft?draft.collectionId:step.collectionId,itemId=draft?draft.itemId:step.itemId;
+  const collection=(workspace.collections||[]).find(value=>value._mpId===collectionId),item=findItem(collection,itemId)?.item;
+  if(item?.request)return {owner:item,id:draft?.id,collectionId:collection._mpId,itemId:item._mpId};
+  return draft?{owner:draft,id:draft.id,collectionId:draft.collectionId,pendingFolderId:draft.pendingFolderId}:null;
+}
 export function validateRelation(relation,workspace){
   if(!relation?.name?.trim()||!Array.isArray(relation.steps)||!relation.steps.length)throw new Error('名前と実行ステップを設定してください。');
   const count=(value,label,allowZero=false)=>{if(!Number.isSafeInteger(Number(value))||Number(value)<(allowZero?0:1))throw new Error(label+'を'+(allowZero?'0':'1')+'以上の整数にしてください。');};
@@ -88,8 +96,7 @@ export function validateRelation(relation,workspace){
       if(ids.has(step.id)||ancestors.has(step))throw new Error('ステップIDが重複しています。');ids.add(step.id);ancestors.add(step);
       const type=relationStepType(step);if(!TYPES.has(type))throw new Error('ステップの種類が不正です。');
       if(type==='request'){
-        const collection=workspace.collections?.find(c=>c._mpId===step.collectionId),item=step.draftId?workspace.tabs?.find(t=>t.id===step.draftId):findItem(collection,step.itemId)?.item;
-        if(!item?.request)throw new Error('削除済み、または未選択のリクエストがあります。');
+        if(!requestTarget(workspace,step))throw new Error('削除済み、または未選択のリクエストがあります。');
         count(step.repeat,'ステップの繰り返し回数');count(step.delayMs,'開始前の待機',true);count(step.intervalMs,'繰り返し間隔',true);
         for(const target of [step.onTrue,step.onFalse])if(target!==NEXT&&target!==END&&!siblings.has(target))throw new Error('分岐先は同じブロックのステップを選択してください。');
         condition(step.condition);
@@ -135,7 +142,7 @@ export function wait(ms,signal){
 }
 /** writePrimary must also allow cleanup after abort. executeScript commits its
  * own writes and returns the runScript {result,logs} shape. */
-export async function runRelation(relation,{workspace,execute,executeScript,writePrimary,capturePrimary,primary=()=>({}),variables=()=>primary(),signal,onProgress=()=>{}}){
+export async function runRelation(relation,{workspace,execute,executeScript,writePrimary,capturePrimary,primary=()=>({}),variables=()=>primary(),signal,onProgress=()=>{},environmentId=workspace.environmentId||''}){
   validateRelation(relation,workspace);
   const plan=clone(relation),snapshots=new Map(),scripts=new Map();
   walkRelationSteps(plan.steps,step=>{
@@ -143,15 +150,16 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
     if((type==='forEach'||type==='script'&&step.resultVariable)&&typeof writePrimary!=='function')throw new Error('一次変数の更新処理が設定されていません。');
     if(type==='request'){
       if(typeof execute!=='function')throw new Error('リクエストの実行処理が設定されていません。');
-      const c=workspace.collections?.find(c=>c._mpId===step.collectionId),i=step.draftId?workspace.tabs.find(t=>t.id===step.draftId):findItem(c,step.itemId).item;
-      snapshots.set(step.id,{id:step.draftId||uid(),collectionId:c?._mpId,itemId:i._mpId,name:i.name,request:clone(i.request),settings:clone(i.settings||{}),...(i.ribbonState?{ribbonState:clone(i.ribbonState)}:{})});
+      const {owner,...reference}=requestTarget(workspace,step);
+      snapshots.set(step.id,{...reference,id:reference.id||uid(),name:owner.name,request:clone(owner.request),settings:clone(owner.settings||{}),...(owner.ribbonState?{ribbonState:clone(owner.ribbonState)}:{})});
     }
     if(type==='script'){
       if(typeof executeScript!=='function')throw new Error('スクリプトの実行処理が設定されていません。');
       scripts.set(step.id,clone(workspace.scripts.find(script=>script.id===step.scriptId)));
     }
   });
-  const run={id:uid(),relationId:plan.id,name:plan.name,startedAt:new Date().toISOString(),status:'running',entries:[]};
+  const run={id:uid(),relationId:plan.id,name:plan.name,environmentId:environmentId||'',environmentName:(workspace.environments||[]).find(value=>value.id===environmentId)?.name||'',
+    startedAt:new Date().toISOString(),status:'running',entries:[]};
   let executions=0,round=0,lastResponse=null,lastResult,lastTab;
   const currentContext=(tab=lastTab)=>({primary:primary(),variables:variables(tab),response:responseMetadata(lastResponse),result:lastResult});
   const progress=current=>onProgress({...run,current});
@@ -161,7 +169,7 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
     consume();const entry={...location(step,index,path,loops),requestName:name,iteration,startedAt:new Date().toISOString(),status:'running'};
     run.entries.push(entry);progress(entry);const began=Date.now();
     try{await fn(entry);throwIfAborted(signal);entry.status='succeeded';}
-    catch(error){entry.status=error.name==='AbortError'?'cancelled':'failed';entry.error=error.message;if(error.name==='AbortError'||plan.stopOnError)throw error;}
+    catch(error){entry.status=error.name==='AbortError'?'cancelled':'failed';entry.error=error.message;if(error.logs?.length)entry.logs=clone(error.logs);if(error.name==='AbortError'||plan.stopOnError)throw error;}
     finally{entry.finishedAt=new Date().toISOString();entry.elapsed_ms??=Date.now()-began;progress(entry);}
     return entry;
   }
@@ -183,9 +191,16 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
         for(let iteration=0;iteration<step.repeat;iteration++){
           if(iteration)await wait(step.intervalMs,signal);
           await leaf(step,index,path,loops,iteration+1,async entry=>{
-            lastResponse=null;lastResponse=await execute(clone(tab),{signal});throwIfAborted(signal);
-            entry.httpStatus=lastResponse.status;entry.elapsed_ms=lastResponse.elapsed_ms;
-            if(lastResponse.error||lastResponse.status>=400||lastResponse.automationErrors?.length)throw new Error(lastResponse.error||lastResponse.automationErrors?.join('\n')||'HTTP '+lastResponse.status);
+            lastResponse=null;lastResponse=await execute(clone(tab),{signal});
+            entry.elapsed_ms=lastResponse.elapsed_ms;
+            if(lastResponse.type==='relation'){
+              entry.relationRun=clone(lastResponse.run);lastResult=clone(lastResponse.run);
+              if(lastResponse.run.status==='cancelled')throw new DOMException(lastResponse.run.error||'リレーションを停止しました。','AbortError');
+              if(['failed','completed_with_errors'].includes(lastResponse.run.status))throw new Error(lastResponse.run.error||'リレーションの実行に失敗しました。');
+            }else{
+              entry.httpStatus=lastResponse.status;
+              if(lastResponse.error||lastResponse.status>=400||lastResponse.automationErrors?.length)throw new Error(lastResponse.error||lastResponse.automationErrors?.join('\n')||'HTTP '+lastResponse.status);
+            }
           },tab.name);
         }
         const matched=evaluateCondition(step.condition,currentContext(tab)),target=step.condition?.enabled?(matched?step.onTrue:step.onFalse):NEXT;

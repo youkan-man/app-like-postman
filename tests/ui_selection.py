@@ -173,7 +173,7 @@ def main():
             expect(page.get_by_label('Raw body')).to_have_value('after-one')
             page.screenshot(path=str(out/'single-selection.png'), full_page=True)
             passed('saved request edits and revisions survive reload')
-            page.locator('#sidebarContent').click(button='right',position={'x':200,'y':page.locator('#sidebarContent').bounding_box()['height']-4}); page.get_by_role('menuitem',name='リクエストを作成',exact=True).click()
+            page.locator('#sidebarContent').click(button='right',position={'x':200,'y':page.locator('#sidebarContent').bounding_box()['height']-4}); page.get_by_role('menuitem',name='HTTPリクエスト',exact=True).click()
             page.locator('#requestName').fill('Unsaved work')
             page.locator('#url').fill(echo_url+'/echo?draft=1')
             saved()

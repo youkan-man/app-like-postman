@@ -43,8 +43,7 @@
       <nav id="sidebarTabs" class="sidebar-navigation" role="tablist" aria-orientation="vertical" aria-label="ワークスペースの表示">
         <button type="button" id="sidebarTabs-collections" role="tab" data-sidebar="collections" aria-controls="sidebarContent" aria-label="コレクション" title="コレクション"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v11H3z M3 7V4h6l2 3"/></svg><span class="visually-hidden">コレクション</span></button>
         <button type="button" id="sidebarTabs-environments" role="tab" data-sidebar="environments" aria-controls="sidebarContent" aria-label="環境" title="環境"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 4v16M19 4v16M2 8h6M9 16h6M16 10h6"/></svg><span class="visually-hidden">環境</span></button>
-        <button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent" aria-label="送信履歴" title="送信履歴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 6v6l4 2"/></svg><span class="visually-hidden">送信履歴</span></button>
-        <button type="button" id="sidebarTabs-relations" role="tab" data-sidebar="relations" aria-controls="sidebarContent" aria-label="リレーション" title="リレーション"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v11a4 4 0 0 0 4 4h8M18 3v8a4 4 0 0 1-4 4H6M15 15l3 3-3 3"/></svg><span class="visually-hidden">リレーション</span></button>
+        <button type="button" id="sidebarTabs-history" role="tab" data-sidebar="history" aria-controls="sidebarContent" aria-label="実行履歴" title="実行履歴"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7M12 6v6l4 2"/></svg><span class="visually-hidden">実行履歴</span></button>
         <button type="button" id="sidebarTabs-scripts" role="tab" data-sidebar="scripts" aria-controls="sidebarContent" aria-label="スクリプト" title="スクリプト"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></svg><span class="visually-hidden">スクリプト</span></button>
         <button type="button" id="sidebarTabs-ribbons" role="tab" data-sidebar="ribbons" aria-controls="sidebarContent" aria-label="リボン" title="リボン"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3zM3 9h18M8 9v11M12 13h5M12 16h5"/></svg><span class="visually-hidden">リボン</span></button>
       </nav>
@@ -54,7 +53,7 @@
         <div class="sidebar-tools">
           <input id="search" type="search" placeholder="すべて検索" aria-label="保存済みデータを検索">
           <button id="sidebarAdd" class="icon-button" title="コレクションを追加" aria-label="コレクションを追加">＋</button>
-          <button id="clearHistory" class="icon-button" title="送信履歴を削除" aria-label="送信履歴を削除" hidden>⌫</button>
+          <button id="clearHistory" class="icon-button" title="実行履歴を削除" aria-label="実行履歴を削除" hidden>⌫</button>
           <button id="navClose" class="icon-button" aria-label="一覧を閉じる" hidden>×</button>
         </div>
         <span id="selectionCount" class="visually-hidden" role="status"></span>
@@ -64,14 +63,14 @@
     <div id="sidebarResize" class="sidebar-resize" role="separator" aria-label="サイドバー幅" aria-orientation="vertical" aria-valuemin="200" aria-valuemax="520" tabindex="0"></div>
     <main class="main">
       <section id="workspacePage" class="workspace-page" aria-label="ワークスペース編集" hidden></section>
-      <section id="historyPage" class="workspace-page history-page" aria-label="送信履歴" hidden></section>
+      <section id="historyPage" class="workspace-page history-page" aria-label="実行履歴" hidden></section>
       <div id="exchange" class="exchange">
         <section class="request-editor" aria-label="リクエスト編集">
           <div class="request-title">
-            <div class="request-identity"><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span></div>
+            <div class="request-identity"><select id="requestType" aria-label="リクエスト形式"><option value="http">HTTP</option><option value="relation">リレーション</option></select><span id="breadcrumb"></span><input id="requestName" aria-label="リクエスト名" value="Untitled request" placeholder="リクエスト名"><span id="requestDirty" class="dirty-dot" role="status"></span></div>
             <div class="request-actions"><button id="requestRibbonEdit" class="button" aria-label="リボンを編集" title="このリクエストのリボンを編集">リボン</button><button id="requestHistory" class="button" title="変更履歴">履歴</button><button id="saveDraft" class="button" title="この一時編集を下書きに保存" hidden>下書きに保存</button><button id="saveRequest" class="button" aria-label="コレクションに登録" title="コレクションに追加または登録">登録</button><button id="duplicateRequest" class="icon-button" aria-label="リクエストを複製" title="リクエストを複製">⧉</button></div>
           </div>
-          <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><button id="send" class="button primary">送信</button></div>
+          <div class="urlbar"><select id="method" aria-label="HTTPメソッド"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option></select><input id="url" placeholder="https://api.example.com" spellcheck="false" aria-label="リクエストURL"><div id="relationTools" class="relation-tools" hidden></div><button id="send" class="button primary">送信</button></div>
           <section id="customRibbon" class="custom-ribbon" aria-label="このリクエストのリボン" hidden></section>
           <div id="requestWarning" class="warning" role="status" hidden></div>
           <nav id="editorTabs" class="content-tabs editor-navigation" role="tablist" aria-label="リクエスト設定のページ">

@@ -140,7 +140,7 @@ def main():
                     operate()
                     sidebar('collections')
                     page.locator('#addTab').click()
-                    page.get_by_role('menuitem', name='リクエストを作成', exact=True).click()
+                    page.get_by_role('menuitem', name='HTTPリクエスト', exact=True).click()
                 close_navigation()
                 page.locator('#requestName').fill(name)
                 page.locator('#url').fill('https://example.invalid/' + suffix)
@@ -722,12 +722,12 @@ def main():
             operate()
             sidebar('collections')
             page.locator('#addTab').click()
-            new_request = page.get_by_role('menuitem', name='リクエストを作成', exact=True)
+            new_request = page.get_by_role('menuitem', name='HTTPリクエスト', exact=True)
             single_request = '単一ボタンのリクエスト'
             if new_request.is_visible():
                 new_request.click()
             else:
-                page.get_by_role('menuitem', name='リクエストを追加', exact=True).click()
+                page.get_by_role('menuitem', name='HTTPリクエスト', exact=True).click()
                 page.locator('#modal').get_by_label('追加する名前', exact=True).fill(single_request)
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modal')).not_to_be_visible()
@@ -824,9 +824,10 @@ return {lines:160};
             assert log.evaluate('(node,left)=>node.scrollLeft===left', reading['left'])
             assert page.locator('#workspacePage').evaluate('(node,top)=>Math.abs(node.scrollTop-top)<=2', reading['page'])
             capture('ribbon-stream-log-reading')
-            remaining = log.evaluate('node=>node.scrollHeight-node.clientHeight-node.scrollTop')
             log.hover()
-            page.mouse.wheel(0, remaining + 24)
+            # Logs keep arriving while Playwright positions the pointer. Scroll
+            # a full log height so the real wheel reaches the moving tail.
+            page.mouse.wheel(0, log.evaluate('node=>node.scrollHeight'))
             page.wait_for_function('''()=>{
                 const node=window.__ribbonScrollingLog;
                 return node?.isConnected && node.scrollHeight-node.clientHeight-node.scrollTop<=2;

@@ -1,5 +1,7 @@
 /** Move existing objects; never duplicate IDs, drafts, files or relation targets. */
 import {findItem, walkItems} from './core.mjs';
+import {remapRequestRelationReferences} from './relation-requests.mjs';
+import {walkRelationSteps} from './relations.mjs';
 
 export function planCollectionMove(workspace, intent) {
   const {collectionId, itemId, targetCollectionId, targetId, position = 'inside'} = intent;
@@ -56,9 +58,12 @@ export function moveCollectionItem(workspace, intent, {transfer, editors = works
     const updateReference = ref => {
       if (ref?.collectionId === source._mpId && (ids.has(ref.itemId) || ids.has(ref.pendingFolderId))) ref.collectionId = target._mpId;
     };
-    for (const tab of editors) updateReference(tab);
+    for (const tab of editors) {
+      updateReference(tab);
+      if(tab.request?.relation)walkRelationSteps(tab.request.relation.steps,updateReference);
+    }
     updateReference(workspace.activeRequest);
-    for (const relation of workspace.relations || []) for (const step of relation.steps || []) updateReference(step);
+    remapRequestRelationReferences(workspace,updateReference);
     // History contains a snapshot, but its request identity should follow a move.
     for (const entry of workspace.history || []) updateReference(entry.tab);
     for (const pair of transfers) {
