@@ -46,6 +46,7 @@ run_ui_suite ui_script_intelligence two-vm-script-intelligence.log
 run_ui_suite ui_standalone_scripts two-vm-standalone-scripts.log
 run_ui_suite ui_layout two-vm-layout.log
 run_ui_suite ui_wheel_scroll two-vm-wheel-scroll.log
+run_ui_suite ui_scroll_sync two-vm-scroll-sync.log
 run_ui_suite ui_asset_update two-vm-asset-update.log
 run_ui_suite ui_sent_values two-vm-sent-values.log
 run_ui_suite ui_draft_lifecycle two-vm-draft-lifecycle.log
@@ -92,6 +93,9 @@ assert not any(layout[key] for key in ['page_errors','native_dialogs','crashes']
 wheel=json.loads((root/'wheel-scroll/results.json').read_text())
 assert wheel['ok'] and wheel['mode']=='native Chromium HTTP wheel' and wheel['cases']
 assert all(case['ok'] for case in wheel['cases']) and not wheel['page_errors'] and not wheel['dialogs']
+scroll_sync=json.loads((root/'scroll-sync/results.json').read_text())
+assert scroll_sync['ok'] and scroll_sync['mode']=='native Chromium HTTP wheel' and scroll_sync['cases']
+assert all(case['ok'] for case in scroll_sync['cases']) and not scroll_sync['page_errors'] and not scroll_sync['dialogs']
 asset_update=json.loads((root/'asset-update/results.json').read_text())
 assert asset_update['ok'] and asset_update['mode']=='native Chromium HTTP'
 assert not any(asset_update[key] for key in ['page_errors','native_dialogs','crashes'])
@@ -125,6 +129,8 @@ summary['layout_checks']=len(layout['checks'])
 summary['screenshots']+=len(layout['screenshots'])
 summary['wheel_scroll_checks']=len(wheel['cases'])
 summary['screenshots']+=len(wheel['screenshots'])
+summary['scroll_sync_checks']=len(scroll_sync['cases'])
+summary['screenshots']+=len(scroll_sync['screenshots'])
 summary['standalone_script_checks']=len(standalone['checks'])
 summary['screenshots']+=len(standalone['screenshots'])
 summary['script_intelligence_checks']=len(intelligence['checks'])
