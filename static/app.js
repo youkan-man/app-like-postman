@@ -1,6 +1,8 @@
 import {SCHEMA, clone, uid, rows, enabled, urlParts, displayUrl, setUrlText, setQuery, newRequest, normalizeRequest, requestType, isRelationRequest, walkItems, findItem, importPostman, exportCollection, contextFor, compileRequest} from './core.mjs';
 import {initWorkbench, bindTabStrip, bindItemMenu, openItemMenu, closeItemMenu, openSurface, bindSurface} from './workbench.mjs';
 import {exportWorkspace, isWorkspaceBundle, readWorkspaceBundle, mergeWorkspace} from './workspace-data.mjs';
+import {MAX_WORKSPACE_BYTES} from './workspace-codec.mjs';
+import {prepareWorkspaceUpload, WORKSPACE_ACCEPT} from './workspace-transfer.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {RevisionStore, requestKey, requestSettings, settingsIndex} from './revisions.mjs';
 import {copyName, duplicateItem, duplicateCollection, duplicateEnvironment, snapshotSettings, applySettings} from './editops.mjs';
@@ -1004,8 +1006,9 @@ async function saveToServer() {
   const savedGeneration = localChangeGeneration;
   const button = $('dataActions'); button.disabled = true;
   try {
-    const content = exportWorkspace(workspace, preferencesForArchive());
-    const response = await fetch('/api/workspace', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(content)});
+    const content = exportWorkspace(workspace, preferencesForArchive(), {copy: false});
+    const upload = await prepareWorkspaceUpload(content);
+    const response = await fetch('/api/workspace', {method:'POST', ...upload});
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || `HTTP ${response.status}`);
     const newerLocalChanges = localChangeGeneration !== savedGeneration;
@@ -1025,7 +1028,7 @@ async function loadFromServer() {
   button.disabled = true; button.setAttribute('aria-busy', 'true');
   status.textContent = 'サーバーから読込中…'; status.className = '';
   try {
-    const response = await fetch('/api/workspace', {cache: 'no-store'});
+    const response = await fetch('/api/workspace', {cache: 'no-store', headers: {Accept: WORKSPACE_ACCEPT}});
     let body;
     try {body = await response.json();}
     catch {throw new Error(`サーバーの応答がJSONではありません（HTTP ${response.status}）。`);}
@@ -1052,10 +1055,11 @@ function importDialog(initialFiles = []) {
   const paste = element('textarea','import-paste');paste.placeholder='MiniPost 全体バックアップ / Postman JSON';paste.spellcheck=false;paste.setAttribute('aria-label','インポートJSON');
   box.append(drop,field('JSONを貼り付け',paste));refreshFiles();
   showModal('インポート',box,async()=>{
+    if(files.some(file=>file.size>MAX_WORKSPACE_BYTES))throw new Error('ファイルは256 MiB以下にしてください。');
     const inputs = await Promise.all(files.map(async f => ({name:f.name,content:await f.text()})));
     if(paste.value.trim())inputs.push({name:'貼り付けJSON',content:paste.value});
     if(!inputs.length)throw new Error('JSONファイルまたはJSONテキストを指定してください。');
-    if(inputs.some(i=>i.content.length>10*1024*1024))throw new Error('ファイルは10 MiB以下にしてください。');
+    if(inputs.some(i=>new TextEncoder().encode(i.content).byteLength>MAX_WORKSPACE_BYTES))throw new Error('ファイルは256 MiB以下にしてください。');
     // Validate every file before touching the current workspace.
     const parsed=inputs.map(i=>{
       try {

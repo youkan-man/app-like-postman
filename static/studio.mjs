@@ -386,11 +386,10 @@ export function initStudio(api) {
       const choose=select(options,scriptId||'',value=>{config[`${phase}ScriptId`]=value;save();api.renderEditor();});choose.setAttribute('aria-label',`${title}に実行するスクリプト`);picker.append(choose);
       let code;
       if(scriptId){
-        let embedded;const edit=btn('編集',()=>embedded.edit(),'button');edit.setAttribute('aria-label',`${title}スクリプトを編集`);
-        embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>config[`${phase}ScriptId`],persist,preview:true,label:`${title}スクリプト`,
+        const embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>config[`${phase}ScriptId`],persist,label:`${title}スクリプト`,
           intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),
-          onState:state=>{edit.disabled=!state.available;edit.setAttribute('aria-pressed',String(state.editing));},onError:error=>toast(error.message)});
-        picker.append(edit);code=embedded.element;
+          onError:error=>toast(error.message)});
+        code=embedded.element;
       }else{
         picker.append(btn('独立して保存',()=>scriptWorkspace.create(null,config[phase],`${tab.name} ${title}`,script=>{if(config.scriptBindingId)script.bindingId=config.scriptBindingId;config[`${phase}ScriptId`]=script.id;save();}),'button'));
         code=createCodeEditor({value:config[phase],language:'javascript',intellisense:true,intelligenceContext:()=>scriptEditorContext(w(),primary,{tab,result:responseFor(tab),phase}),label:`${title}スクリプト`,onChange:value=>{config[phase]=value;save();}}).element;
@@ -630,10 +629,10 @@ export function initStudio(api) {
         }else if(type==='script'){
           let embedded;
           const fields=el('div','step-fields'),picker=select([['','スクリプトを選択'],...w().scripts.map(script=>[script.id,script.name])],step.scriptId,v=>{step.scriptId=v;save();embedded?.refresh();});picker.setAttribute('aria-label','ステップ '+label+' のスクリプト');
-          const pickerLine=el('div','relation-script-picker'),edit=btn('編集',()=>embedded?.edit(),'text-button');edit.setAttribute('aria-label','ステップ '+label+' のスクリプトを編集');pickerLine.append(picker,edit);
+          const pickerLine=el('div','relation-script-picker');pickerLine.append(picker);
           const format=select([['saved','保存した入力'],['json','JSON'],['text','テキスト'],['response','レスポンス']],step.inputFormat,v=>{step.inputFormat=v;payload.hidden=!['json','text'].includes(v);save();});format.setAttribute('aria-label','ステップ '+label+' の入力形式');
           const payload=field('入力',input(step.input,'ステップ '+label+' の入力',v=>{step.input=v;save();}));payload.classList.add('step-wide');payload.hidden=!['json','text'].includes(step.inputFormat);
-          embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>step.scriptId,persist,label:'ステップ '+label+' のコード',onState:state=>edit.disabled=!state.available,onError:error=>toast(error.message)});
+          embedded=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>step.scriptId,persist,label:'ステップ '+label+' のコード',onError:error=>toast(error.message)});
           fields.append(field('スクリプト',pickerLine),field('入力形式',format),field('結果の変数',input(step.resultVariable,'ステップ '+label+' の結果の変数',v=>{step.resultVariable=v;save();})),payload);body.append(fields,embedded.element);
         }else if(type==='wait')top.insertBefore(numberField('待機 ms',step.delayMs,v=>{step.delayMs=v;save();}),up);
         else if(group){

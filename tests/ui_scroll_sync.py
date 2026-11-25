@@ -107,21 +107,17 @@ def main():
                     request()
                     page.locator('#script-tab-before').click()
                     page.get_by_label('送信前に実行するスクリプト', exact=True).select_option('wheel-script' if kind == 'saved-hook' else '')
-                    if kind == 'saved-hook':
-                        page.get_by_role('button', name='送信前スクリプトを編集', exact=True).click()
                     return page.get_by_label('送信前スクリプト', exact=True)
                 if kind == 'ribbon':
                     request('body')
                     page.locator('#requestRibbonEdit').click()
                     expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
                     page.locator('#ribbonCanvas [data-control-id="wheel-control"]').click()
-                    page.locator('#ribbonProperties .ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
                     return page.get_by_label('リボンのスクリプト', exact=True)
                 if kind == 'relation':
                     sidebar('collections')
                     page.locator('[data-relation-id="sync-relation"] .tree-open').click()
                     close_navigation()
-                    page.get_by_role('button', name='ステップ 1 のスクリプトを編集', exact=True).click()
                     return page.get_by_label('ステップ 1 のコード', exact=True)
                 sidebar('scripts')
                 page.locator('[data-script-id="wheel-script"] .tree-open').click()

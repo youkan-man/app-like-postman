@@ -35,19 +35,19 @@ export function refreshEmbeddedScriptEditors(workspace){
   }
 }
 
-export function createEmbeddedScriptEditor({workspace,primary,scriptId,persist=()=>{},label='スクリプト',preview=false,
-  intelligenceContext,onState=()=>{},onError=()=>{}}={}){
+export function createEmbeddedScriptEditor({workspace,primary,scriptId,persist=()=>{},label='スクリプト',
+  intelligenceContext,onError=()=>{}}={}){
   const w=typeof workspace==='function'?workspace:()=>workspace;
   const reference=typeof scriptId==='function'?scriptId:()=>scriptId;
   const element=document.createElement('div');element.className='embedded-script-editor';
-  let boundWorkspace=w(),boundId=reference()||'',baseline='',editing=false,available=false,disposed=false,stateKey='',deferred=false;
+  let boundWorkspace=w(),boundId=reference()||'',baseline='',available=false,disposed=false,deferred=false;
   const current=()=>w()?.scripts?.find(item=>item.id===reference());
-  const editor=createCodeEditor({value:current()?.source||'',language:'javascript',label,readOnly:true,intellisense:true,
+  const editor=createCodeEditor({value:current()?.source||'',language:'javascript',label,readOnly:!current(),intellisense:true,
     intelligenceContext:()=>{
       const script=current();return intelligenceContext?intelligenceContext(script):scriptEditorContext(w(),primary,{script});
     },
     onChange:source=>{
-      if(disposed||!editing)return;
+      if(disposed||!available)return;
       // A picker/model change must not redirect an old editor's input into a
       // different script. A concurrent source update must not be overwritten.
       if(boundWorkspace!==w()||boundId!==reference()){deferred=true;refresh();return;}
@@ -61,10 +61,8 @@ export function createEmbeddedScriptEditor({workspace,primary,scriptId,persist=(
   const textarea=editor.textarea;
 
   function present(){
-    element.dataset.scriptId=String(boundId);element.dataset.editing=String(editing);element.dataset.available=String(available);
-    element.hidden=!available||(!preview&&!editing);
-    const next=JSON.stringify([boundId,available,editing]);
-    if(next!==stateKey){stateKey=next;onState({available,editing,scriptId:boundId});}
+    element.dataset.scriptId=String(boundId);element.dataset.available=String(available);
+    element.hidden=!available;
   }
   function refresh(){
     if(disposed)return false;
@@ -72,16 +70,11 @@ export function createEmbeddedScriptEditor({workspace,primary,scriptId,persist=(
     const nextWorkspace=w(),nextId=reference()||'',script=nextWorkspace?.scripts?.find(item=>item.id===nextId);
     const rebound=nextWorkspace!==boundWorkspace||nextId!==boundId,wasAvailable=available;
     if(editor.isComposing){deferred=true;return Boolean(script);}
-    if(rebound){boundWorkspace=nextWorkspace;boundId=nextId;editing=false;}
-    available=Boolean(script);if(!available)editing=false;
-    editor.setReadOnly(!editing||!available);
+    if(rebound){boundWorkspace=nextWorkspace;boundId=nextId;}
+    available=Boolean(script);
+    editor.setReadOnly(!available);
     baseline=script?.source||'';
     editor.syncValue(baseline,{resetHistory:rebound||available!==wasAvailable});deferred=false;present();return available;
-  }
-  function edit(){
-    if(!refresh())return false;
-    editing=true;editor.setReadOnly(false);present();textarea.focus({preventScroll:true});
-    return true;
   }
   const compositionEnd=()=>{if(deferred)refresh();};
   textarea.addEventListener('compositionend',compositionEnd);
@@ -89,7 +82,7 @@ export function createEmbeddedScriptEditor({workspace,primary,scriptId,persist=(
     if(disposed)return;disposed=true;editors.delete(controller);textarea.removeEventListener('compositionend',compositionEnd);editor.dispose();
     if(!editors.size){observer?.disconnect();observer=null;}
   }
-  const controller={element,textarea,edit,refresh,dispose,workspace:w,mounted:false,get editing(){return editing;},get available(){return available;}};
+  const controller={element,textarea,refresh,dispose,workspace:w,mounted:false,get available(){return available;}};
   editors.add(controller);refresh();observeEditors();
   // Normal callers mount synchronously. Remember that mount so later subtree
   // replacement releases Worker/search resources even without an explicit call.

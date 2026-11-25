@@ -46,7 +46,10 @@ def main():
                 expect(page.locator('#modalTitle')).to_have_text('インポート完了')
                 page.locator('#modalSubmit').click()
             def side(name):
-                if page.locator('#sidebarTabs').is_hidden(): page.locator('#toggleSidebar').click()
+                # Let the responsive navigation finish its viewport change
+                # before deciding whether the toggle should open it.
+                expect(page.locator('#navigation')).to_have_attribute('role','dialog' if page.viewport_size['width']<=820 else 'region')
+                if page.locator('#toggleSidebar').get_attribute('aria-expanded')!='true': page.locator('#toggleSidebar').click()
                 page.locator(f'#sidebarTabs [data-sidebar={name}]').click()
             def choose(name):
                 side('collections')
@@ -183,13 +186,13 @@ def main():
             choose('Seed');editor('scripts');page.locator('#script-tab-before').click()
             page.get_by_label('送信前に実行するスクリプト',exact=True).select_option(hook_id)
             hook=page.get_by_label('送信前スクリプト',exact=True)
-            expect(hook).to_have_js_property('readOnly',True)
+            expect(hook).to_be_visible();expect(hook).to_be_editable()
+            expect(page.locator('#script-panel-before').get_by_role('button',name='送信前スクリプトを編集',exact=True)).to_have_count(0)
             hook.evaluate('node=>window.__embeddedHookEditor=node')
-            page.locator('#script-panel-before').get_by_role('button',name='送信前スクリプトを編集',exact=True).click()
             expect(page.locator('html')).to_have_attribute('data-workspace-view','request')
             expect(page.locator('#requestName')).to_have_value('Seed')
-            expect(hook).to_be_focused();expect(hook).to_have_js_property('readOnly',False)
             hook.press('Control+a');page.keyboard.insert_text(hook_changed)
+            expect(hook).to_be_focused()
             assert next(script['source'] for script in stored()['scripts'] if script['id']==hook_id)==hook_changed
             assert hook.evaluate('node=>node===window.__embeddedHookEditor && node.selectionStart===node.value.length && node.selectionEnd===node.value.length')
             hook.press('Control+z');expect(hook).to_have_value(hook_original);expect(hook).to_be_focused()
@@ -220,9 +223,10 @@ def main():
             choose('Seed');editor('scripts');page.locator('#script-tab-before').click()
             expect(page.get_by_label('送信前に実行するスクリプト',exact=True)).to_have_value(hook_id)
             expect(page.get_by_label('送信前スクリプト',exact=True)).to_have_value(hook_changed)
+            expect(page.get_by_label('送信前スクリプト',exact=True)).to_be_editable()
             page.get_by_label('送信前に実行するスクリプト',exact=True).select_option('')
             stored()
-            passed('saved request hooks edit in place, keep native Undo and editor identity, persist and run the edited source over HTTP')
+            passed('saved request hooks are immediately editable after selection and reload, keep native Undo and editor identity, persist and run the edited source over HTTP')
 
             page.locator('#extractResponse').click()
             expect(page.locator('.metadata-tree')).to_be_visible()
@@ -467,10 +471,9 @@ def main():
             page.get_by_label('ステップ 1 の入力',exact=True).fill('{"reset":true}')
             relation_source=next(script['source'] for script in stored()['scripts'] if script['id']==script_id)
             edited_relation_source="store.set('relationEmbeddedEdit',true);\n"+relation_source
-            page.get_by_role('button',name='ステップ 1 のスクリプトを編集',exact=True).click()
             relation_editor=page.get_by_label('ステップ 1 のコード',exact=True)
-            expect(relation_editor).to_be_visible();expect(relation_editor).to_be_focused()
-            expect(relation_editor).to_have_js_property('readOnly',False)
+            expect(relation_editor).to_be_visible();expect(relation_editor).to_be_editable()
+            expect(page.get_by_role('button',name='ステップ 1 のスクリプトを編集',exact=True)).to_have_count(0)
             expect(page.locator('html')).to_have_attribute('data-workspace-view','request')
             expect(page.locator('#requestName')).to_have_value('Block edits')
             relation_editor.evaluate('node=>window.__embeddedRelationEditor=node')
@@ -542,10 +545,10 @@ def main():
             assert {row['key']:row['value'] for row in primary_values()}['counter']=='2'
             passed('native dragging moves a request into a loop and execution follows the edited nested order over HTTP')
             assert ws['scriptData']['relationEmbeddedEdit'] is True
-            page.get_by_role('button',name='ステップ 1 のスクリプトを編集',exact=True).click()
+            expect(page.get_by_label('ステップ 1 のコード',exact=True)).to_be_editable()
             page.get_by_label('ステップ 1 のコード',exact=True).fill(relation_source)
             assert next(script['source'] for script in stored()['scripts'] if script['id']==script_id)==relation_source
-            passed('relation script Edit keeps the same plan and editor, persists the shared source and executes its in-place changes')
+            passed('relation scripts remain editable without a mode switch, keep the same plan and editor, persist the shared source and execute in-place changes')
 
             for width,height in [(1440,1000),(320,720)]:
                 page.set_viewport_size({'width':width,'height':height})

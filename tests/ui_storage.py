@@ -55,7 +55,7 @@ def main():
                 passed('existing localStorage workspace migrates to native IndexedDB without losing drafts')
 
                 # Inject a valid large backup through the real user import flow.
-                large = json.loads(json.dumps(seed)); large['globals'] = [{'key': 'large-test-value', 'value': 'x' * (6 * 1024 * 1024), 'enabled': True}]
+                large = json.loads(json.dumps(seed)); large['globals'] = [{'key': 'large-test-value', 'value': 'x' * (12 * 1024 * 1024), 'enabled': True}]
                 bundle = {'kind': 'minipost.workspace', 'version': 1, 'workspace': large,
                           'layout': {'layout': {'sidebar': 280}, 'sections': ['body'], 'navigation': {'editor': 'body', 'sidebar': 'collections', 'response': 'pretty'}}}
                 backup = Path(temp) / 'large.json'; backup.write_text(json.dumps(bundle))
@@ -66,9 +66,9 @@ def main():
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#connectionStatus')).to_contain_text('connected')
                 page.wait_for_function("document.documentElement.dataset.editorPage === 'body'")
-                assert len(page.evaluate(READ)['globals'][0]['value']) == 6 * 1024 * 1024
+                assert len(page.evaluate(READ)['globals'][0]['value']) == 12 * 1024 * 1024
                 assert page.evaluate("localStorage.getItem('minipost.workspace.v2')") is None
-                passed('6 MiB workspace is saved intact without a full localStorage duplicate')
+                passed('12 MiB workspace imports intact without a full localStorage duplicate')
                 assert not proxy.WORKSPACE_FILE.exists()
 
                 # Quota/security failure is now permanent across reloads in this context.
@@ -77,12 +77,15 @@ def main():
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
                 page.locator('#dataActions').click(); page.get_by_role('menuitem', name='サーバーへ保存', exact=True).click()
                 expect(page.locator('#serverSaveState')).to_have_class('saved', timeout=15000)
-                saved_server = json.loads(proxy.WORKSPACE_FILE.read_text())
+                saved_server = proxy.read_workspace()
+                assert saved_server['workspace']['globals'] == large['globals']
+                assert proxy.WORKSPACE_FILE.stat().st_size < backup.stat().st_size / 10
+                passed('workspace larger than the old 10 MiB limit saves with lossless compression')
                 page.locator('#url').fill('https://example.test/local-newer')
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
                 page.reload(wait_until='domcontentloaded')
                 expect(page.locator('#url')).to_have_value('https://example.test/local-newer')
-                assert json.loads(proxy.WORKSPACE_FILE.read_text()) == saved_server
+                assert proxy.read_workspace() == saved_server
                 passed('edits survive reload with every localStorage write denied; server stays opt-in')
 
                 page.locator('#dataActions').click(); page.get_by_role('menuitem', name='サーバーから読込', exact=True).click()

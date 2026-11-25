@@ -203,7 +203,6 @@ def main():
                 page.locator('#requestRibbonEdit').click()
                 expect(page.locator('#ribbonOwnerSelect')).to_be_visible()
                 page.locator('#ribbonCanvas [data-control-id="wheel-control"]').click()
-                page.locator('#ribbonProperties .ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
                 page.get_by_label('リボンのスクリプト', exact=True).press('Control+Home')
 
             def completion():

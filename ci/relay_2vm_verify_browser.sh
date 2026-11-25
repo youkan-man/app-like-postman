@@ -14,7 +14,7 @@ import hashlib,json,os,pathlib,urllib.request
 root=pathlib.Path.cwd()
 with urllib.request.urlopen(os.environ['MINIPOST_REMOTE_URL']+'/__relay_test_identity',timeout=8) as response:
     identity=json.load(response)
-paths=[root/'app.py',root/'network.py',root/'url_codec.py',root/'upload_stream.py',*sorted((root/'static').iterdir())]
+paths=[root/'app.py',root/'network.py',root/'url_codec.py',root/'upload_stream.py',root/'workspace_codec.py',*sorted((root/'static').iterdir())]
 expected={str(path.relative_to(root)):hashlib.sha256(path.read_bytes()).hexdigest() for path in paths if path.is_file()}
 assert identity.get('instance') and identity.get('files')==expected,'App process source differs from browser checkout'
 for path in sorted((root/'static').iterdir()):

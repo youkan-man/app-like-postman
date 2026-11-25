@@ -22,12 +22,13 @@ from urllib.parse import urljoin, urlsplit
 from url_codec import request_url, wire_url, form_body, transform_text
 from network import runtime_info, connection_details, connection_diagnostic, format_network_error
 from upload_stream import UploadStore, UploadError, StreamBody, prepare_stream_body, CHUNK_BYTES, MAX_METADATA_BYTES
+from workspace_codec import (MAX_WORKSPACE_BYTES, PACKED_WORKSPACE_MEDIA_TYPE, WorkspaceSizeError,
+                             compact_json, is_packed_workspace_bundle, pack_workspace_bundle, unpack_workspace_bundle)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 # No automatic server-side persistence: only an explicit POST from the UI writes here.
 WORKSPACE_FILE = Path(os.getenv("MINIPOST_WORKSPACE_FILE") or
                       ("/data/workspace.json" if os.getenv("MINIPOST_CONTAINER") else ".minipost/workspace.json")).resolve()
-MAX_WORKSPACE_BYTES = 10 * 1024 * 1024
 # Legacy JSON requests stay bounded; new binary uploads use disk-backed chunks.
 MAX_REQUEST_JSON_BYTES = 64 * 1024 * 1024
 UPLOADS = UploadStore(directory=os.getenv("MINIPOST_UPLOAD_DIR") or None)
@@ -296,16 +297,58 @@ def _send_http_request(payload, upload, sent_requests):
     raise RuntimeError("リダイレクト処理に失敗しました。")
 
 
-def write_workspace(payload):
+def decode_workspace_content(content, encoding="identity"):
+    """Bound both compressed input and its expansion before parsing JSON."""
+    if len(content) > MAX_WORKSPACE_BYTES:
+        raise WorkspaceSizeError("保存データの転送サイズが上限を超えています。")
+    if encoding == "gzip":
+        try:
+            decoder = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            expanded = decoder.decompress(content, MAX_WORKSPACE_BYTES + 1)
+        except zlib.error as error:
+            raise ValueError("保存データのgzip圧縮が不正です。") from error
+        if len(expanded) > MAX_WORKSPACE_BYTES or decoder.unconsumed_tail:
+            raise WorkspaceSizeError("保存データの展開後サイズが上限を超えています。")
+        if not decoder.eof or decoder.unused_data:
+            raise ValueError("保存データのgzip圧縮が不完全または不正です。")
+        content = expanded
+    elif encoding not in ("", "identity"):
+        raise ValueError("保存データの圧縮形式に対応していません。")
+
+    def invalid_constant(value):
+        raise ValueError("保存データにJSONで表せない数値があります。")
+
+    try:
+        return json.loads(content.decode("utf-8"), parse_constant=invalid_constant)
+    except RecursionError as error:
+        raise ValueError("保存データの階層が深すぎます。") from error
+
+
+def validate_workspace(payload):
     if not isinstance(payload, dict) or payload.get("kind") != "minipost.workspace" or payload.get("version") != 1:
         raise ValueError("MiniPostワークスペース形式のみ保存できます。")
     ws = payload.get("workspace")
     if (not isinstance(ws, dict) or ws.get("version") != 2 or
             any(not isinstance(ws.get(k), list) for k in ("collections", "environments", "globals", "tabs", "history"))):
         raise ValueError("ワークスペースの構造が不正です。")
-    content = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+
+def write_workspace(payload):
+    canonical = unpack_workspace_bundle(payload, max_bytes=MAX_WORKSPACE_BYTES)
+    validate_workspace(canonical)
+    expanded_bytes = len(compact_json(canonical))
+    # A validated pooled upload can be retained without re-walking every full
+    # historical snapshot. Old clients are optimized here on their first save.
+    packed = payload if is_packed_workspace_bundle(payload) else pack_workspace_bundle(canonical, max_bytes=MAX_WORKSPACE_BYTES)
+    content = compact_json(packed)
     if len(content) > MAX_WORKSPACE_BYTES:
-        raise ValueError("データのサイズ上限は10 MiBです。")
+        raise WorkspaceSizeError("保存データのサイズが上限を超えています。")
+    if len(content) > expanded_bytes:
+        content = compact_json(canonical)
+    packed_bytes = len(content)
+    compressed = gzip.compress(content, compresslevel=6, mtime=0)
+    if len(compressed) < len(content):
+        content = compressed
     with WORKSPACE_LOCK:
         WORKSPACE_FILE.parent.mkdir(parents=True, exist_ok=True)
         pending = WORKSPACE_FILE.with_name(".workspace-" + uuid.uuid4().hex + ".tmp")
@@ -318,16 +361,23 @@ def write_workspace(payload):
             os.replace(pending, WORKSPACE_FILE)
         finally:
             pending.unlink(missing_ok=True)
-    return {"ok": True, "bytes": len(content), "saved_at": payload.get("exported_at")}
+    return {"ok": True, "bytes": len(content), "packed_bytes": packed_bytes,
+            "expanded_bytes": expanded_bytes, "saved_at": canonical.get("exported_at")}
 
 
-def read_workspace():
+def read_workspace(*, packed=False):
     with WORKSPACE_LOCK:
         if not WORKSPACE_FILE.exists():
             return None
-        if WORKSPACE_FILE.stat().st_size > MAX_WORKSPACE_BYTES:
-            raise ValueError("保存データが10 MiBを超えています。")
-        return json.loads(WORKSPACE_FILE.read_text("utf-8"))
+        # Limit reads even if another process replaced the file after stat().
+        with WORKSPACE_FILE.open("rb") as source:
+            content = source.read(MAX_WORKSPACE_BYTES + 1)
+    saved = decode_workspace_content(content, "gzip" if content.startswith(b"\x1f\x8b") else "identity")
+    canonical = unpack_workspace_bundle(saved, max_bytes=MAX_WORKSPACE_BYTES)
+    validate_workspace(canonical)
+    if packed:
+        return saved if is_packed_workspace_bundle(saved) else pack_workspace_bundle(canonical, max_bytes=MAX_WORKSPACE_BYTES)
+    return canonical
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -370,6 +420,38 @@ class Handler(SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass  # The user stopped receiving this response.
 
+    def send_workspace(self, value):
+        body = compact_json(value)
+        encoding = None
+        accepts = {}
+        for item in self.headers.get("Accept-Encoding", "").lower().split(","):
+            parts = [part.strip() for part in item.split(";")]
+            quality = 1.0
+            for part in parts[1:]:
+                if part.startswith("q="):
+                    try:
+                        quality = float(part[2:])
+                    except ValueError:
+                        quality = 0
+            accepts[parts[0]] = quality
+        if len(body) >= 1024 and accepts.get("gzip", accepts.get("*", 0)) > 0:
+            compressed = gzip.compress(body, compresslevel=6, mtime=0)
+            if len(compressed) < len(body):
+                body, encoding = compressed, "gzip"
+        self.send_response(200)
+        media_type = PACKED_WORKSPACE_MEDIA_TYPE if is_packed_workspace_bundle(value) else "application/json"
+        self.send_header("Content-Type", media_type + "; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Vary", "Accept, Accept-Encoding")
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def do_GET(self):
         progress = re.fullmatch(r"/api/uploads/([a-f0-9]{64})/progress", self.path)
         if progress:
@@ -385,11 +467,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(200, {"ok": True, "runtime": runtime_info(), "uploads": {"protocol": 1, "chunk_bytes": CHUNK_BYTES, "progress": True}})
         elif self.path == "/api/workspace":
             try:
-                saved = read_workspace()
+                saved = read_workspace(packed=PACKED_WORKSPACE_MEDIA_TYPE in self.headers.get("Accept", ""))
                 if saved is None:
                     self.send_json(404, {"ok": False, "error": "サーバーに保存されたワークスペースはありません。"})
                 else:
-                    self.send_json(200, saved)
+                    self.send_workspace(saved)
             except (OSError, ValueError, json.JSONDecodeError) as error:
                 self.send_json(500, {"ok": False, "error": str(error)})
         else:
@@ -476,13 +558,22 @@ class Handler(SimpleHTTPRequestHandler):
                     return
             length = int(self.headers.get("Content-Length", "0"))
             if length < 1 or (self.path == "/api/workspace" and length > MAX_WORKSPACE_BYTES):
+                self.close_connection = True
                 self.send_json(413 if length > MAX_WORKSPACE_BYTES else 400, {"ok": False, "error": "保存データのサイズまたは形式が不正です。"})
                 return
-            if length > MAX_REQUEST_JSON_BYTES:
+            if self.path != "/api/workspace" and length > MAX_REQUEST_JSON_BYTES:
                 self.close_connection = True
                 self.send_json(413, {"ok": False, "error": "JSON本文が大きすぎます。バイナリファイルは大容量転送対応の画面で選び直してください。"})
                 return
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            encoding = self.headers.get("Content-Encoding", "identity").strip().lower()
+            if self.path == "/api/workspace" and encoding not in ("", "identity", "gzip"):
+                self.close_connection = True
+                self.send_json(415, {"ok": False, "error": "保存データの圧縮形式に対応していません。"})
+                return
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise ValueError("保存データの受信が完了しませんでした。")
+            payload = decode_workspace_content(raw, encoding) if self.path == "/api/workspace" else json.loads(raw.decode("utf-8"))
             if self.path == "/api/url-transform":
                 self.send_json(200, {"ok": True, "text": transform_text(payload)})
             elif self.path == "/api/workspace":
@@ -497,7 +588,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_json(200, send_http_request(payload))
         except Exception as error:
             request_details = {"sent_requests": getattr(error, "minipost_sent_requests", [])}
-            if isinstance(error, UploadError):
+            if isinstance(error, (UploadError, WorkspaceSizeError)):
                 self.send_json(error.status, {"ok": False, "error": str(error), **request_details})
                 return
             diagnostic = getattr(error, "minipost_network", None)

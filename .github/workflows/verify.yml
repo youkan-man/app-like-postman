@@ -72,7 +72,7 @@ jobs:
         run: |
           mkdir -p artifacts/browser
           git rev-parse HEAD > artifacts/browser/tested-commit.txt
-          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py static tests requirements-test.txt Dockerfile docker-compose.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
+          git archive --format=zip --output=artifacts/browser/tested-source.zip HEAD app.py network.py url_codec.py upload_stream.py workspace_codec.py static tests requirements-test.txt Dockerfile docker-compose.yml README.md TESTING.md NETWORKING.md .github/workflows/verify.yml
           sha256sum artifacts/browser/tested-source.zip > artifacts/browser/tested-source.sha256
       - name: Install Playwright and Chromium
         run: |

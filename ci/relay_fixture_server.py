@@ -14,7 +14,7 @@ from app import Handler, UPLOADS
 
 
 def source_hashes():
-    paths = [ROOT / 'app.py', ROOT / 'network.py', ROOT / 'url_codec.py', ROOT / 'upload_stream.py', *sorted((ROOT / 'static').iterdir())]
+    paths = [ROOT / 'app.py', ROOT / 'network.py', ROOT / 'url_codec.py', ROOT / 'upload_stream.py', ROOT / 'workspace_codec.py', *sorted((ROOT / 'static').iterdir())]
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in paths if path.is_file()}
 

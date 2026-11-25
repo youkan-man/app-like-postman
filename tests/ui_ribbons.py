@@ -351,10 +351,10 @@ def main():
             original_source = next(script['source'] for script in saved()['scripts'] if script['id'] == script_id)
             edited_source = "store.set('embeddedRibbonEdited',true);\n" + original_source
             selected_owner = page.locator('#ribbonOwnerSelect').input_value()
-            expect(script_action.locator('.embedded-script-editor')).not_to_be_visible()
-            script_action.locator('.ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
+            expect(script_action.locator('.embedded-script-editor')).to_be_visible()
+            expect(script_action.locator('.ribbon-action-target').get_by_role('button', name='編集', exact=True)).to_have_count(0)
             source = script_action.get_by_label('リボンのスクリプト', exact=True)
-            expect(source).to_be_visible();expect(source).to_be_focused()
+            expect(source).to_be_visible();expect(source).to_be_editable()
             source.evaluate('node=>window.__embeddedRibbonEditor=node')
             expect(page.locator('html')).to_have_attribute('data-workspace-view', 'ribbons')
             expect(page.locator('#ribbonOwnerSelect')).to_have_value(selected_owner)
@@ -388,10 +388,10 @@ def main():
             assert workspace['scriptData']['embeddedRibbonEdited'] is True
             open_ribbon(main_id);choose(run_id)
             script_action = props.locator('.ribbon-action').first
-            script_action.locator('.ribbon-action-target').get_by_role('button', name='編集', exact=True).click()
+            expect(script_action.get_by_label('リボンのスクリプト', exact=True)).to_be_editable()
             script_action.get_by_label('リボンのスクリプト', exact=True).fill(original_source)
             assert next(script['source'] for script in saved()['scripts'] if script['id'] == script_id) == original_source
-            passed('ribbon action Edit retains its owner and control, native Undo and saved source; execution uses the in-place edited script')
+            passed('ribbon scripts are immediately editable, retain their owner and control, native Undo and saved source; execution uses the in-place edited script')
 
             open_ribbon(main_id)
             choose(count_id)

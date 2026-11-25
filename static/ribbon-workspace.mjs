@@ -328,11 +328,10 @@ export function initRibbonWorkspace(api){
           const options=[['','スクリプトを選択'],...w().scripts.map(script=>[script.id,script.name])];if(action.scriptId&&!options.some(([id])=>id===action.scriptId))options.push([action.scriptId,'削除されたスクリプト']);
           const picker=select(options,action.scriptId||'',value=>{const selected=liveAction(action.id);if(!selected)return;selected.scriptId=value;changed();embeddedEditors.get(action.id)?.editor.refresh();});picker.setAttribute('aria-label','実行するスクリプト');
           const line=el('div','ribbon-action-target');let embedded=embeddedEditors.get(action.id);
-          const edit=btn('編集',()=>embedded.editor.edit(),'button');
           if(!embedded){
-            embedded={editButton:edit};
+            embedded={};
             embedded.editor=createEmbeddedScriptEditor({workspace:w,primary,scriptId:()=>liveAction(action.id)?.scriptId||'',persist,label:'リボンのスクリプト',
-              onState:({available})=>{embedded.editButton.disabled=!available;},onError:error=>toast(error.message),
+              onError:error=>toast(error.message),
               intelligenceContext:script=>{
                 const context=scriptEditorContext(w(),primary,{script,ribbonOwner:api.active()}),currentControl=liveControl()||control;
                 delete context.inputSource;delete context.inputFormat;
@@ -342,8 +341,8 @@ export function initRibbonWorkspace(api){
               }});
             embeddedEditors.set(action.id,embedded);
           }
-          embedded.editButton=edit;edit.disabled=!embedded.editor.refresh();
-          line.append(picker,edit);row.append(field('スクリプト',line),embedded.editor.element);
+          embedded.editor.refresh();
+          line.append(picker);row.append(field('スクリプト',line),embedded.editor.element);
         }else{
           let options=action.type==='activate'?[['','リボンを選択'],...state().ribbons.map(ribbon=>[ribbon.id,ribbon.name])]:referenceOptions(action.target,false);
           if(action.type==='toggle')options=options.filter(([id])=>!id||listRibbonControls(scoped()).some(({control})=>control.id===id&&control.type==='toggle'));

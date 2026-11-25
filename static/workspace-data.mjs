@@ -4,6 +4,7 @@ import {validScripts, validScriptData, validScriptBindings} from './scripts.mjs'
 import {validRibbonWorkspace, listRibbonControls, resolveRibbon, resolveRibbonControl} from './ribbons.mjs';
 import {walkRelationSteps} from './relations.mjs';
 import {visitRequestRelations,validRelationDefinition,validRelationSteps} from './relation-requests.mjs';
+import {isPackedWorkspaceBundle, unpackWorkspaceBundle} from './workspace-codec.mjs';
 export const BUNDLE_KIND = 'minipost.workspace';
 export const BUNDLE_VERSION = 1;
 const safeClone = value => clone(value ?? null);
@@ -13,17 +14,17 @@ function visit(items, fn) {
     if (Array.isArray(item.item)) visit(item.item, fn);
   }
 }
-export function exportWorkspace(ws, layout = null) {
+export function exportWorkspace(ws, layout = null, {copy = true} = {}) {
   return {
     kind: BUNDLE_KIND,
     version: BUNDLE_VERSION,
     exported_at: new Date().toISOString(),
-    workspace: safeClone(ws),
-    layout: layout && typeof layout === 'object' ? safeClone(layout) : null
+    workspace: copy ? safeClone(ws) : ws,
+    layout: layout && typeof layout === 'object' ? (copy ? safeClone(layout) : layout) : null
   };
 }
 export function isWorkspaceBundle(input) {
-  return !!(input && typeof input === 'object' && input.kind === BUNDLE_KIND);
+  return !!(input && typeof input === 'object' && (input.kind === BUNDLE_KIND || isPackedWorkspaceBundle(input)));
 }
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validId = id => typeof id === 'string' && id.length > 0 && !id.includes(':') && id !== '__proto__';
@@ -94,7 +95,7 @@ function validWorkspace(ws) {
     validRelations(ws.relations) && validRelationRequestIds(ws) && (ws.relationRuns == null || Array.isArray(ws.relationRuns)) && validRevisions(ws.revisions) && validRevisions(ws.settingHistory);
 }
 export function readWorkspaceBundle(input) {
-  const obj = typeof input === 'string' ? JSON.parse(input) : input;
+  const obj = unpackWorkspaceBundle(typeof input === 'string' ? JSON.parse(input) : input);
   if (!isWorkspaceBundle(obj) || obj.version !== BUNDLE_VERSION)
     throw new Error('MiniPost全体バックアップの形式またはバージョンが不正です。');
   const ws = obj.workspace;
