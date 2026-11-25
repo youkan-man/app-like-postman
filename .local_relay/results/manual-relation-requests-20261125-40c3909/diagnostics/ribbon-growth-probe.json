@@ -1,0 +1,26 @@
+{
+  "after_hover": {
+    "client": 220,
+    "gap": 633,
+    "height": 1268,
+    "lines": 65,
+    "state": "running",
+    "top": 415
+  },
+  "after_original_wheel": {
+    "client": 220,
+    "gap": 112,
+    "height": 1326,
+    "lines": 68,
+    "state": "running",
+    "top": 994
+  },
+  "before": {
+    "client": 220,
+    "gap": 555,
+    "height": 1190,
+    "lines": 61,
+    "state": "running",
+    "top": 415
+  }
+}
