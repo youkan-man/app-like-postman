@@ -140,7 +140,7 @@ def main():
                     operate()
                     sidebar('collections')
                     page.locator('#addTab').click()
-                    page.get_by_role('menuitem', name='リクエストを作成', exact=True).click()
+                    page.get_by_role('menuitem', name='HTTPリクエスト', exact=True).click()
                 close_navigation()
                 page.locator('#requestName').fill(name)
                 page.locator('#url').fill('https://example.invalid/' + suffix)
@@ -722,12 +722,12 @@ def main():
             operate()
             sidebar('collections')
             page.locator('#addTab').click()
-            new_request = page.get_by_role('menuitem', name='リクエストを作成', exact=True)
+            new_request = page.get_by_role('menuitem', name='HTTPリクエスト', exact=True)
             single_request = '単一ボタンのリクエスト'
             if new_request.is_visible():
                 new_request.click()
             else:
-                page.get_by_role('menuitem', name='リクエストを追加', exact=True).click()
+                page.get_by_role('menuitem', name='HTTPリクエスト', exact=True).click()
                 page.locator('#modal').get_by_label('追加する名前', exact=True).fill(single_request)
                 page.locator('#modalSubmit').click()
                 expect(page.locator('#modal')).not_to_be_visible()

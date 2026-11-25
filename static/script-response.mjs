@@ -1,7 +1,7 @@
 /** Validate script effects before committing them to a request or response. */
 import {responseMetadata} from './runtime.mjs';
 import {validScriptData} from './scripts.mjs';
-import {urlParts,splitUrl} from './core.mjs';
+import {urlParts,splitUrl,normalizeRequest} from './core.mjs';
 
 const own=(value,key)=>Object.hasOwn(value,key);
 const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -140,6 +140,8 @@ function reconcileURL(previous,incoming){
 /** Request edits operate on the send snapshot, never on a saved request by alias. */
 export function applyRequestMutation(original,changed){
   if(!record(original)||!record(changed)||!validScriptData({request:changed}))throw new TypeError('リクエストの変更にはJSONオブジェクトを指定してください。');
+  if(changed.type==='relation')return equal(original,changed)?original:normalizeRequest(changed);
+  if(changed.type!==undefined&&changed.type!=='http')throw new TypeError('リクエストの種類が不正です。');
   if(typeof changed.method!=='string'||!headerName.test(changed.method))throw new TypeError('リクエストのメソッドが不正です。');
   if(typeof changed.url!=='string'&&!record(changed.url))throw new TypeError('リクエストのURLが不正です。');
   if(changed.header!==undefined&&(!Array.isArray(changed.header)||changed.header.some(row=>!record(row)||typeof row.key!=='string'||typeof row.value!=='string')))

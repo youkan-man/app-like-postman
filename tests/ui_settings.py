@@ -96,7 +96,7 @@ def main():
                     page.locator('#sidebarTabs [data-sidebar=collections]').click()
                 page.locator('#send').click()
                 expect(page.locator('#responseStatus')).to_contain_text('200')
-                expect(page.locator('#send')).to_contain_text('Send')
+                expect(page.locator('#send')).to_contain_text('送信')
                 result = json.loads(page.locator('.response-code').inner_text())
                 if restore_page:
                     page.locator('#sidebarTabs [data-sidebar=environments]').click()

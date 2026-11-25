@@ -374,14 +374,21 @@ export interface RequestBody {
   urlencoded?: VariableRow[]; formdata?: Array<VariableRow & { type?: string; src?: string }>;
   file?: { src?: string }; graphql?: { query?: string; variables?: string };
 }
-export interface Request {
+export interface HTTPRequest {
+  type?: 'http'; relation?: Relation;
   method: string;
   url: string | { raw?: string; protocol?: string; host?: string[]; port?: string; path?: string[]; query?: VariableRow[]; variable?: VariableRow[] };
   header?: VariableRow[]; body?: RequestBody; auth?: { type: string; [key: string]: unknown } | null;
   description?: string; _minipost?: { before?: string; after?: string; beforeScriptId?: string; afterScriptId?: string; scriptBindingId?: string; enabled?: boolean; timeoutMs?: number; extractions?: unknown[] };
 }
+export interface RelationRequest extends Partial<Omit<HTTPRequest,'type'|'relation'>> { type: 'relation'; relation: Relation; }
+export type Request = HTTPRequest | RelationRequest;
 /** Preserve the current shape when reading, while allowing another supported request representation when writing. */
-export type MutableRequest<S extends Request> = Omit<S, 'url' | 'header' | 'body' | 'auth'> & {
+export type MutableRequest<S extends Request> = Omit<S, 'type' | 'relation' | 'url' | 'header' | 'body' | 'auth'> & {
+  get type(): S['type'];
+  set type(value: 'http' | 'relation');
+  get relation(): S['relation'];
+  set relation(value: Relation);
   get url(): S['url'];
   set url(value: Request['url']);
   get header(): S['header'];
@@ -435,10 +442,13 @@ export interface RequestDescriptor { id: string; name: string; path: string; col
 export interface RequestEntry extends RequestDescriptor { request: Request; settings: RequestSettings; }
 export interface Environment { id: string; name: string; values: VariableRow[]; }
 export interface ResponseMetadata<B = unknown> {
+  type?: 'http';
   status: number; statusText: string; headers: Record<string, string | string[]>; cookies: string[]; body: B;
   elapsed_ms: number; size: number; url: string; content_type: string; received_at: string;
   redirects: unknown[]; body_encoding: string;
 }
+export interface RelationResponse { type: 'relation'; run: RelationRun; elapsed_ms: number; received_at: string; }
+export type RequestResult = ResponseMetadata | RelationResponse;
 export type ResponseView = 'pretty' | 'raw' | 'headers' | 'cookies' | 'preview';
 export interface MutableResponse<B, J, H extends object> extends Omit<ResponseMetadata<B>, 'body' | 'headers'> {
   /** 受信本文の構造を参照します。JSON値または文字列を代入して表示内容を変更できます。 */
@@ -481,7 +491,8 @@ export interface Expectation {
 }
 export interface PostmanAPI {
   variables: PrimaryVariables; environment: EnvironmentVariables; globals: GlobalVariables;
-  request: CurrentRequest | null; response: PostmanResponse<ResponseJSON, ResponseHeaders> | null;
+  request: CurrentRequest | null; response: CurrentPostmanResponse | null;
+  requests: RequestsAPI; relations: RelationsAPI;
   /** 名前付きの検証を実行します。非同期関数にも対応します。 */
   test(name: string, fn: () => unknown): void | Promise<void>;
   expect(actual: unknown): Expectation;
@@ -497,8 +508,11 @@ export interface RequestsAPI extends EntityValues<RequestLookup, RequestEntry, R
   delete(reference: RequestRef): boolean;
   move(reference: RequestRef, parent: ParentRef): RequestEntry;
   clone(reference: RequestRef, options?: { name?: string; parent?: ParentRef }): RequestEntry;
-  /** HTTP処理を一度実行します。送信前後の処理は自動では呼びません。 */
-  send(reference: KnownString<keyof RequestLookup & string> | RequestEntry | Request, options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<ResponseMetadata>;
+  /** リクエストを実行します。リレーションは子ステップを実行し、runに実行記録を返します。 */
+  send<K extends keyof RequestLookup & string>(reference: K, options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<RequestLookup[K]['request'] extends { type: 'relation' } ? RelationResponse : ResponseMetadata>;
+  send(reference: RelationRequest | (RequestEntry & { request: RelationRequest }), options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<RelationResponse>;
+  send(reference: HTTPRequest | (RequestEntry & { request: HTTPRequest }), options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<ResponseMetadata>;
+  send(reference: KnownString<keyof RequestLookup & string> | RequestEntry | Request, options?: { environmentId?: KnownString<EnvironmentId>; settings?: RequestSettings }): Promise<RequestResult>;
 }
 export interface EnvironmentsAPI extends EntityValues<EnvironmentLookup, Environment, { name?: string; values?: VariableRow[] }> {
   list(): Environment[];
@@ -569,8 +583,8 @@ export interface RelationStep {
   scriptId?: string; inputFormat?: 'saved' | 'json' | 'text' | 'response'; input?: string; resultVariable?: string;
 }
 export interface Relation { id: string; name: string; repeat: number; intervalMs: number; maxExecutions: number; stopOnError: boolean; steps: RelationStep[]; environmentId?: string; }
-export interface RelationRun { id: string; relationId: string; name: string; status: string; startedAt: string; finishedAt?: string; error?: string; entries: Array<{ stepId: string; type: string; status: string; stepPath: string; requestName: string; iteration: number; httpStatus?: number; elapsed_ms?: number; error?: string; result?: unknown }> }
-export interface RelationsAPI extends EntityAPI<RelationLookup,Relation,Partial<Omit<Relation,'id'>>> { run(reference: KnownString<keyof RelationLookup & string> | EntityRef, options?: { environmentId?: KnownString<EnvironmentId> }): Promise<RelationRun>; }
+export interface RelationRun { id: string; relationId: string; name: string; status: 'running' | 'succeeded' | 'completed_with_errors' | 'failed' | 'cancelled'; startedAt: string; finishedAt?: string; error?: string; entries: Array<{ stepId: string; type: string; status: string; stepPath: string; requestName: string; iteration: number; httpStatus?: number; relationRun?: RelationRun; elapsed_ms?: number; error?: string; result?: unknown }> }
+export interface RelationsAPI extends EntityAPI<RelationLookup,Relation,Partial<Omit<Relation,'id'>> & { parent?: ParentRef }> { run(reference: KnownString<keyof RelationLookup & string> | RequestRef, options?: { environmentId?: KnownString<EnvironmentId> }): Promise<RelationRun>; }
 export interface RibbonCondition { mode: 'all' | 'any'; rules: Array<{ source: 'ribbon' | 'store' | 'environment' | 'globals' | 'variables'; key: string; operator: 'eq' | 'ne' | 'truthy' | 'falsy' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'empty' | 'notEmpty'; value?: JsonValue }> }
 export interface RibbonAction { id: string; type: 'script' | 'set' | 'toggle' | 'activate'; scriptId?: string; target?: string; value?: JsonValue; when?: RibbonCondition | null; }
 export interface RibbonControl { id: string; key: string; label: string; type: RibbonControlType; value: JsonValue; options?: Array<{ value: string; label: string }>; visible?: boolean; enabled?: boolean; visibleWhen?: RibbonCondition | null; enabledWhen?: RibbonCondition | null; actions?: RibbonAction[]; }
@@ -682,20 +696,22 @@ export function buildLanguageProject(source, context = {}) {
   declarations.push(`export type GlobalVariables = Variables<${literalUnion(variableNames(context.globals))}>;`);
   declarations.push(`export type StoreData = ${object(context.data) ? reader.shape(context.data) : '{}'};`);
   const requestJSONType = entry => own(entry,'requestJSON') ? reader.shape(entry.requestJSON) : 'unknown';
-  declarations.push(`export type CurrentRequestData = Request${context.request ? ` & ${reader.shape(context.request)}` : ''};`);
+  const requestBase=request=>request?request.type==='relation'?'RelationRequest':'HTTPRequest':'Request';
+  declarations.push(`export type CurrentRequestData = ${requestBase(context.request)}${context.request ? ` & ${reader.shape(context.request)}` : ''};`);
   declarations.push(`export type CurrentRequest = MutableRequest<CurrentRequestData> & RequestEditor<CurrentRequestData, ${requestJSONType(context)}>;`);
   declarations.push(`export type ResponseBody = ${context.response && own(context.response, 'body') ? reader.shape(context.response.body) : 'unknown'};`);
   const json = responseJSON(context);
   declarations.push(`export type ResponseJSON = ${json.type || reader.shape(json.value)};`);
   declarations.push(`export type ResponseHeaders = ${shapeOr(context.response?.headers, 'Record<string, string | string[]>')};`);
-  declarations.push('export type CurrentResponse = MutableResponse<ResponseBody, ResponseJSON, ResponseHeaders>;');
+  declarations.push(`export type CurrentResponse = ${context.response?.type==='relation'?'RelationResponse':'MutableResponse<ResponseBody, ResponseJSON, ResponseHeaders>'};`);
+  declarations.push(`export type CurrentPostmanResponse = ${context.response?.type==='relation'?'RelationResponse':'PostmanResponse<ResponseJSON, ResponseHeaders>'};`);
 
   const requests = Array.isArray(context.requests) ? context.requests.filter(object) : [];
   const requestReferences = catalogReferences(requests, entry => [entry.name,entry.path,entry.itemId,entry.draftId]);
   const requestTypes = new Map(requests.map((entry,index) => {
     const name = `Request_${index}`;
     const {requestJSON,request,...snapshot}=entry;
-    declarations.push(`export type ${name} = Omit<RequestEntry, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<Request${request ? ` & ${reader.shape(request)}` : ''}> };`);
+    declarations.push(`export type ${name} = Omit<RequestEntry, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<${requestBase(request)}${request ? ` & ${reader.shape(request)}` : ''}> };`);
     return [entry, name];
   }));
   declarations.push(`export type RequestLookup = ${mapType([...requestReferences].map(([reference,entry]) => [reference,requestTypes.get(entry)]))};`);
@@ -715,11 +731,11 @@ export function buildLanguageProject(source, context = {}) {
   // definitions proportional to catalog size rather than copying full trees.
   for (const [property,type] of [['collections','Collection'],['folders','Folder'],['drafts','Draft'],['relations','Relation']]) {
     const entries=(Array.isArray(context[property])?context[property]:property==='drafts'?requests.filter(entry=>entry.draftId):[]).filter(object);
-    const references=catalogReferences(entries,entry=>[entry.name,entry.path,entry.itemId,entry.draftId]);
+    const references=catalogReferences(entries,entry=>[entry.name,entry.path,entry.itemId,entry.draftId,entry.requestId]);
     const types=new Map(entries.map((entry,index)=>{
       if(type!=='Draft')return [entry,type];
       const {requestJSON,request,...snapshot}=entry,name=`Draft_${index}`;
-      declarations.push(`export type ${name} = Omit<Draft, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<Request${request ? ` & ${reader.shape(request)}` : ''}> };`);
+      declarations.push(`export type ${name} = Omit<Draft, 'request'> & ${reader.shape(snapshot)} & { request: MutableRequest<${requestBase(request)}${request ? ` & ${reader.shape(request)}` : ''}> };`);
       return [entry,name];
     }));
     declarations.push(`export type ${type}Lookup = ${mapType([...references].map(([reference,entry])=>[reference,types.get(entry)]))};`);

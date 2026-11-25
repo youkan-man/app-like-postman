@@ -125,6 +125,9 @@ jobs:
       - name: Context creation, primary variables, scripts and relations
         if: ${{ !cancelled() }}
         run: python tests/ui_automation.py 2>&1 | tee artifacts/browser/ui-automation.log
+      - name: Relation request migration, shared editing and nested execution
+        if: ${{ !cancelled() }}
+        run: python tests/ui_relation_requests.py 2>&1 | tee artifacts/browser/ui-relation-requests.log
       - name: Independent scripts, typed results, reuse and persistence
         if: ${{ !cancelled() }}
         run: python tests/ui_standalone_scripts.py 2>&1 | tee artifacts/browser/ui-standalone-scripts.log

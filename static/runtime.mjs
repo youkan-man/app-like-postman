@@ -58,6 +58,7 @@ export function extractVariableNames(value) {
 }
 export function responseMetadata(result) {
   if (!result || result.error) return null;
+  if(result.type==='relation')return {type:'relation',run:structuredClone(result.run),elapsed_ms:result.elapsed_ms,received_at:result.received_at||''};
   const headers = Object.create(null), cookies = [];
   for (const row of result.headers || []) {
     const key = row.key.toLowerCase();

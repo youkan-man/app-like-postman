@@ -17,7 +17,8 @@ function normalizeAuth(value) {
 const scope = owner => ({variable: rows(owner.variable), auth: normalizeAuth(owner.auth)});
 const requestValue = owner => {
   const request = normalizeRequest(owner.request);
-  request.auth = normalizeAuth(request.auth);
+  if(request.relation)request.relation.name=owner.name;
+  if(request.type!=='relation'||request.auth!==undefined)request.auth = normalizeAuth(request.auth);
   return {name: owner.name, request, settings: requestSettings(owner.settings),
     ...(owner.ribbonState===undefined?{}:{ribbonState:clone(owner.ribbonState)})};
 };

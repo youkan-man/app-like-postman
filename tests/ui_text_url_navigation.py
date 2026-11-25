@@ -7,6 +7,7 @@ import base64
 from contextlib import contextmanager
 import hashlib
 import json
+from relation_ui_helpers import relations
 import os
 import re
 from pathlib import Path
@@ -79,7 +80,7 @@ def main():
                 page.locator('[data-sidebar=collections]').click();row(name).locator('.tree-open').click();expect(page.locator('#requestName')).to_have_value(name)
             def send():
                 page.locator('#send').click();expect(page.locator('#responseStatus')).to_contain_text('200',timeout=15000)
-                expect(page.locator('#send')).to_contain_text('Send');return json.loads(page.locator('.response-code').inner_text())
+                expect(page.locator('#send')).to_contain_text('送信');return json.loads(page.locator('.response-code').inner_text())
             schema='https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
             load({'info':{'name':'Collection A','schema':schema},'item':[
                 {'name':'Folder A','item':[{'name':'Request one','request':{'method':'POST','url':target+'/echo','body':{'mode':'raw','raw':'original'}}}]},
@@ -206,18 +207,18 @@ def main():
             expect(page.locator('[data-file-slot=binary] .file-pick')).to_have_text('日本.bin')
             row('Upload').get_by_role('button',name='Uploadの操作',exact=True).click();page.get_by_role('menuitem',name='リレーションに追加',exact=True).click()
             page.get_by_label('リレーション名',exact=True).fill('Upload flow');page.locator('#modalSubmit').click();choose('Upload')
-            drag('Upload','Collection B');w=state();assert w['relations'][0]['steps'][0]['collectionId']==b['_mpId']
+            drag('Upload','Collection B');w=state();assert relations(w)[0]['steps'][0]['collectionId']==b['_mpId']
             received=send();assert received['size']==len(data) and received['sha256']==hashlib.sha256(data).hexdigest()
             passed('moving a selected binary request keeps its bytes and relation references; actual receiver hash matches')
             grip=row('Upload').locator('.tree-drag-handle');grip.focus();grip.press('Space');grip.press('Home');grip.press('Enter');w=state()
-            assert any(i['name']=='Upload' for i in w['collections'][0]['item']);assert w['relations'][0]['steps'][0]['collectionId']==a['_mpId']
+            assert any(i['name']=='Upload' for i in w['collections'][0]['item']);assert relations(w)[0]['steps'][0]['collectionId']==a['_mpId']
             passed('keyboard grab/Home/Enter moves the same request and preserves its relation target')
             capture('collection-move-desktop')
             for width,height in [(390,844),(320,720)]:
                 page.set_viewport_size({'width':width,'height':height});page.wait_for_function("document.getElementById('navClose').hidden === !matchMedia('(max-width:820px)').matches")
                 if page.locator('#sidebarTabs').is_hidden():page.locator('#toggleSidebar').click()
                 buttons=page.locator('#sidebarTabs [role=tab]');boxes=[item.bounding_box() for item in buttons.all()]
-                assert [button.get_attribute('data-sidebar') for button in buttons.all()]==['collections','environments','history','relations','scripts','ribbons']
+                assert [button.get_attribute('data-sidebar') for button in buttons.all()]==['collections','environments','history','scripts','ribbons']
                 assert all(box for box in boxes)
                 assert max(box['x'] for box in boxes)-min(box['x'] for box in boxes)<1
                 assert buttons.evaluate_all('(items)=>items.every(e=>{const b=e.getBoundingClientRect();return b.left>=0&&b.right<=innerWidth&&b.top>=0&&b.bottom<=innerHeight;})')
@@ -239,7 +240,7 @@ def main():
             assert any(i['name']=='Upload' for i in state()['collections'][1]['item'])
             passed('touch drag on the grip moves a request without converting ordinary row scrolling into a drag')
             before=state();fixture.reload(page);restored=state()
-            assert restored['collections']==before['collections'] and restored['relations']==before['relations']
+            assert restored['collections']==before['collections'] and relations(restored)==relations(before)
             assert restored['activeId']==before['activeId'] and restored['revisions']==before['revisions']
             assert restored['activeRequest']==before['activeRequest']
             expect(page.locator('#requestName')).to_have_value('Upload')

@@ -161,7 +161,7 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
     consume();const entry={...location(step,index,path,loops),requestName:name,iteration,startedAt:new Date().toISOString(),status:'running'};
     run.entries.push(entry);progress(entry);const began=Date.now();
     try{await fn(entry);throwIfAborted(signal);entry.status='succeeded';}
-    catch(error){entry.status=error.name==='AbortError'?'cancelled':'failed';entry.error=error.message;if(error.name==='AbortError'||plan.stopOnError)throw error;}
+    catch(error){entry.status=error.name==='AbortError'?'cancelled':'failed';entry.error=error.message;if(error.logs?.length)entry.logs=clone(error.logs);if(error.name==='AbortError'||plan.stopOnError)throw error;}
     finally{entry.finishedAt=new Date().toISOString();entry.elapsed_ms??=Date.now()-began;progress(entry);}
     return entry;
   }
@@ -183,9 +183,16 @@ export async function runRelation(relation,{workspace,execute,executeScript,writ
         for(let iteration=0;iteration<step.repeat;iteration++){
           if(iteration)await wait(step.intervalMs,signal);
           await leaf(step,index,path,loops,iteration+1,async entry=>{
-            lastResponse=null;lastResponse=await execute(clone(tab),{signal});throwIfAborted(signal);
-            entry.httpStatus=lastResponse.status;entry.elapsed_ms=lastResponse.elapsed_ms;
-            if(lastResponse.error||lastResponse.status>=400||lastResponse.automationErrors?.length)throw new Error(lastResponse.error||lastResponse.automationErrors?.join('\n')||'HTTP '+lastResponse.status);
+            lastResponse=null;lastResponse=await execute(clone(tab),{signal});
+            entry.elapsed_ms=lastResponse.elapsed_ms;
+            if(lastResponse.type==='relation'){
+              entry.relationRun=clone(lastResponse.run);lastResult=clone(lastResponse.run);
+              if(lastResponse.run.status==='cancelled')throw new DOMException(lastResponse.run.error||'リレーションを停止しました。','AbortError');
+              if(['failed','completed_with_errors'].includes(lastResponse.run.status))throw new Error(lastResponse.run.error||'リレーションの実行に失敗しました。');
+            }else{
+              entry.httpStatus=lastResponse.status;
+              if(lastResponse.error||lastResponse.status>=400||lastResponse.automationErrors?.length)throw new Error(lastResponse.error||lastResponse.automationErrors?.join('\n')||'HTTP '+lastResponse.status);
+            }
           },tab.name);
         }
         const matched=evaluateCondition(step.condition,currentContext(tab)),target=step.condition?.enabled?(matched?step.onTrue:step.onFalse):NEXT;

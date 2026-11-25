@@ -74,7 +74,7 @@ def main():
                 # The HTTP result precedes the asynchronous IndexedDB commit.
                 # Establish a durable baseline before checking that navigation
                 # does not edit the workspace; do not race the prior Send save.
-                expect(page.locator('#send')).to_contain_text('Send')
+                expect(page.locator('#send')).to_contain_text('送信')
                 expect(page.locator('#saveState')).to_have_text('ローカルに保存済み')
 
             fixture = BrowserApp(app_url); fixture.open(page)

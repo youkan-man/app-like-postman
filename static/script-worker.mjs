@@ -276,7 +276,7 @@ export async function executeScript(source, context = {}, options = {}) {
       const value = responseText();
       return response.body_encoding === 'base64' ? atob(value).length : new TextEncoder().encode(value).byteLength;
     };
-    if (response && typeof response === 'object') {
+    if (response && typeof response === 'object' && response.type!=='relation') {
       const methods = {
         setBody(value, contentType) {
           checkActive();
@@ -366,7 +366,7 @@ export async function executeScript(source, context = {}, options = {}) {
       const variables = Object.fromEntries(Object.entries(maps).map(([kind, values]) => [kind, model&&kind!=='primary'?model.api[kind].toObject():copy(Object.fromEntries(values))]));
       const result = await wait(onCall(method, copy(args), {signal,variables,primaryRows:copy(primaryRows),...(model?{workspace:copy(model.state),requestRef:ctx.requestRef || ctx.ribbonOwnerRef || null,ribbonScopeId}:{} )}));
       checkActive();
-      if(method==='relations.run'&&result?.__minipostTransaction===true){
+      if((method==='relations.run'||method==='requests.send')&&result?.__minipostTransaction===true){
         if(!model)throw new Error('リレーション実行にはワークスペースが必要です。');
         for(const expected of result.primaryExpected||[])if(maps.primary.has(expected.key)!==expected.exists||expected.exists&&maps.primary.get(expected.key)!==expected.value)throw new Error('リレーション実行中に同じ一次変数が変更されました。リレーションの変更は保存していません。');
         for(const row of result.primaryWrites||[])if(typeof row.key!=='string'||!row.key.trim()||/[{}\r\n]/.test(row.key)||!row.remove&&typeof row.value!=='string')throw new TypeError('リレーションの一次変数変更形式が不正です。');
@@ -428,7 +428,8 @@ export async function executeScript(source, context = {}, options = {}) {
       };
       const pm = {
         variables:vars, environment, globals, request,
-        response:response ? {
+        requests:minipost.requests,relations:minipost.relations,
+        response:response?.type==='relation'?response:response ? {
           get code() { return response.status; }, get status() { return response.statusText; },
           get responseTime() { return response.elapsed_ms; }, get responseSize() { return responseSize(); },
           headers:{get:responseHeader, all:() => {checkActive(); return copy(response.headers || {});}},

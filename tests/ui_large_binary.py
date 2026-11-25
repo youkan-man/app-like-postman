@@ -91,7 +91,7 @@ def main():
                 nonlocal heap_max
                 page.locator('#send').click()
                 deadline=time.monotonic()+240
-                while 'Cancel' in page.locator('#send').inner_text():
+                while '停止' in page.locator('#send').inner_text():
                     assert time.monotonic()<deadline,'upload deadline exceeded'
                     heap_max=max(heap_max,cdp.send('Runtime.getHeapUsage')['usedSize'])
                     page.wait_for_timeout(100)

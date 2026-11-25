@@ -11,6 +11,7 @@ export const SCRIPT_API_SECTIONS = [
   ]},
   {id:'request',title:'送信内容・レスポンス',entries:[
     ['request.get(path?) / request.set(path, value)','同じパスで読み書きします。例: request.get("method")、request.set("method", "POST")。urlの取得値はURL文字列です。request・pm.request・minipost.requestは同じ対象です。'],
+    ['リクエストの種類','typeにhttpまたはrelationを指定します。リレーションはrelation.steps・repeat・intervalMsなどを同じget/setで編集できます。保存した対象にはminipost.requests.edit(ref)を使います。'],
     ['request.get() / request.set(snapshot)','リクエスト全体のコピーを取得し、編集したコピーを設定します。url・header・body・authへの直接代入も利用できます。送信前の変更は実際の送信内容へ反映します。'],
     ['request.headers.get(name) / request.headers.set(name, value)','ヘッダーを読み書きします。例: request.headers.set("Authorization", "Bearer " + token)。名前の大文字・小文字は区別しません。'],
     ['request.query.get(name) / request.query.set(name, value)','クエリを読み書きします。例: request.query.set("page", 2)。ドットを含む名前もそのままのキーとして扱います。'],
@@ -24,7 +25,7 @@ export const SCRIPT_API_SECTIONS = [
     ['response.getHeader(name) / setHeader(name, value) / removeHeader(name)','大文字・小文字を区別せずレスポンスヘッダーを操作します。setHeaderには文字列または文字列配列を渡せます。'],
     ['response.json() / text() / show(view)','現在の本文を読み取り、pretty・raw・headers・cookies・previewの表示へ切り替えます。'],
     ['pm.response.json() / text() / headers.get(name)','受信したレスポンスを読み取ります。code・status・responseTime・responseSizeも参照できます。'],
-    ['await minipost.requests.send(referenceOrRequest, options?)','ID・一意の名前・パス・リクエスト設定から1回送信します。optionsはenvironmentIdとsettingsです。送信前後の処理は自動では呼びません。'],
+    ['await minipost.requests.send(referenceOrRequest, options?)','ID・一意の名前・パス・リクエスト設定から実行します。HTTPは1回送信し、リレーションは子ステップを実行して{type:"relation", run}を返します。optionsはenvironmentIdとsettingsです。HTTPの送信前後の処理は自動では呼びません。'],
     ['await minipost.responses.list() / get(requestRef?)','保存されたレスポンスを{id, requestId, name, response}で取得します。get省略時は実行対象、未受信はnullです。'],
     ['await minipost.attachments.list(requestRef?)','添付ファイルのslot・index・name・type・size・lastModifiedを取得します。'],
     ['await minipost.attachments.read(requestRef, slot, index?, options?)','添付内容を読み取ります。formatはtext・base64・bytes、既定text。bytesは数値配列。maxBytesの既定は10MiBです。']
@@ -49,7 +50,7 @@ export const SCRIPT_API_SECTIONS = [
     ['scripts.list() / get(ref, path?) / set(ref, path, value) / set(ref, snapshot)','保存したコード・入力・制限時間を同じ対象とパスで読み書きします。例: scripts.get("Prepare", "source")、scripts.set("Prepare", "source", code)。minipost.scriptsも同じAPIです。'],
     ['scripts.create(spec?) / update(ref, patch) / delete(ref)','スクリプトを追加・変更・削除します。createにはname・source・input・inputFormat・timeoutMsを指定できます。'],
     ['await scripts.run(idOrName, input?)','別の保存スクリプトへ入力を渡し、戻り値を受け取ります。省略すると保存した入力。同名はIDで指定します。'],
-    ['minipost.relations.list / get / set / create / update / delete','リレーションを作成・編集します。stepsにrequest・repeat・forEach・while・if・wait・script・break・continueを設定できます。'],
+    ['minipost.relations.list / get / set / create / update / delete','リレーション形式のリクエストを作成・編集します。createのparentで保存先を選べます。stepsにrequest・repeat・forEach・while・if・wait・script・break・continueを設定できます。pm.relationsも同じAPIです。'],
     ['await minipost.relations.run(reference, {environmentId?})','保存したリレーションを実行し、状態・実行記録を受け取ります。']
   ]},
   {id:'variables',title:'変数・共有データ',entries:[

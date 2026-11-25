@@ -8,6 +8,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
 import json
+from relation_ui_helpers import relations
 import os
 from pathlib import Path
 import re
@@ -324,7 +325,7 @@ return {ids,seen,childSaw:store.get('childSaw'),scope:minipost.folders.variables
             assert created_request['name'] == 'Generated request'
             assert created_request['ribbonState']['ribbons'][0]['groups'][0]['controls'][0]['value'] == 4
             assert any(s['id'] == ids['child'] for s in durable['scripts'])
-            assert any(r['id'] == ids['relation'] for r in durable['relations'])
+            assert any(r['id'] == ids['relation'] for r in relations(durable))
             assert any(t['id'] == ids['draftId'] for t in durable['tabs'])
             expect(page.locator('html')).to_have_attribute('data-theme', 'dark')
             passed('synchronous model APIs create collections, folders, requests, drafts, environments, scripts, relations and ribbon definitions in one committed transaction')
@@ -450,7 +451,7 @@ return {status:result.status,entries:result.entries.length,count:store.get('loop
             value = result()
             assert value['after'] == value['before'] - 1 and value['exists'] is False
             after = saved()
-            assert not any(r['id'] == ids['relation'] for r in after['relations'])
+            assert not any(r['id'] == ids['relation'] for r in relations(after))
             assert not any(e['id'] == ids['environment'] for e in after['environments'])
             passed('history and model deletion APIs remove only their explicitly selected entries')
 

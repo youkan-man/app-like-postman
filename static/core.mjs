@@ -1,5 +1,7 @@
 /** Postman import and request compilation. No browser or third-party dependencies. */
 import {cloneRibbonState, validRibbonState} from './ribbons.mjs';
+import {duplicateRequest,validRelationDefinition} from './relation-requests.mjs';
+import {walkRelationSteps} from './relations.mjs';
 export const SCHEMA = 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
 export const clone = value => JSON.parse(JSON.stringify(value));
 export const uid = () => globalThis.crypto?.randomUUID?.() || `mp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -59,24 +61,39 @@ export function setQuery(request, query) {
   request.url = {...urlParts(request.url), query, _mpTextParts: true, _mpTypedUrl: false};
   request.url.raw = displayUrl(request.url);
 }
-export function newRequest() {
+export const requestType = request => request?.type === 'relation' ? 'relation' : 'http';
+export const isRelationRequest = request => requestType(request) === 'relation';
+function relationDefinition(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('リレーションの形式が不正です。');
+  const relation={id:value.id||uid(),name:'新しいリレーション',repeat:1,intervalMs:0,maxExecutions:0,stopOnError:true,steps:[],...value};
+  if(!validRelationDefinition(relation))throw new TypeError('リレーションの形式が不正です。');
+  return relation;
+}
+export function newRequest(type = 'http') {
+  if (type === 'relation') return {type,relation:relationDefinition()};
+  if (type !== 'http') throw new TypeError('リクエストの種類が不正です。');
   return {method: 'GET', header: [], url: {raw: '', query: [], variable: []}, body: {mode: 'none', raw: ''}, auth: null};
 }
 export function normalizeRequest(value) {
   const r = typeof value === 'string' ? {...newRequest(), url: value} : clone(value || newRequest());
+  if (r.type !== undefined && !['http','relation'].includes(r.type)) throw new TypeError('リクエストの種類が不正です。');
+  if (r.relation !== undefined || isRelationRequest(r)) r.relation = relationDefinition(r.relation);
+  if (isRelationRequest(r)) return r;
   r.method = text(r.method || 'GET').toUpperCase();
   r.header = rows(r.header);
   const u = urlParts(r.url);
   r.url = {...u, raw: displayUrl(u), _mpTextParts: true};
   return r;
 }
-function attachIds(items) {
-  return items.map(item => {
+function attachIds(items,ids=new Map(),references={},path=[]) {
+  return items.map((item,index) => {
     if (!item || typeof item !== 'object') throw new Error('Collectionのitemはオブジェクトで指定してください。');
     const result = {...clone(item), _mpId: uid(), name: text(item.name || (item.item ? 'Folder' : 'Request'))};
-    if (Array.isArray(item.item)) result.item = attachIds(item.item);
+    const current=[...path,index],oldId=references[current.join('/')]||item._mpId;
+    if(oldId){if(ids.has(oldId))throw new Error('CollectionのIDが重複しています。');ids.set(oldId,result._mpId);}
+    if (Array.isArray(item.item)) result.item = attachIds(item.item,ids,references,current);
     else if (item.request) {
-      result.request = normalizeRequest(item.request);
+      result.request = duplicateRequest(normalizeRequest(item.request),{name:result.name});
       if (item.ribbonState!==undefined) {
         if (!validRibbonState(item.ribbonState)) throw new Error(`「${result.name}」のリボン形式が不正です。`);
         result.ribbonState=cloneRibbonState(item.ribbonState);
@@ -125,7 +142,22 @@ export function importPostman(input, filename = 'Import') {
     if (value.info && Array.isArray(value.item)) {
       const schema = text(value.info.schema);
       if (schema && !/\/v2\.(0|1)(\.0)?\//.test(schema)) throw new Error(`${name}: Collection v2.0 / v2.1に対応しています。`);
-      const collection = {...value, _mpId: uid(), info: {...value.info, name: text(value.info.name || name)}, item: attachIds(value.item)};
+      const refs=value._minipostRequestRefs;
+      if(refs!==undefined&&(!refs||typeof refs!=='object'||refs.version!==1||typeof refs.collectionId!=='string'||
+        !refs.items||typeof refs.items!=='object'||Array.isArray(refs.items)||
+        Object.entries(refs.items).some(([path,id])=>!/^\d+(?:\/\d+)*$/.test(path)||typeof id!=='string'||!id)))
+        throw new Error('Collectionのリクエスト参照形式が不正です。');
+      const ids=new Map(),collectionId=uid(),oldCollectionId=refs?.collectionId||value._mpId;
+      if(oldCollectionId)ids.set(oldCollectionId,collectionId);
+      const collection = {...value, _mpId: collectionId, info: {...value.info, name: text(value.info.name || name)}, item: attachIds(value.item,ids,refs?.items)};
+      delete collection._minipostRequestRefs;
+      walkItems(collection.item,item=>{
+        if(item.request?.relation)walkRelationSteps(item.request.relation.steps,step=>{
+          if(step.collectionId===oldCollectionId&&ids.has(step.itemId)){
+            step.collectionId=collectionId;step.itemId=ids.get(step.itemId);
+          }
+        });
+      });
       result.collections.push(collection);
       const events = [...(collection.event || [])];
       walkItems(collection.item, item => {
@@ -158,6 +190,17 @@ export function exportCollection(collection) {
     return value;
   }
   const result = clean(clone(collection));
+  let hasRelations=false;
+  walkItems(collection.item,item=>{if(item.request?.relation)hasRelations=true;});
+  if(hasRelations&&collection._mpId){
+    const items={};
+    function collect(list,path=[]){for(const [index,item]of list.entries()){
+      const current=[...path,index];items[current.join('/')]=item._mpId;
+      if(Array.isArray(item.item))collect(item.item,current);
+    }}
+    collect(collection.item);
+    result._minipostRequestRefs={version:1,collectionId:collection._mpId,items};
+  }
   result.info = {...result.info, schema: result.info?.schema || SCHEMA};
   const legacyAuth = /\/v2\.0(?:\.0)?\//.test(result.info.schema);
   function exportAuth(owner) {
@@ -176,6 +219,7 @@ export function exportCollection(collection) {
     exportAuth(item);
     if (!item.request) return;
     const r = item.request;
+    if(isRelationRequest(r))return;
     exportAuth(r);
     if (r.body?.mode === 'none') delete r.body;
     r.url = {...r.url, raw: displayUrl(r.url)};
@@ -220,6 +264,7 @@ export function toBase64(value) {
   return btoa(binary);
 }
 export function compileRequest(workspace, tab, files = {}, primaryVariables = []) {
+  if (isRelationRequest(tab.request)) throw new Error('リレーションはHTTP送信できません。');
   const context = contextFor(workspace, tab, primaryVariables);
   const resolve = resolver(context.vars);
   const r = tab.request;

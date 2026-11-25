@@ -264,7 +264,7 @@ def main():
                     expect(page.locator('html')).to_have_attribute('data-layout', 'stack')
                     page.locator('#send').click()
                     expect(page.locator('#responseStatus')).to_contain_text('200', timeout=15000)
-                    expect(page.locator('#send')).to_contain_text('Send')
+                    expect(page.locator('#send')).to_contain_text('送信')
                     settle()
                     request_header()
                     geometry(editor)

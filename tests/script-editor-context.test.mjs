@@ -69,3 +69,16 @@ test('before-script completion does not reuse an earlier received response',()=>
   assert.ok(!JSON.stringify(context).includes('previousResult'));
   assert.ok(!JSON.stringify(context).includes('X-Previous'));
 });
+
+test('relation request context retains its type and catalog aliases while sanitizing the inline definition',()=>{
+  const workspace=fixture(),item=workspace.collections[0].item[0].item[0];
+  item.request={type:'relation',relation:{id:'flow-id',name:item.name,repeat:1,intervalMs:0,maxExecutions:0,stopOnError:true,
+    steps:[{id:'step',type:'wait',delayMs:0,input:'private-relation-input'}]}};
+  const tab={collectionId:'collection',itemId:'request',request:item.request};
+  const run={id:'run-id',relationId:'flow-id',name:item.name,status:'succeeded',startedAt:'',entries:[]};
+  const context=scriptEditorContext(workspace,{rows:[]},{tab,result:{type:'relation',run,elapsed_ms:1,received_at:'now'}});
+  assert.equal(context.request.type,'relation');assert.equal(context.requests[0].request.type,'relation');
+  assert.equal(context.relations[0].id,'flow-id');assert.equal(context.relations[0].requestId,'collection:request');
+  assert.equal(context.rawResponse.type,'relation');assert.ok(!Object.hasOwn(context.rawResponse,'status'));
+  assert.ok(!JSON.stringify(context).includes('private-'));
+});

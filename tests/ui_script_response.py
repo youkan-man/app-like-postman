@@ -217,7 +217,7 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
 
             def send(status='201'):
                 page.locator('#send').click()
-                expect(page.locator('#send')).to_contain_text('Send', timeout=30000)
+                expect(page.locator('#send')).to_contain_text('送信', timeout=30000)
                 expect(page.locator('#responseStatus')).to_contain_text(status)
 
             def body():
@@ -435,11 +435,11 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
                 assert variable not in stored()['scriptData']
             passed('delayed response processing and variable-only scripts cannot commit after a newer HTTP response')
 
-            sidebar('relations')
+            sidebar('collections')
             page.locator('[data-relation-id="response-relation"] .tree-open').click()
             count = len(RECEIVED)
-            page.locator('#runRelation').click()
-            expect(page.locator('#relationRunLog h2')).to_contain_text('完了', timeout=30000)
+            page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_contain_text('完了', timeout=30000)
             run = stored()['relationRuns'][-1]
             assert run['status'] == 'succeeded', run
             assert [entry['requestName'] for entry in run['entries']] == ['Transform response', 'Finished response'], run
@@ -464,7 +464,7 @@ await new Promise(resolve => setTimeout(resolve, 1500));'''
             page.get_by_label('スクリプト制限時間', exact=True).fill('0')
             page.locator('#send').click()
             expect(page.locator('#scriptLog')).to_contain_text('waiting after edits')
-            expect(page.locator('#send')).to_contain_text('Cancel')
+            expect(page.locator('#send')).to_contain_text('停止')
             page.locator('#send').click()
             expect(page.locator('#responseStatus')).to_have_text('CANCELLED')
             expect(page.locator('#responseModified')).to_be_hidden()

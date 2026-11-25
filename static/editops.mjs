@@ -1,6 +1,8 @@
 /** Pure editing operations. Identity and names never leak across copies. */
 import {clone, rows, uid} from './core.mjs';
 import {cloneRibbonState} from './ribbons.mjs';
+import {duplicateRequest} from './relation-requests.mjs';
+import {walkRelationSteps} from './relations.mjs';
 
 export function copyName(name, names) {
   const base = `${name || 'Untitled'} copy`, used = new Set(names);
@@ -10,12 +12,19 @@ export function copyName(name, names) {
 }
 export function duplicateItem(item) {
   const copy = clone(item);
+  const ids=new Map(),requests=[];
   const rekey = node => {
-    node._mpId = uid();
+    const previous=node._mpId;node._mpId = uid();if(previous)ids.set(previous,node._mpId);
     if (Array.isArray(node.item)) node.item.forEach(rekey);
-    else if (node.request && node.ribbonState!==undefined) node.ribbonState=cloneRibbonState(node.ribbonState);
+    else if(node.request) {
+      node.request=duplicateRequest(node.request,{name:node.name});requests.push(node.request);
+      if(node.ribbonState!==undefined)node.ribbonState=cloneRibbonState(node.ribbonState);
+    }
   };
   rekey(copy);
+  for(const request of requests)if(request.relation)walkRelationSteps(request.relation.steps,step=>{
+    for(const key of ['collectionId','itemId'])if(ids.has(step[key]))step[key]=ids.get(step[key]);
+  });
   return copy;
 }
 export function duplicateCollection(collection, names) {
@@ -38,6 +47,11 @@ export function applySettings(owner, kind, snapshot) {
   const value = clone(snapshot);
   if (kind === 'environment') owner.values = value.values;
   else if (kind === 'scope') {owner.variable = value.variable; owner.auth = value.auth;}
-  else if (kind === 'request') {owner.request = value.request; owner.settings = value.settings;}
+  else if (kind === 'request') {
+    const relationId=owner.request?.relation?.id;
+    owner.request = duplicateRequest(value.request,{name:owner.name});
+    if(relationId&&owner.request.relation)owner.request.relation.id=relationId;
+    owner.settings = value.settings;
+  }
   else throw new TypeError('Unsupported settings type');
 }

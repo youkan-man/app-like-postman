@@ -1,16 +1,29 @@
 /** Request execution orchestrates pure compilation, isolated scripts and HTTP I/O. */
-import {clone,compileRequest} from './core.mjs';
+import {clone,compileRequest,isRelationRequest} from './core.mjs';
 import {requestAutomation,responseMetadata,extractionWrites,PrimaryVariables} from './runtime.mjs';
 import {applyScriptWrites} from './scripts.mjs';
 import {applyRequestMutation,applyResponseMutation} from './script-response.mjs';
-import {throwIfAborted} from './relations.mjs';
+import {throwIfAborted,validateRelation} from './relations.mjs';
 import {runScript} from './script-runner.mjs';
-import {makeScriptContext,scriptRibbonSnapshot} from './script-host.mjs';
+import {makeScriptContext,scriptRibbonSnapshot,scriptRequestReference} from './script-host.mjs';
 import {sendThroughProxy} from './transport.mjs';
 import {copyAttachments,remapScriptAttachments} from './request-files.mjs';
+import {createScriptRelationRunner} from './script-relations.mjs';
+import {relationForRequest} from './relation-requests.mjs';
 export async function executeRequest({workspace,tab,files={},primary,environmentId=workspace.environmentId,signal,
-  send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress,scriptCall,onScriptLog}) {
+  send=sendThroughProxy,script=runScript,onVariables=()=>{},onScript=()=>{},onProgress,scriptCall,onScriptLog,
+  filesFor=()=>({}),requestFor=()=>null,getResponses=()=>[],onResponse=()=>{},onRelationProgress,relationAncestors=[]}) {
   throwIfAborted(signal);
+  if(isRelationRequest(tab.request)){
+    const began=Date.now(),definition=relationForRequest(clone(tab.request),tab.name),selected=definition.environmentId||environmentId;
+    if(selected&&!(workspace.environments||[]).some(item=>item.id===selected))throw new Error('実行に使用する環境がありません。');
+    const run=createScriptRelationRunner({filesFor,requestFor,getResponses,onResponse,script,send,onVariables,onScript,onScriptLog});
+    const output=await run(definition,{workspace,signal,environmentId:selected,primaryState:primary,ownerTab:tab,
+      requestRef:scriptRequestReference(tab),ribbonScopeId:scriptRibbonSnapshot(workspace,{ribbonOwner:tab}).ribbonScopeId,
+      captureFailure:true,ancestorRelationIds:relationAncestors,onProgress:onRelationProgress});
+    onVariables(true);
+    return {type:'relation',run:output.result,elapsed_ms:Date.now()-began,received_at:new Date().toISOString()};
+  }
   const snapshot=clone(tab),view={...workspace,environmentId},automation=requestAutomation(snapshot.request),scripts=clone(workspace.scripts||[]),bindings=clone(workspace.scriptBindings||{});
   const ribbonScopeId=scriptRibbonSnapshot(workspace,{ribbonOwner:tab}).ribbonScopeId;
   let attachments=copyAttachments(typeof files?.then==='function'?await files:files);throwIfAborted(signal);
@@ -48,7 +61,8 @@ export async function executeRequest({workspace,tab,files={},primary,environment
         const staged=clone(view);
         const stagedPrimary=new PrimaryVariables();stagedPrimary.rows=clone(primary.rows);
         applyScriptWrites(staged,stagedPrimary,staged.environments.find(item=>item.id===environmentId),changes);
-        compileRequest(staged,{...snapshot,request:changedRequest},changedAttachments,stagedPrimary.rows);
+        if(isRelationRequest(changedRequest))validateRelation(relationForRequest(changedRequest,snapshot.name),staged);
+        else compileRequest(staged,{...snapshot,request:changedRequest},changedAttachments,stagedPrimary.rows);
       }
       onVariables(applyScriptWrites(workspace,primary,environment,changes),changes);
       if(phase==='before'){snapshot.request=changedRequest;attachments=changedAttachments;}
@@ -58,6 +72,8 @@ export async function executeRequest({workspace,tab,files={},primary,environment
   }
   await run(automation.before,null,'before');
   throwIfAborted(signal);
+  if(isRelationRequest(snapshot.request))return executeRequest({workspace,tab:snapshot,primary,environmentId,signal,send,script,onVariables,onScript,onProgress,scriptCall,onScriptLog,
+    filesFor,requestFor,getResponses,onResponse,onRelationProgress,relationAncestors});
   const compiled=compileRequest(view,snapshot,attachments,primary.rows);
   const received=await send(compiled.payload,signal,onProgress);throwIfAborted(signal);
   let result={...received,received_at:new Date().toISOString(),automationErrors:[]},preview=[];

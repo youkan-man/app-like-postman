@@ -173,6 +173,8 @@ export function createRequestEditor({read, change, checkActive = () => {}}) {
   }
   function validate(value) {
     if (!record(value)) throw new TypeError('リクエストはオブジェクトで指定してください。');
+    if(own(value,'type')&&!['http','relation'].includes(value.type))throw new TypeError('リクエストの種類が不正です。');
+    if(value.type==='relation'&&(!record(value.relation)||typeof value.relation.id!=='string'||!value.relation.id||!Array.isArray(value.relation.steps)))throw new TypeError('リレーションの形式が不正です。');
     if (own(value, 'method') && (typeof value.method !== 'string' || !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(value.method))) throw new TypeError('リクエストのメソッドが不正です。');
     if (own(value, 'url') && typeof value.url !== 'string' && !record(value.url)) throw new TypeError('URLは文字列またはURLオブジェクトで指定してください。');
     if (own(value, 'header') && (!Array.isArray(value.header) || value.header.some(row => !record(row) || typeof row.key !== 'string' || typeof row.value !== 'string'))) throw new TypeError('ヘッダーは名前と値の配列で指定してください。');
@@ -180,6 +182,8 @@ export function createRequestEditor({read, change, checkActive = () => {}}) {
     if (value.body?.mode === 'raw' && own(value.body, 'raw') && typeof value.body.raw !== 'string') throw new TypeError('raw本文は文字列で指定してください。');
   }
   function commit(target, next) {
+    if(next.type==='relation'&&next.relation===undefined)next.relation={id:globalThis.crypto?.randomUUID?.()||`relation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,name:'新しいリレーション',repeat:1,intervalMs:0,maxExecutions:0,stopOnError:true,steps:[]};
+    if(target.relation?.id&&next.relation?.id&&target.relation.id!==next.relation.id)throw new TypeError('relation.id は変更できません。');
     validate(next);
     // Validate descriptors before touching the live object, including user-frozen
     // requests and names occupied by the non-enumerable editing facade.

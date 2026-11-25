@@ -2,6 +2,7 @@
 import {clone, findItem, normalizeRequest, uid} from './core.mjs';
 import {requestSettings} from './revisions.mjs';
 import {cloneRibbonState,findRequestRibbonState} from './ribbons.mjs';
+import {duplicateRequest,relationForRequest,relationRequestEntries} from './relation-requests.mjs';
 
 export class RequestSession {
   constructor(workspace, createBlank) {
@@ -60,6 +61,9 @@ export class RequestSession {
   }
   addDraft(tab = this.createBlank()) {
     tab.settings = requestSettings(tab.settings);
+    if(tab.request?.relation&&!this.savedItem(tab)&&!this.workspace.tabs.some(value=>value.id===tab.id)&&
+        relationRequestEntries(this.workspace).some(entry=>entry.relation.id===tab.request.relation.id))
+      tab.request=duplicateRequest(tab.request,{name:tab.name});
     if (tab.ribbonState && !this.savedItem(tab) && !this.workspace.tabs.some(value=>value.id===tab.id) &&
         findRequestRibbonState(this.workspace,tab.ribbonState.id)) tab.ribbonState=cloneRibbonState(tab.ribbonState);
     if (!this.workspace.tabs.some(value => value.id === tab.id)) this.workspace.tabs.push(tab);
@@ -84,6 +88,7 @@ export class RequestSession {
         settings:requestSettings(item.settings), collectionId:collection._mpId, itemId:item._mpId};
       this.temporary.set(tab.id, tab);
     }
+    relationForRequest(tab.request,tab.name);
     this.syncRibbon(tab);
     this.savedEditors.add(tab.id); this.select(tab.id); return tab;
   }
@@ -95,6 +100,8 @@ export class RequestSession {
       const pendingFolderId = findItem(collection, entry.tab.itemId)?.parents.at(-1)?._mpId || entry.tab.pendingFolderId;
       tab = {...clone(entry.tab), id:uid(), itemId:undefined, pendingFolderId, dirty:false,
         settings:requestSettings(entry.tab.settings)};
+      tab.request=duplicateRequest(tab.request,{name:tab.name,
+        from:entry.tab.itemId?{collectionId:entry.tab.collectionId,itemId:entry.tab.itemId}:{draftId:entry.tab.id},to:{draftId:tab.id}});
       if (tab.ribbonState!==undefined) tab.ribbonState=cloneRibbonState(tab.ribbonState);
       this.temporary.set(tab.id, tab); this.historyEditors.set(key, tab.id);
     }
@@ -110,6 +117,7 @@ export class RequestSession {
         if(tab.name!==item.name||!sameRequest||!sameSettings||tab.dirty!==false||tab.ribbonState!==item.ribbonState)changed.add(tab.id);
         tab.name = item.name;
         if(!preserveEqual||!sameRequest)tab.request=request;
+        relationForRequest(tab.request,tab.name);
         if(!preserveEqual||!sameSettings)tab.settings=settings;
         tab.dirty = false;
         this.syncRibbon(tab);

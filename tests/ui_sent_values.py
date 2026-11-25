@@ -321,7 +321,7 @@ def main():
             response = sent_response.value.json()
             assert response['ok'],response
             expect(page.locator('#responseStatus')).to_contain_text('200')
-            expect(page.locator('#send')).to_contain_text('Send')
+            expect(page.locator('#send')).to_contain_text('送信')
             received = json.loads(response['body']);sent = response['sent_requests'][0]
             assert sent['transmission']=='sent'
             assert sent['method']==received['method']=='POST'

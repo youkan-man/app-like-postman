@@ -128,7 +128,7 @@ def main():
             passed('an explicit resend starts fresh, completes and removes all progress UI')
             page.locator('#url').fill(target+'/fail');page.locator('#send').click()
             expect(page.locator('#responseStatus')).to_contain_text('ERROR',timeout=20000)
-            expect(page.locator('#transferProgress')).to_have_count(0);expect(page.locator('#send')).to_contain_text('Send')
+            expect(page.locator('#transferProgress')).to_have_count(0);expect(page.locator('#send')).to_contain_text('送信')
             passed('a target connection failure clears progress and restores Send without automatic resend')
             choose('Quick request B')
             page.evaluate('''() => {window.__progressShown=0;new MutationObserver(()=>{

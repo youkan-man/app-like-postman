@@ -4,6 +4,7 @@ Default browser transport uses real HTTP. The explicitly selected inline mode
 is a DOM fixture plus Python HTTP bridge, not a browser network acceptance test.
 """
 import json
+from relation_ui_helpers import relations
 import os
 from pathlib import Path
 import tempfile
@@ -56,7 +57,7 @@ def main():
             def send():
                 page.locator('#send').click()
                 expect(page.locator('#responseStatus')).to_contain_text('200', timeout=15000)
-                expect(page.locator('#send')).to_contain_text('Send')
+                expect(page.locator('#send')).to_contain_text('送信')
             def primary_values():
                 return page.evaluate("JSON.parse(sessionStorage.getItem('minipost.primary.v1')||'[]')")
             def menu(name): page.get_by_role('menuitem', name=name, exact=True).click()
@@ -87,13 +88,13 @@ def main():
             assert before['environments'][0]['values'][0]['value']=='edited-environment-token'
             page.locator('#addTab').click()
             expect(page.get_by_role('menuitem',name='環境を作成',exact=True)).to_be_visible()
-            expect(page.get_by_role('menuitem',name='リクエストを作成',exact=True)).to_have_count(0)
+            expect(page.get_by_role('menuitem',name='HTTPリクエスト',exact=True)).to_have_count(0)
             page.keyboard.press('Escape')
             capture('environment-desktop')
             passed('environment tab edits a full page, autosaves and scopes creation')
 
             request_menu('Seed')
-            menu('リクエストを追加')
+            menu('HTTPリクエスト')
             page.get_by_label('追加する名前').fill('Inserted sibling')
             page.locator('#modalSubmit').click()
             ws=stored()
@@ -248,7 +249,7 @@ def main():
             request_menu('Seed');menu('リレーションに追加')
             page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Sequential flow')
             page.locator('#modalSubmit').click()
-            expect(page.locator('#workspacePage')).to_contain_text('リレーション')
+            expect(page.locator('#requestType')).to_have_value('relation')
             expect(page.locator('#relationSteps .relation-step')).to_have_count(1)
             for name in ['Next','Finish']:
                 page.locator('#addRelationStep').click()
@@ -261,16 +262,15 @@ def main():
             step.get_by_label('ステップ 1 の条件分岐',exact=True).check()
             step.get_by_label('ステップ 1 の比較元',exact=True).fill('/status')
             step.get_by_label('比較する値 / {{変数}}',exact=True).fill('200')
-            target=stored()['relations'][0]['steps'][2]['id']
+            target=relations(stored())[0]['steps'][2]['id']
             step.get_by_label('ステップ 1 の条件成立時',exact=True).select_option(target)
-            page.locator('#workspacePage').get_by_label('リレーションの操作',exact=True).click()
-            menu('実行設定')
+            page.get_by_role('button',name='実行設定',exact=True).click()
             page.locator('#modal').get_by_label('全体の回数',exact=True).fill('2')
             page.locator('#modalSubmit').click()
             step.get_by_label('開始前 ms',exact=True).fill('20')
             capture('relation-config-desktop')
-            page.locator('#runRelation').click()
-            expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=20000)
+            page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_contain_text('完了',timeout=20000)
             ws=stored();run=ws['relationRuns'][-1]
             assert [v['requestName'] for v in run['entries']]==['Seed','Finish','Seed','Finish'],run
             assert run['status']=='succeeded'
@@ -278,17 +278,17 @@ def main():
             passed('relation sequential execution repeats the plan and branches on a response element')
 
             page.locator('.relation-step').first.get_by_label('開始前 ms',exact=True).fill('5000')
-            page.locator('#runRelation').click()
-            expect(page.locator('#stopRelationGlobal')).to_be_visible()
-            page.locator('#stopRelationGlobal').click()
-            expect(page.locator('#relationRunLog h2')).to_contain_text('停止',timeout=5000)
+            page.locator('#send').click()
+            expect(page.locator('#send')).to_contain_text('停止')
+            page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_contain_text('停止',timeout=5000)
             passed('relation stop interrupts an outstanding wait without sending another request')
 
             page.locator('#dataActions').click()
             with page.expect_download() as saved:
                 menu('全体エクスポート')
             bundle=json.loads(Path(saved.value.path()).read_text())
-            assert bundle['workspace']['relations'][0]['steps'][0]['onTrue']==target
+            assert relations(bundle['workspace'])[0]['steps'][0]['onTrue']==target
             assert 'primary-token' in bundle['workspace']['collections'][0]['item'][0]['item'][0]['request']['_minipost']['before']
             assert 'primary' not in bundle['workspace']
             assert bundle['workspace']['relationRuns'][-1]['status']=='cancelled'
@@ -319,8 +319,8 @@ def main():
             page.locator('#modalSubmit').click()
             page.get_by_label('スクリプトのコード',exact=True).fill("if(input?.reset){store.set('loopSeen',[]);vars.set('counter',0);return null;} const value=vars.get('item'); const index=vars.get('index'); const seen=store.get('loopSeen')||[]; seen.push({item:value===undefined?null:JSON.parse(value),index:index===undefined?null:Number(index)}); store.set('loopSeen',seen); vars.set('counter',Number(vars.get('counter')||0)+1); return {ready:true};")
             script_id=next(script['id'] for script in stored()['scripts'] if script['name']=='Record loop')
-            side('relations');page.locator('#sidebarAdd').click();menu('リレーションを作成')
-            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Nested flow')
+            side('collections');page.locator('#sidebarAdd').click();menu('リレーション')
+            page.locator('#modal').get_by_label('追加する名前',exact=True).fill('Nested flow')
             page.locator('#modalSubmit').click()
 
             def add_control(kind,parent=None,branch='処理'):
@@ -359,11 +359,11 @@ def main():
             pick=page.get_by_label('ステップ 5 のリクエスト',exact=True)
             options=pick.locator('option').evaluate_all('(nodes)=>nodes.map(n=>({value:n.value,label:n.textContent}))')
             pick.select_option(next(option['value'] for option in options if option['label'].endswith(' / Finish')))
-            flow=next(relation for relation in stored()['relations'] if relation['name']=='Nested flow')
+            flow=next(relation for relation in relations(stored()) if relation['name']=='Nested flow')
             flow_id=flow['id'];wait_id=flow['steps'][3]['id']
             assert flow['steps'][1]['steps'][0]['steps'][0]['steps'][0]['type']=='continue',flow
             assert flow['steps'][1]['steps'][0]['steps'][2]['steps'][0]['type']=='break',flow
-            page.locator('.relation-page-heading').scroll_into_view_if_needed()
+            page.locator('.request-title').scroll_into_view_if_needed()
             assert page.locator('#relationSteps').evaluate('''root => {
                 const loops=[...root.querySelectorAll('[data-step-type="repeat"],[data-step-type="forEach"],[data-step-type="while"]')];
                 return loops.every(row=>{
@@ -380,11 +380,11 @@ def main():
             capture('relation-control-desktop')
 
             page.locator('#sidebarContent .tree-open').filter(has_text='Sequential flow').click()
-            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Sequential flow')
+            expect(page.locator('#requestName')).to_have_value('Sequential flow')
             page.locator(f'#sidebarContent [data-relation-id="{flow_id}"]').click(button='right')
             menu('実行')
-            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Nested flow')
-            expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=30000)
+            expect(page.locator('#requestName')).to_have_value('Nested flow')
+            expect(page.locator('#responseStatus')).to_contain_text('完了',timeout=30000)
             ws=stored();run=ws['relationRuns'][-1]
             assert run['relationId']==flow_id and run['status']=='succeeded',run
             assert [entry['requestName'] for entry in run['entries'] if entry['type']=='request']==['Finish'],run
@@ -397,7 +397,7 @@ def main():
             # Duplication must give every nested node a fresh ID, while keeping
             # saved script and request references unchanged.
             page.get_by_label('ステップ 2 の操作',exact=True).click();menu('複製')
-            duplicated=next(relation for relation in stored()['relations'] if relation['id']==flow_id)
+            duplicated=next(relation for relation in relations(stored()) if relation['id']==flow_id)
             def step_ids(steps):
                 return {step['id'] for step in steps}.union(*(step_ids(step.get('steps',[]))|step_ids(step.get('elseSteps',[])) for step in steps))
             assert step_ids([duplicated['steps'][1]]).isdisjoint(step_ids([duplicated['steps'][2]]))
@@ -406,40 +406,40 @@ def main():
             passed('nested duplication refreshes all control IDs and preserves referenced saved scripts')
 
             page.get_by_label('待機 ms',exact=True).fill('10000')
-            page.locator('#runRelation').click()
+            page.locator('#send').click()
             expect(page.locator(f'[data-step-id="{wait_id}"].running')).to_be_visible(timeout=30000)
             page.locator('#sidebarContent .tree-open').filter(has_text='Sequential flow').click()
-            expect(page.locator('#stopRelationLocal')).to_be_disabled()
-            page.locator('#sidebarContent .tree-row').filter(has=page.get_by_role('button',name='Sequential flowの操作',exact=True)).click(button='right')
-            expect(page.get_by_role('menuitem',name='実行',exact=True)).to_be_disabled()
+            expect(page.locator('#send')).to_contain_text('実行')
+            page.locator('#sidebarContent .tree-row').filter(has=page.locator('.tree-label',has_text='Sequential flow')).click(button='right')
+            expect(page.get_by_role('menuitem',name='実行',exact=True)).to_be_enabled()
             expect(page.get_by_role('menuitem',name='停止',exact=True)).to_have_count(0)
             page.keyboard.press('Escape')
             page.locator(f'#sidebarContent [data-relation-id="{flow_id}"]').click(button='right')
             menu('停止')
             expect(page.locator('#stopRelationGlobal')).not_to_be_visible(timeout=5000)
             page.locator('#sidebarContent .tree-open').filter(has_text='Nested flow').click()
-            expect(page.locator('#relationRunLog h2')).to_contain_text('停止')
+            expect(page.locator('#responseStatus')).to_contain_text('停止')
             run=stored()['relationRuns'][-1]
             assert run['status']=='cancelled' and not any(entry['type']=='request' for entry in run['entries']),run
-            passed('relation-specific Stop stays disabled on other plans and context Stop cancels a pending wait before HTTP')
+            passed('an unrelated relation remains independently runnable and context Stop cancels a pending wait before HTTP')
             page.get_by_label('待機 ms',exact=True).fill('0')
 
             page.locator('#dataActions').click()
             with page.expect_download() as saved:
                 menu('全体エクスポート')
             nested_bundle=json.loads(Path(saved.value.path()).read_text())
-            persisted=next(relation for relation in nested_bundle['workspace']['relations'] if relation['id']==flow_id)
+            persisted=next(relation for relation in relations(nested_bundle['workspace']) if relation['id']==flow_id)
             assert persisted['steps'][1]['steps'][0]['steps'][1]['scriptId']==script_id
             assert persisted['steps'][2]['type']=='while'
             fixture.reload(page);expect(page.locator('#connectionStatus')).to_contain_text('connected')
-            side('relations');page.locator('#sidebarContent .tree-open').filter(has_text='Nested flow').click()
+            side('collections');page.locator('#sidebarContent .tree-open').filter(has_text='Nested flow').click()
             expect(page.get_by_label('ステップ 2.1 の配列',exact=True)).to_have_value('[1,2,3,4]')
             expect(page.get_by_label('ステップ 3.1 のスクリプト',exact=True)).to_have_value(script_id)
             passed('nested control settings and script references survive backup and reload')
 
             for width,height in [(390,844),(320,720)]:
                 page.set_viewport_size({'width':width,'height':height})
-                page.locator('.relation-page-heading').scroll_into_view_if_needed()
+                page.locator('.request-title').scroll_into_view_if_needed()
                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                 assert page.locator('#relationSteps').evaluate('(root)=>[...root.querySelectorAll("input,select,button")].filter(node=>node.offsetParent!==null).every(node=>{const box=node.getBoundingClientRect();return box.left>=-1&&box.right<=innerWidth+1})')
                 expect(page.locator('#addRelationStep')).to_be_in_viewport()
@@ -449,14 +449,14 @@ def main():
             # Reorganize existing operations through the public editor, then
             # verify the resulting tree by executing it over actual HTTP.
             page.set_viewport_size({'width':1440,'height':1000})
-            side('relations');page.locator('#sidebarAdd').click();menu('リレーションを作成')
-            page.locator('#modal').get_by_label('リレーション名',exact=True).fill('Block edits')
+            side('collections');page.locator('#sidebarAdd').click();menu('リレーション')
+            page.locator('#modal').get_by_label('追加する名前',exact=True).fill('Block edits')
             page.locator('#modalSubmit').click()
             expect(page.locator('#modal')).not_to_be_visible()
-            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
+            expect(page.locator('#requestName')).to_have_value('Block edits')
 
             def block_flow():
-                return next(relation for relation in stored()['relations'] if relation['name']=='Block edits')
+                return next(relation for relation in relations(stored()) if relation['name']=='Block edits')
 
             def operation_menu(identifier):
                 page.locator(f'[data-step-id="{identifier}"] > .relation-step-heading > button[aria-label$="の操作"]').click()
@@ -471,8 +471,8 @@ def main():
             relation_editor=page.get_by_label('ステップ 1 のコード',exact=True)
             expect(relation_editor).to_be_visible();expect(relation_editor).to_be_focused()
             expect(relation_editor).to_have_js_property('readOnly',False)
-            expect(page.locator('html')).to_have_attribute('data-workspace-view','relations')
-            expect(page.locator('#workspacePage').get_by_label('リレーション名',exact=True)).to_have_value('Block edits')
+            expect(page.locator('html')).to_have_attribute('data-workspace-view','request')
+            expect(page.locator('#requestName')).to_have_value('Block edits')
             relation_editor.evaluate('node=>window.__embeddedRelationEditor=node')
             relation_editor.press('Control+a');page.keyboard.insert_text(edited_relation_source)
             assert next(script['source'] for script in stored()['scripts'] if script['id']==script_id)==edited_relation_source
@@ -532,8 +532,8 @@ def main():
             page.locator(f'[data-step-id="{request_id}"] > .relation-step-heading [data-step-action="move"]').drag_to(block.locator(':scope > .relation-block-heading'))
             arranged=block_flow()
             assert len(arranged['steps'])==2 and [step['id'] for step in arranged['steps'][1]['steps']]==[child_id,request_id],arranged
-            page.locator('#runRelation').click()
-            expect(page.locator('#relationRunLog h2')).to_contain_text('完了',timeout=30000)
+            page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_contain_text('完了',timeout=30000)
             ws=stored();run=ws['relationRuns'][-1]
             assert run['relationId']==arranged['id'] and run['status']=='succeeded',run
             assert [entry['type'] for entry in run['entries']]==['script','script','request','script','request'],run
