@@ -1,0 +1,23 @@
+{
+  "branch": "fix/scroll-content-sync-20261125",
+  "cleanup_verified": true,
+  "ended_at": "0001-01-01T00:00:00Z",
+  "environment": {
+    "expires_at": "2026-11-25T05:44:17.080519Z",
+    "id": "lrce-1c713fe458acf763c3135f7f",
+    "release_verified": true,
+    "retained": true,
+    "reused": false,
+    "revision": "7f5df51e088605abcd0504842fc8c121e4aa62396f715785a8b44f4b41580af1",
+    "sandbox_id": "sb-9c335c023aa1",
+    "source_generation": 1
+  },
+  "reason": "",
+  "repository": "youkan-man/app-like-postman",
+  "request_issue": 0,
+  "run_id": "lrci-afb5a29641da35dc-browser",
+  "source_sha": "15f65412d159328043f59533eb1764766766237b",
+  "started_at": "2026-11-25T02:43:56.220167565Z",
+  "status": "ready",
+  "version": 1
+}
