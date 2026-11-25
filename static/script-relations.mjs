@@ -10,7 +10,7 @@ import {relationForRequest} from './relation-requests.mjs';
 
 export function createScriptRelationRunner({filesFor=()=>({}),requestFor=()=>null,onResponse=()=>{},getResponses=()=>[],script=runScript,send,onVariables=()=>{},onScript=()=>{},onScriptLog}={}) {
   async function run(relation,context,ancestors=[]) {
-    const {workspace,signal,environmentId,requestRef,ribbonScopeId}=context;
+    const {workspace,signal,environmentId=workspace.environmentId||'',requestRef,ribbonScopeId}=context;
     throwIfAborted(signal);
     if(ancestors.includes(relation.id))throw new Error('同じリレーションを再帰的に実行できません。');
     if(ancestors.length>=16)throw new Error('リレーションの呼び出しが深すぎます。');
@@ -25,7 +25,7 @@ export function createScriptRelationRunner({filesFor=()=>({}),requestFor=()=>nul
     const environment=()=>workspace.environments?.find(item=>item.id===environmentId);
     const rememberLogs=output=>{for(const entry of output.logs||[])logs.push(clone(entry));onScript(output);};
     const result=await runRelation(relation,{
-      workspace,signal,onProgress:context.onProgress,primary:()=>primary.snapshot(),
+      workspace,signal,environmentId,onProgress:context.onProgress,primary:()=>primary.snapshot(),
       writePrimary:writes=>{primary.apply(writes);onVariables(false);},
       capturePrimary:keys=>{const restore=primary.capture(keys);return ()=>{restore();onVariables(false);};},
       variables:tab=>contextFor({...workspace,environmentId},tab||ownerTab||{request:newRequest()},primary.rows).vars,

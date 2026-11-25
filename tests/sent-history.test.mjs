@@ -83,11 +83,12 @@ test('failed and cancelled relation execution history survives backup and merge'
 test('a relation result from an HTTP before-script displays the captured run and replays its original template', () => {
   const draft=tab();draft.request._minipost={enabled:true,before:"request.set('type','relation');"};
   const original=structuredClone(draft.request);
-  const run={id:'converted-run',relationId:'converted-flow',name:draft.name,status:'succeeded',entries:[{stepId:'wait',requestName:'待機',status:'succeeded'}]};
-  const entry=historyEntry(draft,{type:'relation',run,elapsed_ms:1});
-  run.entries[0].status='failed';draft.request._minipost.before='changed';
+  const run={id:'converted-run',relationId:'converted-flow',name:draft.name,environmentId:'actual',environmentName:'Actual environment',status:'succeeded',entries:[{stepId:'wait',requestName:'待機',status:'succeeded'}]};
+  const entry=historyEntry(draft,{type:'relation',run,elapsed_ms:1},{environmentId:'original',environmentName:'Original environment'});
+  run.entries[0].status='failed';run.environmentName='Renamed';draft.request._minipost.before='changed';
   assert.equal(isRelationHistory(entry),true);assert.equal(entry.type,'relation');
   assert.equal(entry.status,'succeeded');assert.equal(entry.relation_run.entries[0].status,'succeeded');
+  assert.equal(entry.environmentId,'actual');assert.equal(entry.environmentName,'Actual environment');
   assert.equal(historyUrl(entry),'');assert.equal(sentRequests(entry),null);
   assert.deepEqual(entry.tab.request,original);
   const workspace={collections:[],tabs:[],history:[entry],environments:[],globals:[]};

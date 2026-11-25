@@ -2,7 +2,7 @@
 import {clone, findItem, normalizeRequest, uid} from './core.mjs';
 import {requestSettings} from './revisions.mjs';
 import {cloneRibbonState,findRequestRibbonState} from './ribbons.mjs';
-import {duplicateRequest,relationForRequest,relationRequestEntries} from './relation-requests.mjs';
+import {duplicateRequest,relationForRequest,relationRequestEntries,promoteDraftRequestReferences} from './relation-requests.mjs';
 
 export class RequestSession {
   constructor(workspace, createBlank) {
@@ -74,6 +74,7 @@ export class RequestSession {
   }
   markSaved(tab) {
     const item=this.savedItem(tab);
+    if(item)promoteDraftRequestReferences(this.workspace,tab.id,{collectionId:tab.collectionId,itemId:tab.itemId},{editors:this.all()});
     if (item && item.ribbonState===undefined && tab.ribbonState!==undefined) item.ribbonState=tab.ribbonState;
     this.savedEditors.add(tab.id);
     for (const [key, id] of this.historyEditors) if (id === tab.id) this.historyEditors.delete(key);

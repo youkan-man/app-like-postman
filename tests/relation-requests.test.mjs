@@ -102,6 +102,33 @@ test('saved relation editors reload normally and history copies do not share rel
   assert.equal(new RequestSession(backup,blank).active.request.relation.name,'Renamed');
 });
 
+test('saving a historical relation repairs live, retained and restorable draft references without losing replay self targets',()=>{
+  const {workspace,collection,folder,flow}=fixture(),session=new RequestSession(workspace,blank);
+  const saved=session.openSaved(collection,flow),originalHistory={id:'original-history',tab:clone(saved)};workspace.history.push(originalHistory);
+  const historical=session.openHistory(originalHistory),draftId=historical.id;
+  const self=steps(historical.request.relation).find(step=>step.draftId===draftId);assert.ok(self);
+  const history={id:'draft-history',tab:clone(historical)};workspace.history.push(history);
+  const other={_mpId:'other',name:'Other',request:newRelationRequest('Other',{steps:[newStep({draftId})]})};folder.item.push(other);
+  const openOther=session.openSaved(collection,other);
+  const retained={_mpId:'retained',name:'Retained',request:{...newRequest(),relation:newRelationRequest('Retained',{steps:[newStep({draftId})]}).relation}};folder.item.push(retained);
+  const snapshot={name:other.name,request:clone(other.request)};
+  workspace.revisions['request:collection:other']=[{value:clone(snapshot)}];
+  workspace.settingHistory={'request:collection:other':[{before:clone(snapshot),after:clone(snapshot)}]};
+  const stored={_mpId:'promoted-history',name:historical.name,request:clone(historical.request)};folder.item.push(stored);
+  Object.assign(historical,{collectionId:collection._mpId,itemId:stored._mpId});session.markSaved(historical);
+  for(const request of [stored.request,historical.request,other.request,openOther.request,retained.request,history.tab.request,
+    workspace.revisions['request:collection:other'][0].value.request,workspace.settingHistory['request:collection:other'][0].before.request,
+    workspace.settingHistory['request:collection:other'][0].after.request]){
+    assert.ok(!steps(request.relation).some(step=>step.draftId===draftId));
+    assert.ok(steps(request.relation).some(step=>step.collectionId===collection._mpId&&step.itemId===stored._mpId));
+  }
+  assert.equal(workspace.tabs.length,0);assert.equal(history.tab.collectionId,collection._mpId);assert.equal(history.tab.itemId,stored._mpId);
+  const replay=session.openHistory(history);
+  assert.ok(steps(replay.request.relation).some(step=>step.draftId===replay.id));
+  assert.ok(!steps(replay.request.relation).some(step=>step.itemId===stored._mpId));
+  assert.equal(originalHistory.tab.itemId,flow._mpId);
+});
+
 test('copying relation requests, folders and collections repairs branches and internal ownership references',()=>{
   const {collection,folder,flow}=fixture(),before=clone(collection);
   const copied=duplicateCollection(collection,[]),newFolder=copied.item[0],newFlow=newFolder.item[1];
@@ -145,8 +172,8 @@ test('individual collection export/import preserves nested internal relation ref
 
 test('workspace merge remaps canonical relations, historical snapshots, revisions and nested run logs consistently',()=>{
   const {workspace:source,flow,collection,script}=fixture();
-  const run={id:'run',relationId:flow.request.relation.id,entries:[{stepId:flow.request.relation.steps[0].id,loops:[{stepId:flow.request.relation.steps[0].id}],
-    relationRun:{id:'nested-run',relationId:flow.request.relation.id,entries:[{stepId:flow.request.relation.steps[0].steps[0].steps[0].id}]}}]};
+  const run={id:'run',relationId:flow.request.relation.id,environmentId:'environment',environmentName:'QA',entries:[{stepId:flow.request.relation.steps[0].id,loops:[{stepId:flow.request.relation.steps[0].id}],
+    relationRun:{id:'nested-run',relationId:flow.request.relation.id,environmentId:'environment',environmentName:'QA',entries:[{stepId:flow.request.relation.steps[0].steps[0].steps[0].id}]}}]};
   source.relationRuns=[run];source.history=[{id:'history',tab:{id:'old-editor',collectionId:collection._mpId,itemId:flow._mpId,name:flow.name,request:clone(flow.request)},relation_run:clone(run)}];
   const snapshot={name:flow.name,request:clone(flow.request)};
   source.revisions['request:collection:flow']=[{id:'revision',value:clone(snapshot)}];
@@ -163,6 +190,8 @@ test('workspace merge remaps canonical relations, historical snapshots, revision
   for(const restored of [destination.history[0].tab.request,destination.revisions[key][0].value.request,
     destination.settingHistory[key][0].before.request,destination.settingHistory[key][0].after.request])assert.deepEqual(restored.relation,definition);
   for(const importedRun of [destination.relationRuns[0],destination.history[0].relation_run]){
+    assert.equal(importedRun.environmentId,destination.environments[1].id);assert.equal(importedRun.environmentName,'QA');
+    assert.equal(importedRun.entries[0].relationRun.environmentId,destination.environments[1].id);assert.equal(importedRun.entries[0].relationRun.environmentName,'QA');
     assert.equal(importedRun.relationId,definition.id);assert.equal(importedRun.entries[0].stepId,definition.steps[0].id);
     assert.equal(importedRun.entries[0].loops[0].stepId,definition.steps[0].id);
     assert.equal(importedRun.entries[0].relationRun.relationId,definition.id);assert.equal(importedRun.entries[0].relationRun.entries[0].stepId,first.id);

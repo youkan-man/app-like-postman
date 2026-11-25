@@ -10,6 +10,7 @@ import {executeScript} from '../static/script-worker.mjs';
 import {applyScriptWrites,newScript} from '../static/scripts.mjs';
 import {PrimaryVariables,responseMetadata} from '../static/runtime.mjs';
 import {createWorkspaceModel} from '../static/workspace-api.mjs';
+import {RequestSession} from '../static/request-session.mjs';
 import {newRibbonState,newRibbon,newRibbonGroup,newRibbonControl,cloneRibbonState} from '../static/ribbons.mjs';
 
 const target=itemId=>newStep({collectionId:'collection',itemId});
@@ -47,10 +48,13 @@ test('relation requests use unified execution, nest, retain child settings, and 
 
 test('relation environments inherit into nested requests and explicit script options override the target definition',async()=>{
   const state=fixture();state.parent.request.relation.environmentId='selected';
-  const network=transport();await executeRequest({...state,tab:tabFor(state.parent),send:network.send});
+  const network=transport(),first=await executeRequest({...state,tab:tabFor(state.parent),send:network.send});
+  assert.equal(first.run.environmentId,'selected');assert.equal(first.run.environmentName,'Selected');
+  assert.equal(first.run.entries[0].relationRun.environmentId,'selected');
   assert.equal(network.calls[0].url,'https://selected.invalid/echo');assert.equal(state.workspace.environmentId,'default');
   state.child.request.relation.environmentId='default';
-  await executeRequest({...state,tab:tabFor(state.parent),send:network.send});
+  const overridden=await executeRequest({...state,tab:tabFor(state.parent),send:network.send});
+  assert.equal(overridden.run.environmentId,'selected');assert.equal(overridden.run.entries[0].relationRun.environmentId,'default');
   assert.equal(network.calls[1].url,'https://default.invalid/echo');
   delete state.child.request.relation.environmentId;
   const call=scriptRun(state,"const result=await minipost.requests.send('collection:parent',{environmentId:'default'});return {type:result.type,status:result.run.status};");
@@ -162,4 +166,48 @@ test('a before-script type change executes the relation snapshot without sending
   assert.equal(result.type,'relation');assert.equal(result.run.status,'succeeded');
   assert.deepEqual(network.calls.map(payload=>payload.url),['https://default.invalid/echo']);
   assert.equal(source.request.type,undefined);
+});
+
+test('saved relation and HTTP drafts keep collection inheritance through both migrated and legacy draft targets',async()=>{
+  for(const kind of ['relation','http'])for(const migrate of [true,false]){
+    const state=fixture(),network=transport(),seen=[];
+    const source="store.set('fromPromoted',vars.get('collectionValue')??null);";
+    state.workspace.scripts.push({...newScript('Read owner'),id:'read-owner',source});
+    const request=kind==='relation'?newRelationRequest('Promoted',{id:'promoted-flow',steps:[{...newRelationStep('script'),scriptId:'read-owner'}]}):
+      {...newRequest(),url:'https://example.invalid/{{collectionValue}}',_minipost:{enabled:true,before:source}};
+    const draft={id:'draft-target',name:'Promoted',request,settings:{}};
+    state.workspace.tabs.push(draft);state.parent.request.relation.steps=[newStep({draftId:draft.id})];
+    const session=new RequestSession(state.workspace,()=>({id:'blank',name:'Blank',request:newRequest(),settings:{}}));
+    const saved={_mpId:'promoted',name:draft.name,request:clone(draft.request),settings:{}};
+    state.workspace.collections[0].item.push(saved);Object.assign(draft,{collectionId:'collection',itemId:saved._mpId});
+    if(migrate){session.markSaved(draft);assert.equal(state.parent.request.relation.steps[0].draftId,undefined);}
+    else{
+      // Old saved editor caches may differ from the authoritative collection item.
+      if(kind==='relation')draft.request.relation.steps=[{...newRelationStep('wait'),delayMs:0}];
+      else draft.request.url='https://stale-cache.invalid';
+      assert.equal(state.parent.request.relation.steps[0].draftId,draft.id);
+    }
+    const result=await executeRequest({...state,tab:tabFor(state.parent),send:network.send,script:executeScript,onResponse:tab=>seen.push(tab)});
+    assert.equal(result.run.status,'succeeded',`${kind}/${migrate}`);assert.equal(state.workspace.scriptData.fromPromoted,'inherited',`${kind}/${migrate}`);
+    assert.equal(seen[0].collectionId,'collection');assert.equal(seen[0].itemId,'promoted');
+    if(kind==='http')assert.equal(network.calls[0].url,'https://example.invalid/inherited');
+  }
+});
+
+test('converted relation runs capture the actual environment and its original name for progress and history',async()=>{
+  const state=fixture(),network=transport(),progress=[];
+  state.workspace.scripts.push({...newScript('Rename environment'),id:'rename-env',source:"minipost.environments.update('selected',{name:'Changed during execution'});"});
+  const steps=[target('leaf'),{...newRelationStep('script'),scriptId:'rename-env'}];
+  const original={_mpId:'convert-env',name:'Convert env',request:{...newRequest(),url:'https://must-not-send.invalid',_minipost:{enabled:true,before:`
+    request.set('type','relation');request.set('relation.environmentId','selected');request.set('relation.steps',${JSON.stringify(steps)});
+  `}},settings:{}};
+  state.workspace.collections[0].item.push(original);
+  const result=await executeRequest({...state,tab:tabFor(original),script:executeScript,send:network.send,onRelationProgress:run=>progress.push(clone(run))});
+  assert.equal(result.run.status,'succeeded');assert.equal(network.calls[0].url,'https://selected.invalid/echo');
+  assert.equal(result.run.environmentId,'selected');assert.equal(result.run.environmentName,'Selected');
+  assert.equal(state.workspace.environments[1].name,'Changed during execution');
+  assert.ok(progress.length);assert.ok(progress.every(run=>run.environmentId==='selected'&&run.environmentName==='Selected'));
+  const stored=state.workspace.relationRuns.find(run=>run.id===result.run.id);
+  assert.equal(stored.environmentId,'selected');assert.equal(stored.environmentName,'Selected');
+  assert.equal(original.request.type,undefined);
 });

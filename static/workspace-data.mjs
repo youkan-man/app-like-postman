@@ -299,6 +299,7 @@ export function mergeWorkspace(into, source) {
   function remapRelationRun(run) {
     if(!record(run))return;
     run.id = remap(run.id); run.relationId = remap(run.relationId);
+    if(run.environmentId)run.environmentId=remap(run.environmentId);
     for (const entry of run.entries || []) {
       entry.stepId = remap(entry.stepId);
       if (entry.branch?.target && !entry.branch.target.startsWith('$')) entry.branch.target = remap(entry.branch.target);

@@ -12,6 +12,8 @@ export function sentRequests(value) {
 
 export function historyEntry(tab, result, {environmentId = '', environmentName = '', at = new Date().toISOString()} = {}) {
   const relation = isRelationRequest(tab.request) || result.type === 'relation';
+  if (relation && typeof result.run?.environmentId === 'string') environmentId = result.run.environmentId;
+  if (relation && typeof result.run?.environmentName === 'string') environmentName = result.run.environmentName;
   const entry = {id: uid(), at, tab: clone(tab), environmentId, environmentName,
     status: relation ? result.run?.status || 'failed' : result.status ?? 'ERR'};
   if (relation) {entry.type = 'relation'; if (result.run) entry.relation_run = clone(result.run);}

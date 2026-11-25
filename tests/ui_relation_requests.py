@@ -53,7 +53,11 @@ def main():
         {'_mpId': 'http-finish', 'name': 'HTTP finish', 'settings': settings, 'request': {
             'method': 'GET', 'url': target + '/echo?stage=finish', 'header': []}},
         {'_mpId': 'nested-request', 'name': 'Nested request', 'settings': settings,
-         'request': {'type': 'relation', 'relation': child}}]}],
+         'request': {'type': 'relation', 'relation': child}},
+        {'_mpId': 'http-convert', 'name': 'Converted snapshot', 'settings': settings, 'request': {
+            'method': 'GET', 'url': 'https://must-not-send.invalid', 'header': [], '_minipost': {
+                'enabled': True, 'timeoutMs': 5000,
+                'before': "request.set('type','relation');request.set('relation.steps',[{id:'converted-wait',type:'wait',delayMs:0}]);request.set('relation.environmentId','flow-env');"}}}]}],
         'environments': [{'id': 'flow-env', 'name': 'Flow environment', 'values': [{'key': 'flow', 'value': 'from-relation'}]}],
         'environmentId': '', 'globals': [], 'tabs': [], 'history': [], 'scripts': [{
             'id': 'script-relation-api', 'name': 'Request type API', 'inputFormat': 'json', 'input': 'null', 'timeoutMs': 5000,
@@ -168,12 +172,28 @@ return {type:sent.type,status:sent.run.status,repeat:edited.request.relation.rep
 
             page.locator('#requestHistory').click()
             expect(page.locator('.revision-entry')).not_to_have_count(0)
-            page.locator('#cancelModal').click()
+            page.keyboard.press('Escape')
+            expect(page.locator('#modal')).not_to_be_visible()
             sidebar('history')
             expect(page.locator('#historyPage')).to_contain_text('Legacy loop')
             assert saved()['history'][-1]['type'] == 'relation'
             assert saved()['history'][-1]['relation_run']['relationId'] == legacy['id']
             passed('relation requests use the same revision and execution history surfaces')
+
+            choose('[data-item-id="http-convert"]')
+            before = len(sent)
+            page.locator('#send').click()
+            expect(page.locator('#responseStatus')).to_contain_text('完了', timeout=30000)
+            expect(page.locator('#relationRunLog')).to_be_visible()
+            expect(page.locator('#requestType')).to_have_value('http')
+            expect(page.locator('#url')).to_have_value('https://must-not-send.invalid')
+            assert len(sent) == before
+            converted = saved()['history'][-1]
+            assert converted['type'] == 'relation' and converted['environmentId'] == 'flow-env'
+            assert converted['environmentName'] == 'Flow environment'
+            assert converted['tab']['request'].get('type', 'http') == 'http'
+            assert converted['relation_run']['environmentId'] == 'flow-env'
+            passed('before-script conversion displays its relation result and actual execution environment while preserving the HTTP template')
 
             choose('[data-item-id="http-start"]')
             original = saved()['collections'][0]['item'][0]['request']

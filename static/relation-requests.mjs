@@ -167,3 +167,18 @@ export function remapRequestRelationReferences(workspace,update) {
   visitRequestRelations(workspace,relation=>walkRelationSteps(relation.steps,update));
   for(const relation of workspace.relations||[])walkRelationSteps(relation.steps,update);
 }
+
+/** Saving a draft changes its address, including references in restorable copies. */
+export function promoteDraftRequestReferences(workspace,draftId,{collectionId,itemId},{editors=[]}={}) {
+  if(!draftId||!collectionId||!itemId)return;
+  const tabs=[...(workspace.tabs||[]),...editors];
+  remapRequestRelationReferences({...workspace,tabs},step=>{
+    if(step.draftId!==draftId)return;
+    delete step.draftId;step.collectionId=collectionId;step.itemId=itemId;
+  });
+  // Keep a historical template's owner aligned with its repaired self targets.
+  // The request values and received evidence remain the captured values.
+  for(const entry of workspace.history||[])if(entry.tab?.id===draftId&&!entry.tab.itemId){
+    entry.tab.collectionId=collectionId;entry.tab.itemId=itemId;delete entry.tab.pendingFolderId;
+  }
+}
