@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/workspace/tests/ui_asset_update.py", line 209, in <module>
+    main()
+  File "/workspace/tests/ui_asset_update.py", line 64, in main
+    assert count == 1, 'Legacy fixture must remove the actual exported Studio deletion API'
+           ^^^^^^^^^^
+AssertionError: Legacy fixture must remove the actual exported Studio deletion API

@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "mode": "native Chromium HTTP",
+  "checks": [
+    "legacy plans migrate once into normal saved requests with stable step IDs, logs and revisions",
+    "the common execute action runs nested relation requests and only their HTTP children reach the proxy",
+    "relation requests use the same revision and execution history surfaces",
+    "before-script conversion displays its relation result and actual execution environment while preserving the HTTP template",
+    "HTTP and relation settings remain intact through both directions of type switching",
+    "context creation shares the collection and Stop follows the running request across selection changes",
+    "ordinary request duplication creates independent relation and step identities",
+    "a relation draft registers through the ordinary save action without changing its definition identity",
+    "the real isolated Worker creates, edits and sends a relation through requests APIs and legacy pm.relations",
+    "one compact request heading and relation toolbar remain usable at 1440, 390 and 320px",
+    "saved relation requests, nested definitions and results survive reload without duplicate migration"
+  ],
+  "screenshots": [
+    "relation-request-desktop.png",
+    "relation-request-390.png",
+    "relation-request-320.png"
+  ],
+  "page_errors": [],
+  "native_dialogs": [],
+  "proxy_requests": [
+    {
+      "method": "POST",
+      "url": "http://10.240.0.103:18081/echo",
+      "query": [
+        {
+          "key": "stage",
+          "value": "start"
+        }
+      ],
+      "path_variables": {},
+      "headers": [
+        {
+          "key": "X-Flow",
+          "value": "from-relation"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": "{\"keep\":\"payload\"}",
+      "verify_tls": false,
+      "follow_redirects": true,
+      "timeout_ms": 10000
+    },
+    {
+      "method": "POST",
+      "url": "http://10.240.0.103:18081/echo",
+      "query": [
+        {
+          "key": "stage",
+          "value": "start"
+        }
+      ],
+      "path_variables": {},
+      "headers": [
+        {
+          "key": "X-Flow",
+          "value": "from-relation"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": "{\"keep\":\"payload\"}",
+      "verify_tls": false,
+      "follow_redirects": true,
+      "timeout_ms": 10000
+    },
+    {
+      "method": "GET",
+      "url": "http://10.240.0.103:18081/echo",
+      "query": [
+        {
+          "key": "stage",
+          "value": "finish"
+        }
+      ],
+      "path_variables": {},
+      "headers": [],
+      "body": null,
+      "verify_tls": false,
+      "follow_redirects": true,
+      "timeout_ms": 10000
+    }
+  ]
+}

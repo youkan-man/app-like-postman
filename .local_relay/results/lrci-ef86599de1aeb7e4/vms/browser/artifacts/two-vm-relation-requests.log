@@ -1,0 +1,11 @@
+PASS legacy plans migrate once into normal saved requests with stable step IDs, logs and revisions
+PASS the common execute action runs nested relation requests and only their HTTP children reach the proxy
+PASS relation requests use the same revision and execution history surfaces
+PASS before-script conversion displays its relation result and actual execution environment while preserving the HTTP template
+PASS HTTP and relation settings remain intact through both directions of type switching
+PASS context creation shares the collection and Stop follows the running request across selection changes
+PASS ordinary request duplication creates independent relation and step identities
+PASS a relation draft registers through the ordinary save action without changing its definition identity
+PASS the real isolated Worker creates, edits and sends a relation through requests APIs and legacy pm.relations
+PASS one compact request heading and relation toolbar remain usable at 1440, 390 and 320px
+PASS saved relation requests, nested definitions and results survive reload without duplicate migration
